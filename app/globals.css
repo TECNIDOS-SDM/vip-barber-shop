@@ -1,0 +1,28 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-background text-sand antialiased;
+  background-image:
+    radial-gradient(circle at top left, rgba(217, 177, 95, 0.16), transparent 24%),
+    radial-gradient(circle at bottom right, rgba(255, 255, 255, 0.05), transparent 20%),
+    linear-gradient(180deg, #060505 0%, #11100d 100%);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(217, 177, 95, 0.5) transparent;
+}
+
+.glass {
+  @apply border border-[#d9b15f]/15 bg-white/[0.04] backdrop-blur-xl;
+}
