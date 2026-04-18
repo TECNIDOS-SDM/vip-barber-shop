@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { ShieldCheck } from "lucide-react";
 import { AdminLoginForm } from "@/components/admin/admin-login-form";
 import { TopNavigation } from "@/components/shared/top-navigation";
@@ -23,7 +24,15 @@ export default function LoginPage() {
               </p>
             </div>
           </section>
-          <AdminLoginForm />
+          <Suspense
+            fallback={
+              <section className="glass rounded-[2rem] p-6 sm:p-8">
+                <p className="text-sm text-sand/70">Cargando acceso...</p>
+              </section>
+            }
+          >
+            <AdminLoginForm />
+          </Suspense>
         </div>
       </div>
     </main>
