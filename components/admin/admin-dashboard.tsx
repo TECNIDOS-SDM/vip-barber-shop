@@ -133,6 +133,11 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
   async function refreshData() {
     const response = await fetch("/api/admin-dashboard");
     const payload = await response.json();
+
+    if (!response.ok) {
+      throw new Error(payload.error ?? "No fue posible actualizar el panel.");
+    }
+
     const nextReservations = payload.reservations ?? [];
     const freshReservations = nextReservations.filter(
       (reservation: any) => !knownReservationIds.current.has(reservation.id)
@@ -200,7 +205,9 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
 
   useEffect(() => {
     const interval = window.setInterval(() => {
-      void refreshData();
+      void refreshData().catch(() => {
+        // Keep current dashboard data if a background refresh fails.
+      });
     }, 15000);
 
     return () => window.clearInterval(interval);
@@ -282,21 +289,26 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
             : null
         };
 
-        const { error } = editingId
+        const { data, error } = editingId
           ? await supabase
               .from("barberos")
               .update(normalizedBarberForm)
               .eq("id", editingId)
+              .select("id, nombre, foto, whatsapp, telefono, auth_email, activo")
+              .single()
           : await supabase.from("barberos").insert({
               ...normalizedBarberForm,
               activo: true
-            });
+            })
+              .select("id, nombre, foto, whatsapp, telefono, auth_email, activo")
+              .single();
 
         if (error) {
           throw error;
         }
 
         payload = {
+          barber: data,
           accessReady: false,
           message:
             apiError instanceof Error &&
@@ -320,9 +332,23 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
         toast.message(payload.message);
       }
 
+      if (payload.barber) {
+        setBarbers((current) => {
+          const next = editingId
+            ? current.map((barber) =>
+                barber.id === payload.barber.id ? payload.barber : barber
+              )
+            : [payload.barber, ...current];
+
+          return next;
+        });
+      }
+
       setEditingId(null);
       setBarberForm(emptyBarberForm);
-      await refreshData();
+      await refreshData().catch(() => {
+        // Keep local optimistic state if dashboard refresh fails momentarily.
+      });
     } catch (error) {
       toast.error(getUiErrorMessage(error, "No fue posible guardar el barbero."));
     } finally {
