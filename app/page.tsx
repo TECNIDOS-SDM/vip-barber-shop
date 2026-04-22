@@ -4,6 +4,8 @@ import { TopNavigation } from "@/components/shared/top-navigation";
 import { BookingShell } from "@/components/booking/booking-shell";
 import { getPublicBookingData } from "@/lib/queries";
 
+export const revalidate = 60;
+
 export default async function HomePage() {
   const { isConfigured, barbers, reservations, week } =
     await getPublicBookingData();

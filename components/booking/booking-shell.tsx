@@ -20,6 +20,8 @@ import { formatHourDisplay, formatReservationDate } from "@/lib/date";
 import { TIME_SLOTS } from "@/lib/constants";
 import type { Barber, ReservationSlot, ReservationStatus } from "@/types";
 
+const BARBER_FALLBACK_IMAGE = "/vip-barbertop-logo.jpeg";
+
 type BookingShellProps = {
   isConfigured: boolean;
   barbers: Barber[];
@@ -242,11 +244,11 @@ export function BookingShell({
                   <div className="relative mb-4 h-44 overflow-hidden rounded-[1.25rem]">
                     <Image
                       src={
-                        barber.foto ||
-                        "https://images.unsplash.com/photo-1621605815971-fbc98d665033?auto=format&fit=crop&w=900&q=80"
+                        barber.foto || BARBER_FALLBACK_IMAGE
                       }
                       alt={barber.nombre}
                       fill
+                      sizes="(max-width: 640px) 100vw, 50vw"
                       className="object-cover"
                     />
                   </div>
@@ -276,11 +278,11 @@ export function BookingShell({
                 <div className="relative h-16 w-16 overflow-hidden rounded-2xl border border-accent/30">
                   <Image
                     src={
-                      selectedBarber.foto ||
-                      "https://images.unsplash.com/photo-1621605815971-fbc98d665033?auto=format&fit=crop&w=900&q=80"
+                      selectedBarber.foto || BARBER_FALLBACK_IMAGE
                     }
                     alt={selectedBarber.nombre}
                     fill
+                    sizes="64px"
                     className="object-cover"
                   />
                 </div>
