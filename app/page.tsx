@@ -1,4 +1,4 @@
-import { ArrowRight, ShieldCheck, Smartphone, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { Logo } from "@/components/shared/logo";
 import { TopNavigation } from "@/components/shared/top-navigation";
 import { BookingShell } from "@/components/booking/booking-shell";
@@ -19,42 +19,7 @@ export default async function HomePage() {
           <Logo />
         </div>
         <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_0.72fr] lg:items-end">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-accent/30 bg-accent/10 px-4 py-2 text-xs uppercase tracking-[0.3em] text-accent">
-              VIP Barber shop
-            </div>
-            <h2 className="mt-5 max-w-3xl font-[family-name:var(--font-heading)] text-4xl font-bold leading-tight text-sand sm:text-5xl">
-              Reservas premium para VIP Barber shop, listas para celular.
-            </h2>
-            <p className="mt-4 max-w-2xl text-base text-sand/70 sm:text-lg">
-              Tus clientes reservan sin registrarse y tu equipo administra
-              agenda, barberos y disponibilidad desde un panel moderno, rapido y
-              profesional.
-            </p>
-            <div className="mt-6 flex flex-wrap gap-3 text-sm text-sand/70">
-              <a
-                href="#reservas"
-                className="inline-flex items-center gap-2 rounded-full bg-accent px-5 py-3 font-semibold text-ink"
-              >
-                Reservar ahora
-                <ArrowRight className="h-4 w-4" />
-              </a>
-              <span className="inline-flex items-center gap-2 rounded-full bg-white/6 px-4 py-2">
-                <Smartphone className="h-4 w-4 text-accent" />
-                Experiencia movil
-              </span>
-              <span className="inline-flex items-center gap-2 rounded-full bg-white/6 px-4 py-2">
-                <ShieldCheck className="h-4 w-4 text-accent" />
-                Estilo premium
-              </span>
-              <a
-                href="/admin"
-                className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 font-medium text-sand/80"
-              >
-                Panel administrador
-              </a>
-            </div>
-          </div>
+          <div className="hidden lg:block" />
           <div className="glass rounded-[1.75rem] p-5">
             <p className="text-sm text-sand/60">Agenda VIP de la semana</p>
             <div className="mt-4 grid gap-3">
