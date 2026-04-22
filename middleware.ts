@@ -115,12 +115,6 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL(role === "administrador" ? "/admin" : "/", request.url));
   }
 
-  if (pathname.startsWith("/auth/login") && user) {
-    return NextResponse.redirect(
-      new URL(role === "barbero" ? "/barbero" : "/admin", request.url)
-    );
-  }
-
   return response;
 }
 

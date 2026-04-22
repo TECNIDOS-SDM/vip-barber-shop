@@ -225,21 +225,61 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
     setSaving(true);
 
     try {
-      const response = await fetch("/api/barbers", {
-        method: editingId ? "PATCH" : "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          ...barberForm,
-          id: editingId ?? undefined
-        })
-      });
+      let payload: any = null;
 
-      const payload = await response.json();
+      try {
+        const response = await fetch("/api/barbers", {
+          method: editingId ? "PATCH" : "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            ...barberForm,
+            id: editingId ?? undefined
+          })
+        });
 
-      if (!response.ok) {
-        throw new Error(payload.error ?? "No fue posible guardar el barbero.");
+        payload = await response.json();
+
+        if (!response.ok) {
+          throw new Error(payload.error ?? "No fue posible guardar el barbero.");
+        }
+      } catch (apiError) {
+        const supabase = getSupabaseBrowserClient();
+        const normalizedBarberForm = {
+          nombre: barberForm.nombre.trim(),
+          foto: barberForm.foto.trim() || null,
+          whatsapp: barberForm.whatsapp.trim() || null,
+          telefono: barberForm.telefono.trim() || null,
+          auth_email: barberForm.auth_email.trim()
+            ? adminIdentifierToEmail(barberForm.auth_email)
+            : null
+        };
+
+        const { error } = editingId
+          ? await supabase
+              .from("barberos")
+              .update(normalizedBarberForm)
+              .eq("id", editingId)
+          : await supabase.from("barberos").insert({
+              ...normalizedBarberForm,
+              activo: true
+            });
+
+        if (error) {
+          throw error;
+        }
+
+        payload = {
+          accessReady: false,
+          message:
+            apiError instanceof Error &&
+            apiError.message.includes("SUPABASE_SERVICE_ROLE_KEY")
+              ? "Barbero creado. Falta SUPABASE_SERVICE_ROLE_KEY para crear automaticamente su acceso al panel Barberos."
+              : editingId
+                ? "Barbero actualizado correctamente."
+                : "Barbero creado correctamente."
+        };
       }
 
       toast.success(
