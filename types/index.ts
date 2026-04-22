@@ -1,3 +1,11 @@
+export type UserRole = "administrador" | "barbero";
+
+export type ReservationStatus =
+  | "confirmada"
+  | "cancelada"
+  | "cita_fijada"
+  | "bloqueado";
+
 export type Barber = {
   id: string;
   nombre: string;
@@ -8,8 +16,20 @@ export type Barber = {
 };
 
 export type ReservationSlot = {
+  id?: string;
   barbero_id: string;
   fecha: string;
   hora: string;
-  estado: "confirmada" | "cancelada";
+  estado: ReservationStatus;
+  cliente_nombre?: string | null;
+  cliente_whatsapp?: string | null;
+  barberos?: {
+    nombre: string;
+  } | null;
+};
+
+export type ProfileRecord = {
+  user_id: string;
+  rol: UserRole;
+  barbero_id: string | null;
 };

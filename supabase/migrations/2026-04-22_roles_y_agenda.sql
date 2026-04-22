@@ -1,21 +1,5 @@
-create extension if not exists "pgcrypto";
-
-create table if not exists public.administradores (
-  id uuid primary key references auth.users(id) on delete cascade,
-  email text unique not null,
-  created_at timestamptz not null default now()
-);
-
-create table if not exists public.barberos (
-  id uuid primary key default gen_random_uuid(),
-  nombre text not null,
-  foto text,
-  whatsapp text,
-  telefono text,
-  activo boolean not null default true,
-  auth_email text unique,
-  created_at timestamptz not null default now()
-);
+alter table public.barberos
+add column if not exists auth_email text unique;
 
 create table if not exists public.perfiles_usuario (
   user_id uuid primary key references auth.users(id) on delete cascade,
@@ -25,19 +9,12 @@ create table if not exists public.perfiles_usuario (
   updated_at timestamptz not null default now()
 );
 
-create table if not exists public.reservas (
-  id uuid primary key default gen_random_uuid(),
-  barbero_id uuid not null references public.barberos(id) on delete cascade,
-  cliente_nombre text not null,
-  cliente_whatsapp text not null,
-  fecha date not null,
-  hora time not null,
-  estado text not null default 'confirmada' check (
-    estado in ('confirmada', 'cancelada', 'cita_fijada', 'bloqueado')
-  ),
-  created_at timestamptz not null default now(),
-  unique (barbero_id, fecha, hora)
-);
+alter table public.reservas
+drop constraint if exists reservas_estado_check;
+
+alter table public.reservas
+add constraint reservas_estado_check
+check (estado in ('confirmada', 'cancelada', 'cita_fijada', 'bloqueado'));
 
 create or replace function public.current_user_role()
 returns text
@@ -121,17 +98,7 @@ as $$
   order by r.fecha, r.hora;
 $$;
 
-alter table public.administradores enable row level security;
-alter table public.barberos enable row level security;
 alter table public.perfiles_usuario enable row level security;
-alter table public.reservas enable row level security;
-
-drop policy if exists "admins can read admins" on public.administradores;
-create policy "admins can read admins"
-on public.administradores
-for select
-to authenticated
-using (public.is_admin());
 
 drop policy if exists "public can view active barbers" on public.barberos;
 create policy "public can view active barbers"
@@ -167,16 +134,6 @@ to authenticated
 using (public.is_admin())
 with check (public.is_admin());
 
-drop policy if exists "public can create reservations" on public.reservas;
-create policy "public can create reservations"
-on public.reservas
-for insert
-to anon, authenticated
-with check (
-  estado = 'confirmada'
-  and fecha >= current_date - 1
-);
-
 drop policy if exists "admins can view reservations" on public.reservas;
 create policy "admins can view reservations"
 on public.reservas
@@ -202,53 +159,4 @@ using (public.is_admin());
 grant select on public.reservas_publicas to anon, authenticated;
 grant execute on function public.get_barbero_agenda() to authenticated;
 
-insert into storage.buckets (id, name, public)
-values ('barber-photos', 'barber-photos', true)
-on conflict (id) do nothing;
-
-drop policy if exists "public can view barber photos" on storage.objects;
-create policy "public can view barber photos"
-on storage.objects
-for select
-to public
-using (bucket_id = 'barber-photos');
-
-drop policy if exists "admins can upload barber photos" on storage.objects;
-create policy "admins can upload barber photos"
-on storage.objects
-for insert
-to authenticated
-with check (
-  bucket_id = 'barber-photos'
-  and public.is_admin()
-);
-
-drop policy if exists "admins can update barber photos" on storage.objects;
-create policy "admins can update barber photos"
-on storage.objects
-for update
-to authenticated
-using (
-  bucket_id = 'barber-photos'
-  and public.is_admin()
-)
-with check (
-  bucket_id = 'barber-photos'
-  and public.is_admin()
-);
-
-drop policy if exists "admins can delete barber photos" on storage.objects;
-create policy "admins can delete barber photos"
-on storage.objects
-for delete
-to authenticated
-using (
-  bucket_id = 'barber-photos'
-  and public.is_admin()
-);
-
-create index if not exists reservas_fecha_idx on public.reservas (fecha);
-create index if not exists reservas_barbero_fecha_idx on public.reservas (barbero_id, fecha);
 create index if not exists perfiles_usuario_rol_idx on public.perfiles_usuario (rol);
-
-comment on view public.reservas_publicas is 'Vista publica para disponibilidad sin exponer datos de clientes.';

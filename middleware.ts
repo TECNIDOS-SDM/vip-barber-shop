@@ -7,6 +7,45 @@ type CookieToSet = {
   options?: Record<string, unknown>;
 };
 
+type UserRole = "administrador" | "barbero" | null;
+
+async function resolveRole(supabase: ReturnType<typeof createServerClient>) {
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return {
+      user: null,
+      role: null as UserRole
+    };
+  }
+
+  const { data: profile } = await supabase
+    .from("perfiles_usuario")
+    .select("rol")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (profile?.rol === "barbero" || profile?.rol === "administrador") {
+    return {
+      user,
+      role: profile.rol
+    };
+  }
+
+  const { data: admin } = await supabase
+    .from("administradores")
+    .select("id")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  return {
+    user,
+    role: admin ? "administrador" : null
+  };
+}
+
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const response = NextResponse.next({
@@ -35,23 +74,31 @@ export async function middleware(request: NextRequest) {
     }
   });
 
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
+  const { user, role } = await resolveRole(supabase);
 
-  if (pathname.startsWith("/admin") && !user) {
+  if ((pathname.startsWith("/admin") || pathname.startsWith("/barbero")) && !user) {
     const loginUrl = new URL("/auth/login", request.url);
     loginUrl.searchParams.set("next", pathname);
     return NextResponse.redirect(loginUrl);
   }
 
+  if (pathname.startsWith("/admin") && role !== "administrador") {
+    return NextResponse.redirect(new URL(role === "barbero" ? "/barbero" : "/", request.url));
+  }
+
+  if (pathname.startsWith("/barbero") && role !== "barbero") {
+    return NextResponse.redirect(new URL(role === "administrador" ? "/admin" : "/", request.url));
+  }
+
   if (pathname.startsWith("/auth/login") && user) {
-    return NextResponse.redirect(new URL("/admin", request.url));
+    return NextResponse.redirect(
+      new URL(role === "barbero" ? "/barbero" : "/admin", request.url)
+    );
   }
 
   return response;
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/auth/login"]
+  matcher: ["/admin/:path*", "/barbero/:path*", "/auth/login"]
 };

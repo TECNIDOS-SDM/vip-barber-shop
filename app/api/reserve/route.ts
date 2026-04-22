@@ -29,6 +29,31 @@ export async function POST(request: Request) {
       auth: { persistSession: false }
     });
 
+    const { data: existingSlot } = await supabase
+      .from("reservas_publicas")
+      .select("estado")
+      .eq("barbero_id", values.barbero_id)
+      .eq("fecha", values.fecha)
+      .eq("hora", values.hora)
+      .maybeSingle();
+
+    if (existingSlot?.estado) {
+      const messages: Record<string, string> = {
+        confirmada: "Ese horario ya fue reservado. Elige otro.",
+        cita_fijada: "Ese horario tiene una cita fijada manualmente. Elige otro.",
+        bloqueado: "Ese horario esta bloqueado por el administrador."
+      };
+
+      return NextResponse.json(
+        {
+          error:
+            messages[existingSlot.estado] ??
+            "Ese horario no esta disponible en este momento."
+        },
+        { status: 409 }
+      );
+    }
+
     const { error } = await supabase.from("reservas").insert({
       ...values,
       estado: "confirmada"

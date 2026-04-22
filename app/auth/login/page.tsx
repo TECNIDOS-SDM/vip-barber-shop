@@ -19,8 +19,8 @@ export default function LoginPage() {
                 Controla barberos, agenda y reservas desde un solo panel.
               </h2>
               <p className="mt-4 text-sand/70">
-                Usa un usuario administrador creado en Supabase. La web publica
-                sigue abierta para clientes sin registro.
+                Inicia sesion como administrador o como perfil Barberos. La web
+                publica sigue abierta para clientes sin registro.
               </p>
             </div>
           </section>

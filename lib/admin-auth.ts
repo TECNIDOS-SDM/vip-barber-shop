@@ -9,3 +9,11 @@ export function adminIdentifierToEmail(identifier: string) {
 
   return `${value.toLowerCase()}@${ADMIN_LOGIN_DOMAIN}`;
 }
+
+export function getSuggestedCredentials() {
+  return {
+    adminAlias: "Admin123",
+    barberAlias: "Barbero",
+    barberEmail: "barbero@admin.local"
+  };
+}

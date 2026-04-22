@@ -3,7 +3,11 @@
 import { useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { adminIdentifierToEmail } from "@/lib/admin-auth";
+import {
+  adminIdentifierToEmail,
+  getSuggestedCredentials
+} from "@/lib/admin-auth";
+import { getRoleHomePath } from "@/lib/roles";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 
 export function AdminLoginForm() {
@@ -13,6 +17,7 @@ export function AdminLoginForm() {
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const suggestedCredentials = getSuggestedCredentials();
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -30,7 +35,25 @@ export function AdminLoginForm() {
         throw error;
       }
 
-      router.push(next);
+      const {
+        data: { user }
+      } = await supabase.auth.getUser();
+
+      let nextPath = next;
+
+      if (user) {
+        const { data: profile } = await supabase
+          .from("perfiles_usuario")
+          .select("rol")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        nextPath = next === "/admin" || next === "/barbero"
+          ? getRoleHomePath((profile?.rol as "administrador" | "barbero" | null) ?? "administrador")
+          : next;
+      }
+
+      router.push(nextPath);
       router.refresh();
     } catch (error) {
       toast.error(
@@ -45,9 +68,17 @@ export function AdminLoginForm() {
     <section className="glass rounded-[2rem] p-6 sm:p-8">
       <h3 className="text-2xl font-semibold text-sand">Iniciar sesion</h3>
       <p className="mt-2 text-sm text-sand/70">
-        En esta version, cualquier usuario autenticado de Supabase puede entrar
-        al panel. Puedes iniciar con tu correo real o con un alias simple.
+        El sistema detecta automaticamente si eres administrador o parte del
+        equipo Barberos y te redirige al panel correcto.
       </p>
+      <div className="mt-4 rounded-2xl border border-accent/20 bg-accent/10 p-4 text-xs text-sand/80">
+        <p>
+          Admin sugerido: <span className="font-semibold">{suggestedCredentials.adminAlias}</span>
+        </p>
+        <p className="mt-1">
+          Perfil Barberos sugerido: <span className="font-semibold">{suggestedCredentials.barberAlias}</span> / 12345678
+        </p>
+      </div>
       <form className="mt-8 space-y-4" onSubmit={handleSubmit}>
         <div>
           <label className="mb-2 block text-sm text-sand/70">Usuario</label>
