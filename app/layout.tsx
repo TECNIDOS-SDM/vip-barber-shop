@@ -14,6 +14,7 @@ const jakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
+  applicationName: "VIP BarberTop",
   title: "VIP BarberTop | Reservas para barberia",
   description:
     "Sistema profesional de reservas para VIP BarberTop, optimizado para celular."
