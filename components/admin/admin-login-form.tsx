@@ -26,7 +26,7 @@ export function AdminLoginForm() {
     try {
       const supabase = getSupabaseBrowserClient();
       const email = adminIdentifierToEmail(identifier);
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
       });
@@ -34,44 +34,45 @@ export function AdminLoginForm() {
       if (error) {
         throw error;
       }
-
-      const {
-        data: { user }
-      } = await supabase.auth.getUser();
+      const user = data.user;
 
       let nextPath = next;
 
       if (user) {
-        const { data: profile, error: profileError } = await supabase
-          .from("perfiles_usuario")
-          .select("rol")
-          .eq("user_id", user.id)
-          .maybeSingle();
-
-        let resolvedRole: "administrador" | "barbero" | null = null;
-
-        if (!profileError && (profile?.rol === "administrador" || profile?.rol === "barbero")) {
-          resolvedRole = profile.rol;
-        } else {
-          const { data: adminRecord } = await supabase
+        const normalizedEmail = user.email?.trim().toLowerCase() ?? "";
+        const [profileResult, adminResult, barberResult] = await Promise.all([
+          supabase
+            .from("perfiles_usuario")
+            .select("rol")
+            .eq("user_id", user.id)
+            .maybeSingle(),
+          supabase
             .from("administradores")
             .select("id")
             .eq("id", user.id)
-            .maybeSingle();
+            .maybeSingle(),
+          normalizedEmail
+            ? supabase
+                .from("barberos")
+                .select("id")
+                .eq("auth_email", normalizedEmail)
+                .eq("activo", true)
+                .maybeSingle()
+            : Promise.resolve({ data: null, error: null } as const)
+        ]);
 
-          if (adminRecord) {
-            resolvedRole = "administrador";
-          } else {
-            const normalizedEmail = user.email?.trim().toLowerCase();
-            const { data: barberRecord } = await supabase
-              .from("barberos")
-              .select("id")
-              .eq("auth_email", normalizedEmail ?? "")
-              .eq("activo", true)
-              .maybeSingle();
+        let resolvedRole: "administrador" | "barbero" | null = null;
 
-            resolvedRole = barberRecord ? "barbero" : "administrador";
-          }
+        if (
+          !profileResult.error &&
+          (profileResult.data?.rol === "administrador" ||
+            profileResult.data?.rol === "barbero")
+        ) {
+          resolvedRole = profileResult.data.rol;
+        } else if (adminResult.data) {
+          resolvedRole = "administrador";
+        } else {
+          resolvedRole = barberResult.data ? "barbero" : "administrador";
         }
 
         nextPath =

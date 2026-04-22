@@ -8,8 +8,10 @@ import {
   ChevronLeft,
   CheckCircle2,
   Clock3,
-  Lock,
+  Facebook,
+  Instagram,
   MessageCircleMore,
+  Music4,
   Phone,
   Scissors
 } from "lucide-react";
@@ -212,14 +214,9 @@ export function BookingShell({
         {!selectedBarber ? (
           <>
             <div className="mb-5">
-              <p className="text-sm text-sand/60">Reserva guiada</p>
-              <h3 className="mt-2 text-2xl font-semibold text-sand">
-                Elige primero tu barbero
+              <h3 className="text-2xl font-semibold text-sand">
+                Elige tu barbero
               </h3>
-              <p className="mt-2 text-sm text-sand/70">
-                Apenas selecciones un barbero se abre el siguiente paso, sin
-                obligarte a bajar por la pagina.
-              </p>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
@@ -507,20 +504,6 @@ export function BookingShell({
       </section>
 
       <aside className="glass h-fit rounded-[2rem] p-5 sm:p-6">
-        <div className="mb-6">
-          <div className="inline-flex items-center gap-2 rounded-full bg-accent/10 px-3 py-1 text-xs text-accent">
-            <Lock className="h-3.5 w-3.5" />
-            Cliente sin cancelacion
-          </div>
-          <h3 className="mt-4 text-2xl font-semibold text-sand">
-            Reserva guiada y compacta
-          </h3>
-          <p className="mt-2 text-sm text-sand/70">
-            El proceso se abre en el mismo bloque, paso a paso, para que el
-            cliente no tenga que desplazarse hacia abajo innecesariamente.
-          </p>
-        </div>
-
         <div className="rounded-[1.5rem] bg-white/6 p-4 text-sm">
           <p className="font-semibold text-sand">
             {selectedBarber?.nombre ?? "Barbero por definir"}
@@ -541,6 +524,41 @@ export function BookingShell({
           <p className="mt-1 text-sand/70">
             {clienteWhatsapp || "WhatsApp pendiente"}
           </p>
+        </div>
+
+        <div className="mt-5 rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-4">
+          <p className="text-xs uppercase tracking-[0.22em] text-accent/80">
+            Redes sociales
+          </p>
+          <div className="mt-4 flex items-center gap-3">
+            <a
+              href="https://www.instagram.com/vip_barbertop?igsh=MWliYzYwazNxM3JzbQ%3D%3D&utm_source=qr"
+              target="_blank"
+              rel="noreferrer"
+              aria-label="Instagram VIP Barber Top"
+              className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-sand transition hover:border-accent hover:text-accent"
+            >
+              <Instagram className="h-5 w-5" />
+            </a>
+            <a
+              href="https://www.facebook.com/share/1DsXeNLRL1/?mibextid=wwXIfr"
+              target="_blank"
+              rel="noreferrer"
+              aria-label="Facebook VIP Barber Top"
+              className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-sand transition hover:border-accent hover:text-accent"
+            >
+              <Facebook className="h-5 w-5" />
+            </a>
+            <a
+              href="https://www.tiktok.com/@vip_barbertop?_r=1&_t=ZS-95kyenGjuyd"
+              target="_blank"
+              rel="noreferrer"
+              aria-label="TikTok VIP Barber Top"
+              className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-sand transition hover:border-accent hover:text-accent"
+            >
+              <Music4 className="h-5 w-5" />
+            </a>
+          </div>
         </div>
       </aside>
     </div>
