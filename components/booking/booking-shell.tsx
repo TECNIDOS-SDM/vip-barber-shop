@@ -11,7 +11,6 @@ import {
   Facebook,
   Instagram,
   MessageCircleMore,
-  Music4,
   Phone,
   Scissors
 } from "lucide-react";
@@ -58,6 +57,19 @@ const statusStyles: Record<
     legend: "bg-zinc-500"
   }
 };
+
+function TikTokIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      className="h-5 w-5"
+      fill="currentColor"
+    >
+      <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.35V2h-3.12v12.4a2.67 2.67 0 1 1-2.67-2.67c.26 0 .52.04.77.11V8.66a5.8 5.8 0 0 0-.77-.05A5.79 5.79 0 1 0 15.82 14V7.71a7.9 7.9 0 0 0 4.61 1.48V6.11c-.29 0-.57-.03-.84-.08Z" />
+    </svg>
+  );
+}
 
 export function BookingShell({
   isConfigured,
@@ -556,7 +568,7 @@ export function BookingShell({
               aria-label="TikTok VIP Barber Top"
               className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-sand transition hover:border-accent hover:text-accent"
             >
-              <Music4 className="h-5 w-5" />
+              <TikTokIcon />
             </a>
           </div>
         </div>
