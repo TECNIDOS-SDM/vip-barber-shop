@@ -14,6 +14,41 @@ type BarberPayload = {
   access_password?: string | null;
 };
 
+function getReadableErrorMessage(error: unknown, fallback: string) {
+  if (
+    error &&
+    typeof error === "object" &&
+    "code" in error &&
+    (error as { code?: string }).code === "23505"
+  ) {
+    const details =
+      "details" in error && typeof (error as { details?: string }).details === "string"
+        ? (error as { details?: string }).details ?? ""
+        : "";
+
+    if (details.includes("(auth_email)=")) {
+      return "Ese usuario o correo de acceso ya esta asignado a otro barbero. Usa otro diferente o edita el barbero existente.";
+    }
+
+    return "Ya existe un registro con esos datos. Revisa el usuario/correo del barbero.";
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (
+    error &&
+    typeof error === "object" &&
+    "message" in error &&
+    typeof (error as { message?: string }).message === "string"
+  ) {
+    return (error as { message?: string }).message ?? fallback;
+  }
+
+  return fallback;
+}
+
 async function requireAdmin() {
   const supabase = await getSupabaseServerClient();
 
@@ -186,10 +221,7 @@ export async function POST(request: Request) {
   } catch (error) {
     return NextResponse.json(
       {
-        error:
-          error instanceof Error
-            ? error.message
-            : "No fue posible crear el barbero."
+        error: getReadableErrorMessage(error, "No fue posible crear el barbero.")
       },
       { status: 500 }
     );
@@ -257,10 +289,10 @@ export async function PATCH(request: Request) {
   } catch (error) {
     return NextResponse.json(
       {
-        error:
-          error instanceof Error
-            ? error.message
-            : "No fue posible actualizar el barbero."
+        error: getReadableErrorMessage(
+          error,
+          "No fue posible actualizar el barbero."
+        )
       },
       { status: 500 }
     );

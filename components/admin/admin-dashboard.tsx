@@ -43,6 +43,32 @@ type DashboardProps = {
   };
 };
 
+function getUiErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (
+    error &&
+    typeof error === "object" &&
+    "message" in error &&
+    typeof (error as { message?: string }).message === "string"
+  ) {
+    return (error as { message?: string }).message ?? fallback;
+  }
+
+  if (
+    error &&
+    typeof error === "object" &&
+    "details" in error &&
+    typeof (error as { details?: string }).details === "string"
+  ) {
+    return (error as { details?: string }).details ?? fallback;
+  }
+
+  return fallback;
+}
+
 const emptyBarberForm = {
   nombre: "",
   foto: "",
@@ -298,11 +324,7 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
       setBarberForm(emptyBarberForm);
       await refreshData();
     } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "No fue posible guardar el barbero."
-      );
+      toast.error(getUiErrorMessage(error, "No fue posible guardar el barbero."));
     } finally {
       setSaving(false);
     }
