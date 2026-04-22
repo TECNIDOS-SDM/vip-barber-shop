@@ -39,6 +39,20 @@ create table if not exists public.reservas (
   unique (barbero_id, fecha, hora)
 );
 
+create or replace function public.lookup_barbero_id_by_email(user_email text)
+returns uuid
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select id
+  from public.barberos
+  where lower(auth_email) = lower(user_email)
+    and activo = true
+  limit 1;
+$$;
+
 create or replace function public.current_user_role()
 returns text
 language sql
@@ -47,13 +61,11 @@ as $$
   select coalesce(
     (select rol from public.perfiles_usuario where user_id = auth.uid()),
     (select 'administrador' from public.administradores where id = auth.uid()),
-    (
-      select 'barbero'
-      from public.barberos
-      where lower(auth_email) = lower(coalesce(auth.jwt() ->> 'email', ''))
-        and activo = true
-      limit 1
-    ),
+    case
+      when public.lookup_barbero_id_by_email(coalesce(auth.jwt() ->> 'email', '')) is not null
+        then 'barbero'
+      else null
+    end,
     null
   );
 $$;
@@ -87,13 +99,7 @@ as $$
         and rol = 'barbero'
       limit 1
     ),
-    (
-      select id
-      from public.barberos
-      where lower(auth_email) = lower(coalesce(auth.jwt() ->> 'email', ''))
-        and activo = true
-      limit 1
-    )
+    public.lookup_barbero_id_by_email(coalesce(auth.jwt() ->> 'email', ''))
   );
 $$;
 
@@ -161,7 +167,6 @@ to anon, authenticated
 using (
   activo = true
   or public.is_admin()
-  or (public.is_barbero() and id = public.current_barbero_id())
 );
 
 drop policy if exists "admins can manage barbers" on public.barberos;

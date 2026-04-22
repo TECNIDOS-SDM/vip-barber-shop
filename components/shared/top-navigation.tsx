@@ -11,8 +11,8 @@ type TopNavigationProps = {
 };
 
 export function TopNavigation({
-  adminHref = "/auth/login?next=/admin",
-  barberHref = "/auth/login?next=/barbero"
+  adminHref = "/admin",
+  barberHref = "/barbero"
 }: TopNavigationProps) {
   const pathname = usePathname();
 

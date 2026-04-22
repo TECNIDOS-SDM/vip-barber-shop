@@ -41,7 +41,7 @@ export default async function HomePage() {
                 Estilo premium
               </span>
               <a
-                href="/auth/login"
+                href="/admin"
                 className="inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2 font-semibold text-ink"
               >
                 Panel administrador
