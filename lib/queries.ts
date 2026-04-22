@@ -71,7 +71,7 @@ export async function getAdminDashboardData() {
   const weekDates = week.map((item) => item.isoDate);
   const today = week.find((item) => item.isToday)?.isoDate ?? week[0].isoDate;
 
-  const [barbersResult, reservationsResult, todayResult, profilesResult] =
+  const [barbersResult, reservationsResult, profilesResult] =
     await Promise.all([
       supabase
         .from("barberos")
@@ -86,24 +86,20 @@ export async function getAdminDashboardData() {
         .order("fecha")
         .order("hora"),
       supabase
-        .from("reservas")
-        .select(
-          "id, barbero_id, cliente_nombre, cliente_whatsapp, fecha, hora, estado, created_at, barberos(nombre)"
-        )
-        .eq("fecha", today)
-        .order("hora"),
-      supabase
         .from("perfiles_usuario")
         .select("user_id, rol, barbero_id, barberos(nombre)")
         .order("created_at", { ascending: true })
     ]);
 
   const reservations = reservationsResult.data ?? [];
+  const todayReservations = reservations.filter(
+    (reservation) => reservation.fecha === today
+  );
 
   return {
     barbers: (barbersResult.data ?? []) as Barber[],
     reservations,
-    todayReservations: todayResult.data ?? [],
+    todayReservations,
     profiles: profilesResult.error ? [] : profilesResult.data ?? [],
     weeklyStats: {
       totalReservations: reservations.length,
@@ -116,6 +112,45 @@ export async function getAdminDashboardData() {
         reservations.filter(
           (reservation) => reservation.estado === "cita_fijada"
         ).length ?? 0
+    }
+  };
+}
+
+export async function getAdminDashboardShellData() {
+  const supabase = await getSupabaseServerClient();
+
+  if (!supabase) {
+    return {
+      barbers: [] as Barber[],
+      reservations: [] as any[],
+      todayReservations: [] as any[],
+      profiles: [] as any[],
+      weeklyStats: {
+        totalReservations: 0,
+        activeBarbers: 0,
+        blockedSlots: 0,
+        fixedAppointments: 0
+      }
+    };
+  }
+
+  const { data: barbers } = await supabase
+    .from("barberos")
+    .select("id, nombre, foto, whatsapp, telefono, auth_email, activo, created_at")
+    .order("created_at", { ascending: true });
+
+  const barberList = (barbers ?? []) as Barber[];
+
+  return {
+    barbers: barberList,
+    reservations: [] as any[],
+    todayReservations: [] as any[],
+    profiles: [] as any[],
+    weeklyStats: {
+      totalReservations: 0,
+      activeBarbers: barberList.filter((barber) => barber.activo).length,
+      blockedSlots: 0,
+      fixedAppointments: 0
     }
   };
 }

@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { AdminDashboard } from "@/components/admin/admin-dashboard";
 import { getCurrentUserRole } from "@/lib/auth";
-import { getAdminDashboardData } from "@/lib/queries";
+import { getAdminDashboardShellData } from "@/lib/queries";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
 export default async function AdminPage() {
@@ -25,7 +25,7 @@ export default async function AdminPage() {
     redirect(role === "barbero" ? "/barbero" : "/");
   }
 
-  const data = await getAdminDashboardData();
+  const data = await getAdminDashboardShellData();
 
   return <AdminDashboard initialData={data} adminEmail={user.email ?? ""} />;
 }

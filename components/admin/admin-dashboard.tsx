@@ -126,6 +126,11 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
   const [lastReservation, setLastReservation] = useState<any | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
+  const [bootstrapping, setBootstrapping] = useState(
+    initialData.reservations.length === 0 &&
+      initialData.todayReservations.length === 0 &&
+      initialData.profiles.length === 0
+  );
   const knownReservationIds = useRef(
     new Set((initialData.reservations ?? []).map((reservation) => reservation.id))
   );
@@ -163,6 +168,7 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
     setReservations(nextReservations);
     setTodayReservations(payload.todayReservations ?? []);
     setProfiles(payload.profiles ?? []);
+    setBootstrapping(false);
   }
 
   function playNotificationSound() {
@@ -202,6 +208,12 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
       void context.close();
     };
   }
+
+  useEffect(() => {
+    void refreshData().catch(() => {
+      setBootstrapping(false);
+    });
+  }, []);
 
   useEffect(() => {
     const interval = window.setInterval(() => {
@@ -593,6 +605,11 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
               Administra toda la agenda de tu equipo
             </h1>
             <p className="mt-3 text-sm text-sand/70">{adminEmail}</p>
+            {bootstrapping ? (
+              <p className="mt-2 text-sm text-accent/80">
+                Actualizando agenda y reservas...
+              </p>
+            ) : null}
           </div>
           <div className="flex flex-wrap gap-3">
             <div className="glass rounded-2xl px-4 py-3">
