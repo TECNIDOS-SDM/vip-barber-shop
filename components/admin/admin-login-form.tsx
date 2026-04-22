@@ -7,7 +7,6 @@ import {
   adminIdentifierToEmail,
   getSuggestedCredentials
 } from "@/lib/admin-auth";
-import { getRoleHomePath } from "@/lib/roles";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 
 export function AdminLoginForm() {
@@ -26,7 +25,7 @@ export function AdminLoginForm() {
     try {
       const supabase = getSupabaseBrowserClient();
       const email = adminIdentifierToEmail(identifier);
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email,
         password
       });
@@ -34,54 +33,8 @@ export function AdminLoginForm() {
       if (error) {
         throw error;
       }
-      const user = data.user;
 
-      let nextPath = next;
-
-      if (user) {
-        const normalizedEmail = user.email?.trim().toLowerCase() ?? "";
-        const [profileResult, adminResult, barberResult] = await Promise.all([
-          supabase
-            .from("perfiles_usuario")
-            .select("rol")
-            .eq("user_id", user.id)
-            .maybeSingle(),
-          supabase
-            .from("administradores")
-            .select("id")
-            .eq("id", user.id)
-            .maybeSingle(),
-          normalizedEmail
-            ? supabase
-                .from("barberos")
-                .select("id")
-                .eq("auth_email", normalizedEmail)
-                .eq("activo", true)
-                .maybeSingle()
-            : Promise.resolve({ data: null, error: null } as const)
-        ]);
-
-        let resolvedRole: "administrador" | "barbero" | null = null;
-
-        if (
-          !profileResult.error &&
-          (profileResult.data?.rol === "administrador" ||
-            profileResult.data?.rol === "barbero")
-        ) {
-          resolvedRole = profileResult.data.rol;
-        } else if (adminResult.data) {
-          resolvedRole = "administrador";
-        } else {
-          resolvedRole = barberResult.data ? "barbero" : "administrador";
-        }
-
-        nextPath =
-          next === "/admin" || next === "/barbero"
-            ? getRoleHomePath(resolvedRole)
-            : next;
-      }
-
-      router.push(nextPath);
+      router.replace(next);
       router.refresh();
     } catch (error) {
       toast.error(

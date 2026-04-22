@@ -21,11 +21,30 @@ async function resolveRole(supabase: ReturnType<typeof createServerClient>) {
     };
   }
 
-  const { data: profile } = await supabase
-    .from("perfiles_usuario")
-    .select("rol")
-    .eq("user_id", user.id)
-    .maybeSingle();
+  const normalizedEmail = user.email?.trim().toLowerCase() ?? "";
+
+  const [profileResult, adminResult, barberResult] = await Promise.all([
+    supabase
+      .from("perfiles_usuario")
+      .select("rol")
+      .eq("user_id", user.id)
+      .maybeSingle(),
+    supabase
+      .from("administradores")
+      .select("id")
+      .eq("id", user.id)
+      .maybeSingle(),
+    normalizedEmail
+      ? supabase
+          .from("barberos")
+          .select("id")
+          .eq("auth_email", normalizedEmail)
+          .eq("activo", true)
+          .maybeSingle()
+      : Promise.resolve({ data: null, error: null } as const)
+  ]);
+
+  const profile = profileResult.data;
 
   if (profile?.rol === "barbero" || profile?.rol === "administrador") {
     return {
@@ -34,11 +53,7 @@ async function resolveRole(supabase: ReturnType<typeof createServerClient>) {
     };
   }
 
-  const { data: admin } = await supabase
-    .from("administradores")
-    .select("id")
-    .eq("id", user.id)
-    .maybeSingle();
+  const admin = adminResult.data;
 
   if (admin) {
     return {
@@ -47,22 +62,11 @@ async function resolveRole(supabase: ReturnType<typeof createServerClient>) {
     };
   }
 
-  const normalizedEmail = user.email?.trim().toLowerCase();
-
-  if (normalizedEmail) {
-    const { data: barber } = await supabase
-      .from("barberos")
-      .select("id")
-      .eq("auth_email", normalizedEmail)
-      .eq("activo", true)
-      .maybeSingle();
-
-    if (barber) {
-      return {
-        user,
-        role: "barbero" as UserRole
-      };
-    }
+  if (barberResult.data) {
+    return {
+      user,
+      role: "barbero" as UserRole
+    };
   }
 
   return {
