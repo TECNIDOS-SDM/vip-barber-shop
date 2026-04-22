@@ -562,17 +562,17 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
     <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
       <TopNavigation adminHref="/admin" />
       {newReservationCount > 0 ? (
-        <section className="mb-6 rounded-[1.75rem] border border-accent/30 bg-accent/10 p-4 text-ink shadow-glow">
+        <section className="mb-6 rounded-[1.75rem] border border-accent/40 bg-[#20170a] p-4 text-sand shadow-glow">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-start gap-3">
-              <div className="rounded-2xl bg-black/90 p-3 text-accent">
+              <div className="rounded-2xl border border-accent/25 bg-black p-3 text-accent">
                 <Bell className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-sm font-black uppercase tracking-[0.25em]">
+                <p className="text-sm font-black uppercase tracking-[0.25em] text-accent">
                   Nueva reserva
                 </p>
-                <p className="mt-1 text-sm font-medium text-ink/80">
+                <p className="mt-1 text-sm font-medium leading-6 text-sand">
                   {newReservationCount} reserva
                   {newReservationCount > 1 ? "s nuevas" : " nueva"} detectada
                   {lastReservation
@@ -587,7 +587,7 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                 setNewReservationCount(0);
                 setLastReservation(null);
               }}
-              className="rounded-2xl border border-black/10 bg-black/90 px-4 py-3 text-sm font-semibold text-sand"
+              className="rounded-2xl border border-accent/30 bg-accent px-4 py-3 text-sm font-semibold text-ink"
             >
               Marcar como visto
             </button>
