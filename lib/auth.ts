@@ -37,6 +37,28 @@ export async function getCurrentUserRole(
     };
   }
 
+  const normalizedEmail = user.email?.trim().toLowerCase();
+
+  if (normalizedEmail) {
+    const { data: barber } = await supabase
+      .from("barberos")
+      .select("id")
+      .eq("auth_email", normalizedEmail)
+      .eq("activo", true)
+      .maybeSingle();
+
+    if (barber) {
+      return {
+        role: "barbero",
+        profile: {
+          user_id: user.id,
+          rol: "barbero",
+          barbero_id: barber.id
+        }
+      };
+    }
+  }
+
   return {
     role: null,
     profile: null

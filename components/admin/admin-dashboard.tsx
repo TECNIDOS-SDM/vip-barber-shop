@@ -20,6 +20,7 @@ import {
 import Link from "next/link";
 import { toast } from "sonner";
 import { TIME_SLOTS } from "@/lib/constants";
+import { adminIdentifierToEmail, getSuggestedCredentials } from "@/lib/admin-auth";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { TopNavigation } from "@/components/shared/top-navigation";
 import { SignOutButton } from "@/components/shared/sign-out-button";
@@ -46,7 +47,8 @@ const emptyBarberForm = {
   nombre: "",
   foto: "",
   whatsapp: "",
-  telefono: ""
+  telefono: "",
+  auth_email: ""
 };
 
 const emptyScheduleForm = {
@@ -75,6 +77,7 @@ const statusStyles: Record<
 };
 
 export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
+  const suggestedCredentials = getSuggestedCredentials();
   const [barbers, setBarbers] = useState(initialData.barbers);
   const [reservations, setReservations] = useState(initialData.reservations);
   const [todayReservations, setTodayReservations] = useState(
@@ -222,10 +225,16 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
 
     try {
       const supabase = getSupabaseBrowserClient();
+      const normalizedBarberForm = {
+        ...barberForm,
+        auth_email: barberForm.auth_email.trim()
+          ? adminIdentifierToEmail(barberForm.auth_email)
+          : null
+      };
       const { error } = editingId
-        ? await supabase.from("barberos").update(barberForm).eq("id", editingId)
+        ? await supabase.from("barberos").update(normalizedBarberForm).eq("id", editingId)
         : await supabase.from("barberos").insert({
-            ...barberForm,
+            ...normalizedBarberForm,
             activo: true
           });
 
@@ -585,6 +594,24 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                 placeholder="URL de foto o sube una imagen"
                 className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-accent"
               />
+              <input
+                value={barberForm.auth_email}
+                onChange={(event) =>
+                  setBarberForm((current) => ({
+                    ...current,
+                    auth_email: event.target.value
+                  }))
+                }
+                placeholder="Usuario o email de acceso del barbero"
+                className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-accent"
+              />
+              <div className="rounded-2xl border border-accent/15 bg-accent/5 p-4 text-xs text-sand/75">
+                Si escribes un alias como{" "}
+                <span className="font-semibold">{suggestedCredentials.barberAlias}</span>,
+                el sistema lo guarda como{" "}
+                <span className="font-semibold">{suggestedCredentials.barberEmail}</span>.
+                Ese mismo correo debe existir en Supabase Authentication con la clave del barbero.
+              </div>
               <label className="flex cursor-pointer items-center justify-center gap-2 rounded-2xl border border-dashed border-white/15 px-4 py-4 text-sm text-sand/70 transition hover:border-accent">
                 <Upload className="h-4 w-4" />
                 Subir foto a Supabase Storage
@@ -767,28 +794,52 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
               <h2 className="text-xl font-semibold">Perfil Barberos</h2>
             </div>
             <p className="mt-2 text-sm text-sand/60">
-              Credenciales iniciales sugeridas: Usuario Barbero / 12345678. Luego asigna el usuario autenticado al rol barbero en `perfiles_usuario`.
+              Credenciales iniciales sugeridas: Usuario {suggestedCredentials.barberAlias} / 12345678. Ahora puedes habilitar el acceso de cada barbero enlazando su email de login directamente desde este panel.
             </p>
             <div className="mt-4 space-y-3">
-              {profiles.filter((profile) => profile.rol === "barbero").length ? (
-                profiles
-                  .filter((profile) => profile.rol === "barbero")
-                  .map((profile) => (
+              {barbers.length ? (
+                barbers.map((barber) => {
+                  const linkedProfile = profiles.find(
+                    (profile) =>
+                      profile.rol === "barbero" && profile.barbero_id === barber.id
+                  );
+
+                  return (
                     <div
-                      key={profile.user_id}
+                      key={barber.id}
                       className="rounded-2xl border border-white/10 bg-white/5 p-4"
                     >
-                      <p className="font-semibold text-sand">
-                        {profile.barberos?.nombre ?? "Barbero asignado"}
-                      </p>
-                      <p className="mt-1 text-xs uppercase tracking-[0.2em] text-accent/80">
-                        rol: Barberos
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <p className="font-semibold text-sand">{barber.nombre}</p>
+                          <p className="mt-1 text-sm text-sand/65">
+                            Acceso login: {barber.auth_email || "Sin configurar"}
+                          </p>
+                        </div>
+                        <span
+                          className={cn(
+                            "rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]",
+                            barber.auth_email
+                              ? "border border-emerald-400/30 bg-emerald-500/15 text-emerald-100"
+                              : "border border-white/10 bg-white/5 text-sand/60"
+                          )}
+                        >
+                          {barber.auth_email ? "Acceso habilitado" : "Pendiente"}
+                        </span>
+                      </div>
+                      <p className="mt-3 text-xs text-sand/60">
+                        {linkedProfile
+                          ? "Tambien tiene un perfil asociado en perfiles_usuario."
+                          : barber.auth_email
+                            ? "Puede iniciar sesion con ese correo y vera solo su propia agenda."
+                            : "Edita el barbero y agrega su usuario o correo para activarlo."}
                       </p>
                     </div>
-                  ))
+                  );
+                })
               ) : (
                 <div className="rounded-2xl border border-dashed border-white/10 p-4 text-sm text-sand/60">
-                  Aun no hay perfiles del rol Barberos asignados en la base de datos.
+                  Primero crea al menos un barbero para habilitar su acceso al panel Barberos.
                 </div>
               )}
             </div>
@@ -827,6 +878,9 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                       <p className="text-sm text-sand/60">
                         {barber.telefono || "Sin telefono"}
                       </p>
+                      <p className="text-sm text-sand/50">
+                        {barber.auth_email || "Sin acceso configurado"}
+                      </p>
                     </div>
                   </div>
                   <div className="mt-4 flex gap-2">
@@ -838,7 +892,8 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                           nombre: barber.nombre ?? "",
                           foto: barber.foto ?? "",
                           whatsapp: barber.whatsapp ?? "",
-                          telefono: barber.telefono ?? ""
+                          telefono: barber.telefono ?? "",
+                          auth_email: barber.auth_email ?? ""
                         });
                         window.scrollTo({ top: 0, behavior: "smooth" });
                       }}

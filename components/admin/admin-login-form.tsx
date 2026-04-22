@@ -42,15 +42,42 @@ export function AdminLoginForm() {
       let nextPath = next;
 
       if (user) {
-        const { data: profile } = await supabase
+        const { data: profile, error: profileError } = await supabase
           .from("perfiles_usuario")
           .select("rol")
           .eq("user_id", user.id)
           .maybeSingle();
 
-        nextPath = next === "/admin" || next === "/barbero"
-          ? getRoleHomePath((profile?.rol as "administrador" | "barbero" | null) ?? "administrador")
-          : next;
+        let resolvedRole: "administrador" | "barbero" | null = null;
+
+        if (!profileError && (profile?.rol === "administrador" || profile?.rol === "barbero")) {
+          resolvedRole = profile.rol;
+        } else {
+          const { data: adminRecord } = await supabase
+            .from("administradores")
+            .select("id")
+            .eq("id", user.id)
+            .maybeSingle();
+
+          if (adminRecord) {
+            resolvedRole = "administrador";
+          } else {
+            const normalizedEmail = user.email?.trim().toLowerCase();
+            const { data: barberRecord } = await supabase
+              .from("barberos")
+              .select("id")
+              .eq("auth_email", normalizedEmail ?? "")
+              .eq("activo", true)
+              .maybeSingle();
+
+            resolvedRole = barberRecord ? "barbero" : "administrador";
+          }
+        }
+
+        nextPath =
+          next === "/admin" || next === "/barbero"
+            ? getRoleHomePath(resolvedRole)
+            : next;
       }
 
       router.push(nextPath);

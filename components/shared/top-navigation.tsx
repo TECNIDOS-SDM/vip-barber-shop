@@ -7,10 +7,12 @@ import { Logo } from "@/components/shared/logo";
 
 type TopNavigationProps = {
   adminHref?: string;
+  barberHref?: string;
 };
 
 export function TopNavigation({
-  adminHref = "/auth/login"
+  adminHref = "/auth/login?next=/admin",
+  barberHref = "/auth/login?next=/barbero"
 }: TopNavigationProps) {
   const pathname = usePathname();
 
@@ -19,7 +21,7 @@ export function TopNavigation({
       <Link href="/" className="w-fit">
         <Logo />
       </Link>
-      <nav className="grid grid-cols-2 gap-2 rounded-2xl border border-[#d9b15f]/15 bg-black/30 p-1">
+      <nav className="grid grid-cols-3 gap-2 rounded-2xl border border-[#d9b15f]/15 bg-black/30 p-1">
         <Link
           href="/"
           className={cn(
@@ -41,6 +43,17 @@ export function TopNavigation({
           )}
         >
           Admin
+        </Link>
+        <Link
+          href={barberHref}
+          className={cn(
+            "rounded-xl px-4 py-3 text-center text-sm font-semibold transition",
+            pathname.startsWith("/barbero")
+              ? "bg-accent text-ink"
+              : "text-sand/75 hover:bg-white/6 hover:text-sand"
+          )}
+        >
+          Barberos
         </Link>
       </nav>
     </header>

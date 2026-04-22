@@ -40,9 +40,34 @@ async function resolveRole(supabase: ReturnType<typeof createServerClient>) {
     .eq("id", user.id)
     .maybeSingle();
 
+  if (admin) {
+    return {
+      user,
+      role: "administrador" as UserRole
+    };
+  }
+
+  const normalizedEmail = user.email?.trim().toLowerCase();
+
+  if (normalizedEmail) {
+    const { data: barber } = await supabase
+      .from("barberos")
+      .select("id")
+      .eq("auth_email", normalizedEmail)
+      .eq("activo", true)
+      .maybeSingle();
+
+    if (barber) {
+      return {
+        user,
+        role: "barbero" as UserRole
+      };
+    }
+  }
+
   return {
     user,
-    role: admin ? "administrador" : null
+    role: null
   };
 }
 

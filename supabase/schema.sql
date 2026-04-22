@@ -47,6 +47,13 @@ as $$
   select coalesce(
     (select rol from public.perfiles_usuario where user_id = auth.uid()),
     (select 'administrador' from public.administradores where id = auth.uid()),
+    (
+      select 'barbero'
+      from public.barberos
+      where lower(auth_email) = lower(coalesce(auth.jwt() ->> 'email', ''))
+        and activo = true
+      limit 1
+    ),
     null
   );
 $$;
@@ -72,14 +79,27 @@ returns uuid
 language sql
 stable
 as $$
-  select barbero_id
-  from public.perfiles_usuario
-  where user_id = auth.uid()
-    and rol = 'barbero'
-  limit 1;
+  select coalesce(
+    (
+      select barbero_id
+      from public.perfiles_usuario
+      where user_id = auth.uid()
+        and rol = 'barbero'
+      limit 1
+    ),
+    (
+      select id
+      from public.barberos
+      where lower(auth_email) = lower(coalesce(auth.jwt() ->> 'email', ''))
+        and activo = true
+      limit 1
+    )
+  );
 $$;
 
-create or replace view public.reservas_publicas as
+drop view if exists public.reservas_publicas;
+
+create view public.reservas_publicas as
 select
   id,
   barbero_id,
@@ -174,7 +194,7 @@ for insert
 to anon, authenticated
 with check (
   estado = 'confirmada'
-  and fecha >= current_date - 1
+  and fecha >= current_date
 );
 
 drop policy if exists "admins can view reservations" on public.reservas;

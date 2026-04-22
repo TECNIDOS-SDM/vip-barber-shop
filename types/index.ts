@@ -12,6 +12,7 @@ export type Barber = {
   foto: string | null;
   whatsapp: string | null;
   telefono: string | null;
+  auth_email?: string | null;
   activo: boolean;
 };
 

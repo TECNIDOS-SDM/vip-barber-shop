@@ -63,7 +63,7 @@ export async function getAdminDashboardData() {
     await Promise.all([
       supabase
         .from("barberos")
-        .select("id, nombre, foto, whatsapp, telefono, activo, created_at")
+        .select("id, nombre, foto, whatsapp, telefono, auth_email, activo, created_at")
         .order("created_at", { ascending: true }),
       supabase
         .from("reservas")
