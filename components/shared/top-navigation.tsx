@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { useEffect } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/shared/logo";
 
@@ -15,6 +16,14 @@ export function TopNavigation({
   barberHref = "/barbero"
 }: TopNavigationProps) {
   const pathname = usePathname();
+  const router = useRouter();
+
+  useEffect(() => {
+    router.prefetch("/");
+    router.prefetch("/admin");
+    router.prefetch("/barbero");
+    router.prefetch("/auth/login");
+  }, [router]);
 
   return (
     <header className="mb-6 flex flex-col gap-4 rounded-[1.75rem] border border-[#d9b15f]/15 bg-[#120f0b]/80 px-4 py-4 backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between sm:px-5">
