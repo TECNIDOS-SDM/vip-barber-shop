@@ -26,3 +26,34 @@ body {
 .glass {
   @apply border border-[#f0c76e]/15 bg-white/[0.035] backdrop-blur-xl;
 }
+
+[data-sonner-toaster] [data-sonner-toast] {
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.45);
+}
+
+[data-sonner-toaster] [data-sonner-toast][data-type="success"] {
+  background: #112117 !important;
+  color: #f3ffef !important;
+  border-color: rgba(97, 211, 122, 0.35) !important;
+}
+
+[data-sonner-toaster] [data-sonner-toast][data-type="error"] {
+  background: #2a1111 !important;
+  color: #fff0f0 !important;
+  border-color: rgba(255, 107, 107, 0.35) !important;
+}
+
+[data-sonner-toaster] [data-sonner-toast][data-type="warning"] {
+  background: #2b1f0b !important;
+  color: #fff4dd !important;
+  border-color: rgba(240, 199, 110, 0.4) !important;
+}
+
+[data-sonner-toaster] [data-sonner-toast] [data-title] {
+  font-weight: 700;
+}
+
+[data-sonner-toaster] [data-sonner-toast] [data-description] {
+  color: inherit !important;
+  opacity: 0.95;
+}

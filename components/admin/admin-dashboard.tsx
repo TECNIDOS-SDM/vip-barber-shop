@@ -613,19 +613,19 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
           </div>
           <div className="flex flex-wrap gap-3">
             <div className="glass rounded-2xl px-4 py-3">
-              <p className="text-xs text-sand/60">Barberos activos</p>
+              <p className="text-xs text-sand/80">Barberos activos</p>
               <p className="text-2xl font-bold">{weeklyStats.activeBarbers}</p>
             </div>
             <div className="glass rounded-2xl px-4 py-3">
-              <p className="text-xs text-sand/60">Reservas</p>
+              <p className="text-xs text-sand/80">Reservas</p>
               <p className="text-2xl font-bold">{weeklyStats.totalReservations}</p>
             </div>
             <div className="glass rounded-2xl px-4 py-3">
-              <p className="text-xs text-sand/60">Citas fijadas</p>
+              <p className="text-xs text-sand/80">Citas fijadas</p>
               <p className="text-2xl font-bold">{weeklyStats.fixedAppointments}</p>
             </div>
             <div className="glass rounded-2xl px-4 py-3">
-              <p className="text-xs text-sand/60">Bloqueos</p>
+              <p className="text-xs text-sand/80">Bloqueos</p>
               <p className="text-2xl font-bold">{weeklyStats.blockedSlots}</p>
             </div>
             <button
@@ -783,7 +783,7 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
               <Clock3 className="h-4 w-4 text-accent" />
               <h2 className="text-xl font-semibold">Citas fijadas y bloqueos</h2>
             </div>
-            <p className="mt-2 text-sm text-sand/60">
+            <p className="mt-2 text-sm text-sand/75">
               El administrador puede fijar citas manuales, bloquear horas o habilitarlas nuevamente.
             </p>
             <div className="mt-5 space-y-4">
@@ -921,7 +921,7 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
               <ShieldCheck className="h-4 w-4 text-accent" />
               <h2 className="text-xl font-semibold">Perfil Barberos</h2>
             </div>
-            <p className="mt-2 text-sm text-sand/60">
+            <p className="mt-2 text-sm text-sand/75">
               Credenciales iniciales sugeridas: Usuario {suggestedCredentials.barberAlias} / 12345678. Ahora puedes habilitar el acceso de cada barbero enlazando su email de login directamente desde este panel.
             </p>
             <div className="mt-4 space-y-3">
@@ -1060,7 +1060,7 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                 <CheckCircle2 className="h-5 w-5 text-accent" />
                 <h2 className="text-xl font-semibold">Reservas del dia</h2>
               </div>
-              <p className="mt-1 text-sm text-sand/60">
+              <p className="mt-1 text-sm text-sand/75">
                 Vista rapida de las citas, fijadas y bloqueos del dia.
               </p>
             </div>
@@ -1101,7 +1101,7 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                   </div>
                 ))
               ) : (
-                <div className="rounded-2xl border border-dashed border-white/10 p-4 text-sm text-sand/60">
+                <div className="rounded-2xl border border-dashed border-white/10 p-4 text-sm text-sand/75">
                   No hay reservas para hoy.
                 </div>
               )}

@@ -29,7 +29,17 @@ export default function RootLayout({
         className={`${manrope.variable} ${jakarta.variable} min-h-screen font-sans`}
       >
         {children}
-        <Toaster richColors position="top-center" />
+        <Toaster
+          richColors
+          position="top-center"
+          toastOptions={{
+            style: {
+              background: "#17110a",
+              color: "#f7e7bf",
+              border: "1px solid rgba(240, 199, 110, 0.25)"
+            }
+          }}
+        />
       </body>
     </html>
   );
