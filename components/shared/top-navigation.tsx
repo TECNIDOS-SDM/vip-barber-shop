@@ -27,8 +27,8 @@ export function TopNavigation({
           className={cn(
             "rounded-xl px-4 py-3 text-center text-sm font-semibold transition",
             pathname === "/"
-              ? "bg-accent text-ink"
-              : "text-sand/75 hover:bg-white/6 hover:text-sand"
+              ? "bg-accent text-ink shadow-[0_0_24px_rgba(217,177,95,0.28)]"
+              : "bg-accent/90 text-ink hover:brightness-105"
           )}
         >
           Reservar
@@ -36,10 +36,10 @@ export function TopNavigation({
         <Link
           href={adminHref}
           className={cn(
-            "rounded-xl px-4 py-3 text-center text-sm font-semibold transition",
+            "rounded-xl px-4 py-3 text-center text-sm font-medium transition",
             pathname.startsWith("/admin") || pathname.startsWith("/auth/login")
-              ? "bg-accent text-ink"
-              : "text-sand/75 hover:bg-white/6 hover:text-sand"
+              ? "border border-accent/35 bg-white/8 text-sand"
+              : "text-sand/60 hover:bg-white/6 hover:text-sand/85"
           )}
         >
           Admin
@@ -47,10 +47,10 @@ export function TopNavigation({
         <Link
           href={barberHref}
           className={cn(
-            "rounded-xl px-4 py-3 text-center text-sm font-semibold transition",
+            "rounded-xl px-4 py-3 text-center text-sm font-medium transition",
             pathname.startsWith("/barbero")
-              ? "bg-accent text-ink"
-              : "text-sand/75 hover:bg-white/6 hover:text-sand"
+              ? "border border-accent/35 bg-white/8 text-sand"
+              : "text-sand/60 hover:bg-white/6 hover:text-sand/85"
           )}
         >
           Barberos

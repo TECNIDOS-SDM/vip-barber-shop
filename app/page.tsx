@@ -32,6 +32,13 @@ export default async function HomePage() {
               profesional.
             </p>
             <div className="mt-6 flex flex-wrap gap-3 text-sm text-sand/70">
+              <a
+                href="#reservas"
+                className="inline-flex items-center gap-2 rounded-full bg-accent px-5 py-3 font-semibold text-ink"
+              >
+                Reservar ahora
+                <ArrowRight className="h-4 w-4" />
+              </a>
               <span className="inline-flex items-center gap-2 rounded-full bg-white/6 px-4 py-2">
                 <Smartphone className="h-4 w-4 text-accent" />
                 Experiencia movil
@@ -42,10 +49,9 @@ export default async function HomePage() {
               </span>
               <a
                 href="/admin"
-                className="inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2 font-semibold text-ink"
+                className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 font-medium text-sand/80"
               >
                 Panel administrador
-                <ArrowRight className="h-4 w-4" />
               </a>
             </div>
           </div>
@@ -73,7 +79,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="mt-8">
+      <section id="reservas" className="mt-8 scroll-mt-6">
         <BookingShell
           isConfigured={isConfigured}
           barbers={barbers}
