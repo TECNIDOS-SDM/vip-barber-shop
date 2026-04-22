@@ -587,7 +587,7 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
         <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.3em] text-accent/80">
-              VIP Barber shop
+              VIP BarberTop
             </p>
             <h1 className="mt-3 text-4xl font-bold text-sand">
               Administra toda la agenda de tu equipo
