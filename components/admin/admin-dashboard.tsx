@@ -48,7 +48,8 @@ const emptyBarberForm = {
   foto: "",
   whatsapp: "",
   telefono: "",
-  auth_email: ""
+  auth_email: "",
+  access_password: "12345678"
 };
 
 const emptyScheduleForm = {
@@ -224,25 +225,35 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
     setSaving(true);
 
     try {
-      const supabase = getSupabaseBrowserClient();
-      const normalizedBarberForm = {
-        ...barberForm,
-        auth_email: barberForm.auth_email.trim()
-          ? adminIdentifierToEmail(barberForm.auth_email)
-          : null
-      };
-      const { error } = editingId
-        ? await supabase.from("barberos").update(normalizedBarberForm).eq("id", editingId)
-        : await supabase.from("barberos").insert({
-            ...normalizedBarberForm,
-            activo: true
-          });
+      const response = await fetch("/api/barbers", {
+        method: editingId ? "PATCH" : "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          ...barberForm,
+          id: editingId ?? undefined
+        })
+      });
 
-      if (error) {
-        throw error;
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? "No fue posible guardar el barbero.");
       }
 
-      toast.success(editingId ? "Barbero actualizado." : "Barbero creado.");
+      toast.success(
+        editingId
+          ? payload.message || "Barbero actualizado."
+          : payload.message || "Barbero creado."
+      );
+
+      if (payload.accessReady) {
+        toast.success("El acceso al panel Barberos quedo habilitado.");
+      } else if (payload.message) {
+        toast.message(payload.message);
+      }
+
       setEditingId(null);
       setBarberForm(emptyBarberForm);
       await refreshData();
@@ -605,12 +616,24 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                 placeholder="Usuario o email de acceso del barbero"
                 className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-accent"
               />
+              <input
+                value={barberForm.access_password}
+                onChange={(event) =>
+                  setBarberForm((current) => ({
+                    ...current,
+                    access_password: event.target.value
+                  }))
+                }
+                placeholder="Clave de acceso del barbero"
+                className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-accent"
+              />
               <div className="rounded-2xl border border-accent/15 bg-accent/5 p-4 text-xs text-sand/75">
                 Si escribes un alias como{" "}
                 <span className="font-semibold">{suggestedCredentials.barberAlias}</span>,
                 el sistema lo guarda como{" "}
                 <span className="font-semibold">{suggestedCredentials.barberEmail}</span>.
-                Ese mismo correo debe existir en Supabase Authentication con la clave del barbero.
+                Si `SUPABASE_SERVICE_ROLE_KEY` esta configurada, al guardar tambien
+                se crea o enlaza automaticamente el acceso del panel Barberos.
               </div>
               <label className="flex cursor-pointer items-center justify-center gap-2 rounded-2xl border border-dashed border-white/15 px-4 py-4 text-sm text-sand/70 transition hover:border-accent">
                 <Upload className="h-4 w-4" />
@@ -893,7 +916,8 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                           foto: barber.foto ?? "",
                           whatsapp: barber.whatsapp ?? "",
                           telefono: barber.telefono ?? "",
-                          auth_email: barber.auth_email ?? ""
+                          auth_email: barber.auth_email ?? "",
+                          access_password: "12345678"
                         });
                         window.scrollTo({ top: 0, behavior: "smooth" });
                       }}
