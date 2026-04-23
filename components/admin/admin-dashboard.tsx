@@ -22,7 +22,6 @@ import { toast } from "sonner";
 import { TIME_SLOTS } from "@/lib/constants";
 import { adminIdentifierToEmail, getSuggestedCredentials } from "@/lib/admin-auth";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
-import { TopNavigation } from "@/components/shared/top-navigation";
 import { SignOutButton } from "@/components/shared/sign-out-button";
 import { cn } from "@/lib/utils";
 import type { ReservationStatus } from "@/types";
@@ -560,7 +559,6 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-      <TopNavigation adminHref="/admin" />
       {newReservationCount > 0 ? (
         <section className="mb-6 rounded-[1.75rem] border border-accent/40 bg-[#20170a] p-4 text-sand shadow-glow">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

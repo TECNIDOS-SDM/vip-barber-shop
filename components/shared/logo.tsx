@@ -13,12 +13,9 @@ export function Logo() {
           priority
         />
       </div>
-      <div>
-        <p className="text-xs uppercase tracking-[0.35em] text-[#f0c76e]/85">
-          VIP BarberTop
-        </p>
-        <h1 className="text-lg font-semibold text-sand">VIP BarberTop</h1>
-      </div>
+      <h1 className="text-xl font-black uppercase tracking-[0.08em] text-[#facc15] sm:text-2xl">
+        AGENDA TU CITA
+      </h1>
     </div>
   );
 }

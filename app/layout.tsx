@@ -28,6 +28,13 @@ export default function RootLayout({
       <body
         className={`${manrope.variable} ${jakarta.variable} min-h-screen font-sans`}
       >
+        <div className="mx-auto max-w-7xl px-4 pt-6 sm:px-6 lg:px-8">
+          <div className="rounded-[1.75rem] border border-[#facc15]/20 bg-black/55 px-5 py-4 text-center shadow-[0_18px_60px_rgba(0,0,0,0.35)]">
+            <p className="text-3xl font-black uppercase tracking-[0.18em] text-[#facc15] sm:text-4xl">
+              VIP BARBERTOP
+            </p>
+          </div>
+        </div>
         {children}
         <Toaster
           richColors

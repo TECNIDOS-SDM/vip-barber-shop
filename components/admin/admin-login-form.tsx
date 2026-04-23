@@ -12,7 +12,8 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 export function AdminLoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const next = searchParams.get("next") || "/admin";
+  const next = searchParams.get("next") || "/admin-vip";
+  const isBarberSwitch = searchParams.get("switch") === "barbero";
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -24,6 +25,9 @@ export function AdminLoginForm() {
 
     try {
       const supabase = getSupabaseBrowserClient();
+      if (isBarberSwitch) {
+        await supabase.auth.signOut();
+      }
       const email = adminIdentifierToEmail(identifier);
       const { error } = await supabase.auth.signInWithPassword({
         email,
@@ -47,22 +51,35 @@ export function AdminLoginForm() {
 
   return (
     <section className="glass rounded-[2rem] p-6 sm:p-8">
-      <h3 className="text-2xl font-semibold text-sand">Iniciar sesion</h3>
-      <p className="mt-2 text-sm text-sand/70">
-        El sistema detecta automaticamente si eres administrador o parte del
-        equipo Barberos y te redirige al panel correcto.
-      </p>
-      <div className="mt-4 rounded-2xl border border-accent/20 bg-accent/10 p-4 text-xs text-sand/80">
-        <p>
-          Admin sugerido: <span className="font-semibold">{suggestedCredentials.adminAlias}</span>
-        </p>
-        <p className="mt-1">
-          Perfil Barberos sugerido: <span className="font-semibold">{suggestedCredentials.barberAlias}</span> / 12345678
-        </p>
-      </div>
+      <h3 className="text-2xl font-semibold uppercase text-sand">
+        INICIAR SESION
+      </h3>
+      {!isBarberSwitch ? (
+        <>
+          <p className="mt-2 text-sm text-sand/70">
+            El sistema detecta automaticamente si eres administrador o parte del
+            equipo Barberos y te redirige al panel correcto.
+          </p>
+          <div className="mt-4 rounded-2xl border border-accent/20 bg-accent/10 p-4 text-xs text-sand/80">
+            <p>
+              ADMIN SUGERIDO:{" "}
+              <span className="font-semibold">
+                {suggestedCredentials.adminAlias}
+              </span>
+            </p>
+            <p className="mt-1">
+              PERFIL BARBEROS SUGERIDO:{" "}
+              <span className="font-semibold">
+                {suggestedCredentials.barberAlias}
+              </span>{" "}
+              / 12345678
+            </p>
+          </div>
+        </>
+      ) : null}
       <form className="mt-8 space-y-4" onSubmit={handleSubmit}>
         <div>
-          <label className="mb-2 block text-sm text-sand/70">Usuario</label>
+          <label className="mb-2 block text-sm uppercase text-sand/70">USUARIO</label>
           <input
             type="text"
             value={identifier}
@@ -72,7 +89,7 @@ export function AdminLoginForm() {
           />
         </div>
         <div>
-          <label className="mb-2 block text-sm text-sand/70">Contrasena</label>
+          <label className="mb-2 block text-sm uppercase text-sand/70">CONTRASENA</label>
           <input
             type="password"
             value={password}
@@ -86,7 +103,7 @@ export function AdminLoginForm() {
           disabled={loading}
           className="w-full rounded-2xl bg-accent px-4 py-4 text-sm font-bold uppercase tracking-[0.2em] text-ink disabled:opacity-60"
         >
-          {loading ? "Ingresando..." : "Entrar al panel"}
+          {loading ? "INGRESANDO..." : "ENTRAR AL PANEL"}
         </button>
       </form>
     </section>

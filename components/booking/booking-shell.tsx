@@ -6,7 +6,6 @@ import Image from "next/image";
 import {
   CalendarDays,
   ChevronLeft,
-  CheckCircle2,
   Clock3,
   Facebook,
   Instagram,
@@ -18,7 +17,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { formatHourDisplay, formatReservationDate } from "@/lib/date";
 import { TIME_SLOTS } from "@/lib/constants";
-import type { Barber, ReservationSlot, ReservationStatus } from "@/types";
+import type { Barber, ReservationSlot } from "@/types";
 
 const BARBER_FALLBACK_IMAGE = "/vip-barbertop-logo.jpeg";
 
@@ -33,31 +32,6 @@ type BookingShellProps = {
     isoDate: string;
     isToday: boolean;
   }[];
-};
-
-const statusStyles: Record<
-  Exclude<ReservationStatus, "cancelada">,
-  {
-    label: string;
-    button: string;
-    legend: string;
-  }
-> = {
-  confirmada: {
-    label: "Reservado",
-    button: "cursor-not-allowed bg-danger/95 text-white",
-    legend: "bg-danger"
-  },
-  cita_fijada: {
-    label: "Cita fijada",
-    button: "cursor-not-allowed bg-sky-500/95 text-white",
-    legend: "bg-sky-500"
-  },
-  bloqueado: {
-    label: "Bloqueado",
-    button: "cursor-not-allowed bg-zinc-600 text-white",
-    legend: "bg-zinc-500"
-  }
 };
 
 function TikTokIcon() {
@@ -88,7 +62,7 @@ export function BookingShell({
   const [selectedHour, setSelectedHour] = useState("");
   const [clienteNombre, setClienteNombre] = useState("");
   const [clienteWhatsapp, setClienteWhatsapp] = useState("");
-  const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4 | 5 | 6>(1);
+  const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -146,15 +120,7 @@ export function BookingShell({
       setSelectedHour("");
     }
 
-    if (currentStep === 5) {
-      setClienteNombre("");
-    }
-
-    if (currentStep === 6) {
-      setClienteWhatsapp("");
-    }
-
-    setCurrentStep((current) => (current - 1) as 1 | 2 | 3 | 4 | 5 | 6);
+    setCurrentStep((current) => (current - 1) as 1 | 2 | 3 | 4);
   }
 
   async function confirmReservation() {
@@ -171,7 +137,7 @@ export function BookingShell({
 
     if (clienteWhatsapp.trim().length < 7) {
       toast.error("Ingresa un WhatsApp valido.");
-      setCurrentStep(5);
+      setCurrentStep(4);
       return;
     }
 
@@ -199,7 +165,7 @@ export function BookingShell({
       }
 
       toast.success(
-        `Reserva confirmada para el dia ${formatReservationDate(selectedDate)}, a las ${formatHourDisplay(selectedHour)}, con el barbero ${selectedBarber.nombre}.`
+        `Reserva confirmada para el dia ${formatReservationDate(selectedDate)}, a las ${formatHourDisplay(selectedHour)}, con el barbero ${selectedBarber.nombre}. Recuerda que si quieres cancelar tu cita comunicate a nuestro WhatsApp.`
       );
 
       resetBookingFlow();
@@ -223,16 +189,10 @@ export function BookingShell({
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1.08fr_0.92fr]">
+    <div className="grid gap-6">
       <section className="glass rounded-[2rem] p-4 sm:p-6">
         {!selectedBarber ? (
           <>
-            <div className="mb-5">
-              <h3 className="text-2xl font-semibold text-sand">
-                Elige tu barbero
-              </h3>
-            </div>
-
             <div className="grid gap-4 sm:grid-cols-2">
               {barbers.map((barber) => (
                 <button
@@ -288,7 +248,7 @@ export function BookingShell({
                 </div>
                 <div>
                   <p className="text-xs uppercase tracking-[0.25em] text-accent/80">
-                    Paso {currentStep} de 6
+                    PASO {currentStep} DE 4
                   </p>
                   <h3 className="mt-1 text-2xl font-semibold text-sand">
                     {selectedBarber.nombre}
@@ -302,7 +262,7 @@ export function BookingShell({
                 className="inline-flex items-center gap-2 rounded-2xl border border-white/10 px-4 py-3 text-sm text-sand/80"
               >
                 <ChevronLeft className="h-4 w-4" />
-                Retroceder
+                RETROCEDER
               </button>
             </div>
 
@@ -312,7 +272,7 @@ export function BookingShell({
                   <div className="mb-4 flex items-center gap-2">
                     <CalendarDays className="h-4 w-4 text-accent" />
                     <h4 className="font-semibold text-sand">
-                      Selecciona el dia
+                      SELECCIONA EL DIA
                     </h4>
                   </div>
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-7">
@@ -338,13 +298,15 @@ export function BookingShell({
                                 : "border-white/10 bg-white/5 text-sand hover:border-accent/60"
                           )}
                         >
-                          <p className="text-sm font-semibold">{day.shortLabel}</p>
+                          <p className="text-sm font-semibold">
+                            {day.shortLabel.toUpperCase()}
+                          </p>
                           <p className="mt-1 text-xs opacity-75">
                             {isPastDay
-                              ? "No disponible"
-                              : day.isToday
-                                ? "Hoy"
-                                : day.label}
+                        ? "NO DISPONIBLE"
+                        : day.isToday
+                                ? "HOY"
+                                : day.label.toUpperCase()}
                           </p>
                         </button>
                       );
@@ -359,62 +321,43 @@ export function BookingShell({
                     <div className="flex items-center gap-2">
                       <Clock3 className="h-4 w-4 text-accent" />
                       <h4 className="font-semibold text-sand">
-                        Selecciona la hora
+                        SELECCIONA LA HORA
                       </h4>
                     </div>
-                    <div className="flex flex-wrap items-center gap-3 text-xs text-sand/70">
+                    <div className="flex flex-wrap items-center gap-3 text-xs uppercase tracking-[0.16em] text-sand/70">
                       <span className="inline-flex items-center gap-2">
                         <span className="h-3 w-3 rounded-full bg-emerald-500" />
-                        Disponible
+                        DISPONIBLE
                       </span>
-                      {Object.values(statusStyles).map((item) => (
-                        <span
-                          key={item.label}
-                          className="inline-flex items-center gap-2"
-                        >
-                          <span className={`h-3 w-3 rounded-full ${item.legend}`} />
-                          {item.label}
-                        </span>
-                      ))}
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                    {TIME_SLOTS.map((hour) => {
-                      const status = slotMap.get(hour) as Exclude<
-                        ReservationStatus,
-                        "cancelada"
-                      > | undefined;
-                      const isAvailable = !status;
-
+                    {TIME_SLOTS.filter((hour) => !slotMap.has(hour)).map((hour) => {
                       return (
                         <button
                           key={hour}
                           type="button"
-                          disabled={!isAvailable}
                           onClick={() => {
-                            if (!isAvailable) return;
                             setSelectedHour(hour);
                             setCurrentStep(4);
                           }}
                           className={cn(
                             "rounded-2xl px-4 py-4 text-sm font-semibold transition",
-                            isAvailable
-                              ? selectedHour === hour
-                                ? "bg-accent text-ink shadow-glow"
-                                : "bg-emerald-500 text-slate-950 hover:brightness-110"
-                              : statusStyles[status].button
+                            selectedHour === hour
+                              ? "bg-accent text-ink shadow-glow"
+                              : "bg-emerald-500 text-slate-950 hover:brightness-110"
                           )}
                         >
                           <span className="block">{formatHourDisplay(hour)}</span>
-                          {!isAvailable ? (
-                            <span className="mt-1 block text-[11px] opacity-80">
-                              {statusStyles[status].label}
-                            </span>
-                          ) : null}
                         </button>
                       );
                     })}
+                    {TIME_SLOTS.every((hour) => slotMap.has(hour)) ? (
+                      <div className="col-span-full rounded-2xl border border-white/10 bg-white/[0.03] p-5 text-center text-sm font-semibold uppercase tracking-[0.18em] text-sand/70">
+                        NO HAY HORARIOS DISPONIBLES PARA ESTE DIA
+                      </div>
+                    ) : null}
                   </div>
                 </>
               ) : null}
@@ -423,69 +366,36 @@ export function BookingShell({
                 <>
                   <div className="mb-4 flex items-center gap-2">
                     <Scissors className="h-4 w-4 text-accent" />
-                    <h4 className="font-semibold text-sand">Ingresa tu nombre</h4>
-                  </div>
-                  <input
-                    value={clienteNombre}
-                    onChange={(event) => setClienteNombre(event.target.value)}
-                    placeholder="Tu nombre completo"
-                    className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-sand outline-none transition focus:border-accent"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (clienteNombre.trim().length < 3) {
-                        toast.error("Ingresa tu nombre completo.");
-                        return;
-                      }
-                      setCurrentStep(5);
-                    }}
-                    className="mt-4 w-full rounded-2xl bg-accent px-4 py-4 text-sm font-bold uppercase tracking-[0.2em] text-ink"
-                  >
-                    Continuar
-                  </button>
-                </>
-              ) : null}
-
-              {currentStep === 5 ? (
-                <>
-                  <div className="mb-4 flex items-center gap-2">
-                    <MessageCircleMore className="h-4 w-4 text-accent" />
-                    <h4 className="font-semibold text-sand">
-                      Ingresa tu WhatsApp
+                    <h4 className="font-semibold uppercase text-sand">
+                      DATOS DE LA RESERVA
                     </h4>
                   </div>
-                  <input
-                    value={clienteWhatsapp}
-                    onChange={(event) => setClienteWhatsapp(event.target.value)}
-                    placeholder="3001234567"
-                    className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-sand outline-none transition focus:border-accent"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (clienteWhatsapp.trim().length < 7) {
-                        toast.error("Ingresa un WhatsApp valido.");
-                        return;
-                      }
-                      setCurrentStep(6);
-                    }}
-                    className="mt-4 w-full rounded-2xl bg-accent px-4 py-4 text-sm font-bold uppercase tracking-[0.2em] text-ink"
-                  >
-                    Continuar
-                  </button>
-                </>
-              ) : null}
-
-              {currentStep === 6 ? (
-                <>
-                  <div className="mb-4 flex items-center gap-2">
-                    <CheckCircle2 className="h-5 w-5 text-accent" />
-                    <h4 className="font-semibold text-sand">
-                      Confirma tu reserva
-                    </h4>
+                  <div className="grid gap-3">
+                    <label className="grid gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-sand/70">
+                      NOMBRE
+                      <input
+                        value={clienteNombre}
+                        onChange={(event) => setClienteNombre(event.target.value)}
+                        placeholder="Tu nombre completo"
+                        className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-base font-normal normal-case tracking-normal text-sand outline-none transition focus:border-accent"
+                      />
+                    </label>
+                    <label className="grid gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-sand/70">
+                      WHATSAPP
+                      <div className="relative">
+                        <MessageCircleMore className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-accent" />
+                        <input
+                          value={clienteWhatsapp}
+                          onChange={(event) =>
+                            setClienteWhatsapp(event.target.value)
+                          }
+                          placeholder="3001234567"
+                          className="w-full rounded-2xl border border-white/10 bg-white/5 py-4 pl-11 pr-4 text-base font-normal normal-case tracking-normal text-sand outline-none transition focus:border-accent"
+                        />
+                      </div>
+                    </label>
                   </div>
-                  <div className="rounded-[1.5rem] bg-accent/10 p-4 text-sm text-sand">
+                  <div className="mt-4 rounded-[1.5rem] bg-accent/10 p-4 text-sm text-sand">
                     <p>
                       Reserva confirmada para el dia{" "}
                       <span className="font-semibold">
@@ -501,6 +411,10 @@ export function BookingShell({
                       </span>
                       .
                     </p>
+                    <p className="mt-3 font-semibold text-accent">
+                      Recuerda que si quieres cancelar tu cita comunicate a
+                      nuestro WhatsApp.
+                    </p>
                   </div>
                   <button
                     type="button"
@@ -508,7 +422,7 @@ export function BookingShell({
                     onClick={() => void confirmReservation()}
                     className="mt-4 w-full rounded-2xl bg-accent px-4 py-4 text-sm font-bold uppercase tracking-[0.2em] text-ink disabled:opacity-60"
                   >
-                    {loading ? "Confirmando..." : "Confirmar reserva"}
+                    {loading ? "CONFIRMANDO..." : "CONFIRMAR RESERVA"}
                   </button>
                 </>
               ) : null}
@@ -518,31 +432,9 @@ export function BookingShell({
       </section>
 
       <aside className="glass h-fit rounded-[2rem] p-5 sm:p-6">
-        <div className="rounded-[1.5rem] bg-white/6 p-4 text-sm">
-          <p className="font-semibold text-sand">
-            {selectedBarber?.nombre ?? "Barbero por definir"}
-          </p>
-          <p className="mt-1 text-sand/70">
-            {selectedDate
-              ? formatReservationDate(selectedDate)
-              : "Selecciona un dia"}
-          </p>
-          <p className="mt-1 text-sand/70">
-            {selectedHour
-              ? formatHourDisplay(selectedHour)
-              : "Selecciona una hora"}
-          </p>
-          <p className="mt-3 text-sand/70">
-            {clienteNombre || "Nombre pendiente"}
-          </p>
-          <p className="mt-1 text-sand/70">
-            {clienteWhatsapp || "WhatsApp pendiente"}
-          </p>
-        </div>
-
-        <div className="mt-5 rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-4">
+        <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-4">
           <p className="text-xs uppercase tracking-[0.22em] text-accent/80">
-            Redes sociales
+            REDES SOCIALES
           </p>
           <div className="mt-4 flex items-center gap-3">
             <a

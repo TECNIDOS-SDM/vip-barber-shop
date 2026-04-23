@@ -1,5 +1,4 @@
 import { CalendarClock, Scissors } from "lucide-react";
-import { TopNavigation } from "@/components/shared/top-navigation";
 import { SignOutButton } from "@/components/shared/sign-out-button";
 
 type BarberDashboardProps = {
@@ -34,15 +33,14 @@ export function BarberDashboard({
 }: BarberDashboardProps) {
   return (
     <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
-      <TopNavigation adminHref="/auth/login?next=/admin" barberHref="/barbero" />
       <section className="rounded-[2rem] border border-white/10 bg-grain p-6 sm:p-8">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.3em] text-accent/80">
-              Panel Barberos
+              PANEL BARBEROS
             </p>
             <h1 className="mt-3 text-4xl font-bold text-sand">
-              Agenda personal de {initialData.barber?.nombre ?? "Barbero"}
+              AGENDA PERSONAL DE {initialData.barber?.nombre ?? "BARBERO"}
             </h1>
             <p className="mt-3 text-sm text-sand/70">{barberEmail}</p>
             <p className="mt-2 max-w-2xl text-sm text-sand/55">

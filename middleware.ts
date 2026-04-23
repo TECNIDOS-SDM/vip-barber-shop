@@ -105,23 +105,33 @@ export async function middleware(request: NextRequest) {
 
   const { user, role } = await resolveRole(supabase);
 
-  if ((pathname.startsWith("/admin") || pathname.startsWith("/barbero")) && !user) {
+  const isAdminRoute =
+    pathname.startsWith("/admin-vip") || pathname.startsWith("/admin");
+  const isBarberRoute =
+    pathname.startsWith("/gestion-equipo") || pathname.startsWith("/barbero");
+
+  if ((isAdminRoute || isBarberRoute) && !user) {
     const loginUrl = new URL("/auth/login", request.url);
-    loginUrl.searchParams.set("next", pathname);
+    loginUrl.searchParams.set("next", isAdminRoute ? "/admin-vip" : "/gestion-equipo");
     return NextResponse.redirect(loginUrl);
   }
 
-  if (pathname.startsWith("/admin") && role !== "administrador") {
-    return NextResponse.redirect(new URL(role === "barbero" ? "/barbero" : "/", request.url));
+  if (isAdminRoute && role !== "administrador") {
+    return NextResponse.redirect(
+      new URL(role === "barbero" ? "/gestion-equipo" : "/", request.url)
+    );
   }
 
-  if (pathname.startsWith("/barbero") && role !== "barbero") {
-    return NextResponse.redirect(new URL(role === "administrador" ? "/admin" : "/", request.url));
+  if (isBarberRoute && role !== "barbero") {
+    const loginUrl = new URL("/auth/login", request.url);
+    loginUrl.searchParams.set("next", "/gestion-equipo");
+    loginUrl.searchParams.set("switch", "barbero");
+    return NextResponse.redirect(loginUrl);
   }
 
   return response;
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/barbero/:path*"]
+  matcher: ["/admin-vip/:path*", "/gestion-equipo/:path*", "/admin/:path*", "/barbero/:path*"]
 };

@@ -2,6 +2,8 @@ import { unstable_cache } from "next/cache";
 import { getCurrentWeek } from "@/lib/date";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabasePublicClient } from "@/lib/supabase/public";
+import { getSupabaseAdminClient } from "@/lib/supabase/admin";
+import { cleanupExpiredReservations } from "@/lib/reservation-cleanup";
 import type { Barber, ReservationSlot } from "@/types";
 
 const getCachedPublicBookingData = unstable_cache(
@@ -19,6 +21,7 @@ const getCachedPublicBookingData = unstable_cache(
 
     const week = getCurrentWeek();
     const weekDates = week.map((item) => item.isoDate);
+    await cleanupExpiredReservations();
 
     const [barbersResult, reservationsResult] = await Promise.all([
       supabase
@@ -70,6 +73,7 @@ export async function getAdminDashboardData() {
   const week = getCurrentWeek();
   const weekDates = week.map((item) => item.isoDate);
   const today = week.find((item) => item.isToday)?.isoDate ?? week[0].isoDate;
+  await cleanupExpiredReservations();
 
   const [barbersResult, reservationsResult, profilesResult] =
     await Promise.all([
@@ -134,6 +138,8 @@ export async function getAdminDashboardShellData() {
     };
   }
 
+  await cleanupExpiredReservations();
+
   const { data: barbers } = await supabase
     .from("barberos")
     .select("id, nombre, foto, whatsapp, telefono, auth_email, activo, created_at")
@@ -170,6 +176,7 @@ export async function getBarberDashboardData(barberoId: string) {
   const week = getCurrentWeek();
   const weekDates = week.map((item) => item.isoDate);
   const today = week.find((item) => item.isToday)?.isoDate ?? week[0].isoDate;
+  await cleanupExpiredReservations();
 
   const [{ data: reservations }, { data: barber }] = await Promise.all([
     supabase.rpc("get_barbero_agenda"),
@@ -190,6 +197,61 @@ export async function getBarberDashboardData(barberoId: string) {
     currentWeek: week,
     todayTotal:
       filteredReservations.filter((reservation: any) => reservation.fecha === today)
+        .length ?? 0
+  };
+}
+
+export async function getTeamDashboardData() {
+  await cleanupExpiredReservations();
+
+  const week = getCurrentWeek();
+  const weekDates = week.map((item) => item.isoDate);
+  const today = week.find((item) => item.isToday)?.isoDate ?? week[0].isoDate;
+  const adminSupabase = getSupabaseAdminClient();
+  const publicSupabase = getSupabasePublicClient();
+  const supabase = adminSupabase ?? publicSupabase;
+
+  if (!supabase) {
+    return {
+      isConfigured: false,
+      canShowClientNames: false,
+      barbers: [] as Barber[],
+      reservations: [] as any[],
+      currentWeek: week,
+      todayTotal: 0
+    };
+  }
+
+  const [barbersResult, reservationsResult] = await Promise.all([
+    supabase
+      .from("barberos")
+      .select("id, nombre, foto, activo")
+      .eq("activo", true)
+      .order("nombre"),
+    adminSupabase
+      ? adminSupabase
+          .from("reservas")
+          .select("id, barbero_id, cliente_nombre, fecha, hora, estado")
+          .in("fecha", weekDates)
+          .neq("estado", "cancelada")
+          .order("fecha")
+          .order("hora")
+      : publicSupabase
+          ?.from("reservas_publicas")
+          .select("id, barbero_id, fecha, hora, estado")
+          .in("fecha", weekDates)
+  ]);
+
+  const reservations = reservationsResult?.data ?? [];
+
+  return {
+    isConfigured: true,
+    canShowClientNames: Boolean(adminSupabase),
+    barbers: (barbersResult.data ?? []) as Barber[],
+    reservations,
+    currentWeek: week,
+    todayTotal:
+      reservations.filter((reservation: any) => reservation.fecha === today)
         .length ?? 0
   };
 }

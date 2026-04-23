@@ -1,12 +1,10 @@
 import { Suspense } from "react";
 import { AdminLoginForm } from "@/components/admin/admin-login-form";
-import { TopNavigation } from "@/components/shared/top-navigation";
 
 export default function LoginPage() {
   return (
-    <main className="mx-auto flex min-h-screen max-w-6xl items-center px-4 py-8 sm:px-6 lg:px-8">
+    <main className="mx-auto flex min-h-[calc(100vh-8rem)] max-w-6xl items-center px-4 py-8 sm:px-6 lg:px-8">
       <div className="w-full">
-        <TopNavigation />
         <div className="mx-auto w-full max-w-xl">
           <Suspense
             fallback={

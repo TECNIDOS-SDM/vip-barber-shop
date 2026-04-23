@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
+import { cleanupExpiredReservations } from "@/lib/reservation-cleanup";
 
 const schema = z.object({
   barbero_id: z.string().uuid(),
@@ -14,6 +15,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const values = schema.parse(body);
+    await cleanupExpiredReservations();
 
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
