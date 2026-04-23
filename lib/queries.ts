@@ -189,7 +189,14 @@ export async function getBarberDashboardData(barberoId: string) {
   await cleanupExpiredReservations();
 
   const [{ data: reservations }, { data: barber }] = await Promise.all([
-    supabase.rpc("get_barbero_agenda"),
+    supabase
+      .from("reservas")
+      .select("id, cliente_nombre, fecha, hora, estado")
+      .eq("barbero_id", barberoId)
+      .in("fecha", weekDates)
+      .neq("estado", "cancelada")
+      .order("fecha")
+      .order("hora"),
     supabase
       .from("barberos")
       .select("id, nombre, foto")
@@ -197,9 +204,7 @@ export async function getBarberDashboardData(barberoId: string) {
       .maybeSingle()
   ]);
 
-  const filteredReservations =
-    reservations?.filter((reservation: any) => weekDates.includes(reservation.fecha)) ??
-    [];
+  const filteredReservations = reservations ?? [];
 
   return {
     barber,
