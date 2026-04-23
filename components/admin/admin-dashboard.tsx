@@ -23,7 +23,9 @@ import { TIME_SLOTS } from "@/lib/constants";
 import { adminIdentifierToEmail } from "@/lib/admin-auth";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { SignOutButton } from "@/components/shared/sign-out-button";
+import { Logo } from "@/components/shared/logo";
 import { cn } from "@/lib/utils";
+import { buildWhatsAppUrl } from "@/lib/whatsapp";
 import type { ReservationStatus } from "@/types";
 
 type DashboardProps = {
@@ -72,7 +74,6 @@ const emptyBarberForm = {
   nombre: "",
   foto: "",
   whatsapp: "",
-  telefono: "",
   auth_email: "",
   access_password: "12345678"
 };
@@ -293,7 +294,6 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
           nombre: barberForm.nombre.trim(),
           foto: barberForm.foto.trim() || null,
           whatsapp: barberForm.whatsapp.trim() || null,
-          telefono: barberForm.telefono.trim() || null,
           auth_email: barberForm.auth_email.trim()
             ? adminIdentifierToEmail(barberForm.auth_email)
             : null,
@@ -596,9 +596,7 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
       <section className="rounded-[2rem] border border-white/10 bg-grain p-6 sm:p-8">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-xs uppercase tracking-[0.3em] text-accent/80">
-              VIP BarberTop
-            </p>
+            <Logo title="PANEL ADMIN" />
             <h1 className="mt-3 text-4xl font-bold text-sand">
               Administra toda la agenda de tu equipo
             </h1>
@@ -684,17 +682,6 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                   }))
                 }
                 placeholder="WhatsApp"
-                className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-accent"
-              />
-              <input
-                value={barberForm.telefono}
-                onChange={(event) =>
-                  setBarberForm((current) => ({
-                    ...current,
-                    telefono: event.target.value
-                  }))
-                }
-                placeholder="Telefono"
                 className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-accent"
               />
               <input
@@ -941,6 +928,16 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                           <p className="mt-1 text-sm text-sand/65">
                             Clave: {barber.access_password || "Sin clave guardada"}
                           </p>
+                          {barber.whatsapp ? (
+                            <a
+                              href={buildWhatsAppUrl(barber.whatsapp)}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="mt-1 inline-flex text-sm text-accent underline-offset-4 hover:underline"
+                            >
+                              WhatsApp: {barber.whatsapp}
+                            </a>
+                          ) : null}
                         </div>
                         <span
                           className={cn(
@@ -999,10 +996,18 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                     <div className="min-w-0 flex-1">
                       <p className="font-semibold">{barber.nombre}</p>
                       <p className="mt-1 text-sm text-sand/60">
-                        {barber.whatsapp || "Sin WhatsApp"}
-                      </p>
-                      <p className="text-sm text-sand/60">
-                        {barber.telefono || "Sin telefono"}
+                        {barber.whatsapp ? (
+                          <a
+                            href={buildWhatsAppUrl(barber.whatsapp)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-accent underline-offset-4 hover:underline"
+                          >
+                            WhatsApp: {barber.whatsapp}
+                          </a>
+                        ) : (
+                          "Sin WhatsApp"
+                        )}
                       </p>
                       <p className="text-sm text-sand/50">
                         Usuario: {barber.auth_email || "Sin acceso configurado"}
@@ -1021,7 +1026,6 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                           nombre: barber.nombre ?? "",
                           foto: barber.foto ?? "",
                           whatsapp: barber.whatsapp ?? "",
-                          telefono: barber.telefono ?? "",
                           auth_email: barber.auth_email ?? "",
                           access_password: barber.access_password ?? "12345678"
                         });
@@ -1095,9 +1099,14 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                       {reservation.barberos?.nombre} - {reservation.hora}
                     </p>
                     {reservation.estado !== "bloqueado" ? (
-                      <p className="text-sm text-sand/55">
+                      <a
+                        href={buildWhatsAppUrl(reservation.cliente_whatsapp)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-sm text-accent underline-offset-4 hover:underline"
+                      >
                         {reservation.cliente_whatsapp}
-                      </p>
+                      </a>
                     ) : null}
                   </div>
                 ))
@@ -1164,9 +1173,14 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                       {reservation.barberos?.nombre} - {reservation.fecha} - {reservation.hora}
                     </p>
                     {reservation.estado !== "bloqueado" ? (
-                      <p className="text-sm text-sand/55">
+                      <a
+                        href={buildWhatsAppUrl(reservation.cliente_whatsapp)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-sm text-accent underline-offset-4 hover:underline"
+                      >
                         {reservation.cliente_whatsapp}
-                      </p>
+                      </a>
                     ) : null}
                   </div>
                   <button

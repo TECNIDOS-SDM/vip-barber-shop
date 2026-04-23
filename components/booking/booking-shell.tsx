@@ -10,13 +10,13 @@ import {
   Facebook,
   Instagram,
   MessageCircleMore,
-  Phone,
   Scissors
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { formatHourDisplay, formatReservationDate } from "@/lib/date";
 import { TIME_SLOTS } from "@/lib/constants";
+import { buildWhatsAppUrl } from "@/lib/whatsapp";
 import type { Barber, ReservationSlot } from "@/types";
 
 const BARBER_FALLBACK_IMAGE = "/vip-barbertop-logo.jpeg";
@@ -195,39 +195,41 @@ export function BookingShell({
           <>
             <div className="grid gap-4 sm:grid-cols-2">
               {barbers.map((barber) => (
-                <button
+                <div
                   key={barber.id}
-                  type="button"
-                  onClick={() => selectBarber(barber)}
                   className="glass animate-rise overflow-hidden rounded-[1.75rem] border p-3 text-left transition duration-300 hover:-translate-y-1 hover:border-accent/60"
                 >
-                  <div className="relative mb-4 h-44 overflow-hidden rounded-[1.25rem]">
-                    <Image
-                      src={
-                        barber.foto || BARBER_FALLBACK_IMAGE
-                      }
-                      alt={barber.nombre}
-                      fill
-                      sizes="(max-width: 640px) 100vw, 50vw"
-                      className="object-cover"
-                    />
-                  </div>
-                  <h3 className="font-semibold text-sand">{barber.nombre}</h3>
+                  <button
+                    type="button"
+                    onClick={() => selectBarber(barber)}
+                    className="w-full text-left"
+                  >
+                    <div className="relative mb-4 h-44 overflow-hidden rounded-[1.25rem]">
+                      <Image
+                        src={barber.foto || BARBER_FALLBACK_IMAGE}
+                        alt={barber.nombre}
+                        fill
+                        sizes="(max-width: 640px) 100vw, 50vw"
+                        className="object-cover"
+                      />
+                    </div>
+                    <h3 className="font-semibold text-sand">{barber.nombre}</h3>
+                  </button>
                   <div className="mt-3 flex flex-wrap gap-2 text-xs text-sand/70">
                     {barber.whatsapp ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-white/6 px-3 py-1">
+                      <a
+                        href={buildWhatsAppUrl(barber.whatsapp)}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={(event) => event.stopPropagation()}
+                        className="inline-flex items-center gap-1 rounded-full bg-white/6 px-3 py-1 text-accent underline-offset-4 hover:underline"
+                      >
                         <MessageCircleMore className="h-3.5 w-3.5" />
                         {barber.whatsapp}
-                      </span>
-                    ) : null}
-                    {barber.telefono ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-white/6 px-3 py-1">
-                        <Phone className="h-3.5 w-3.5" />
-                        {barber.telefono}
-                      </span>
+                      </a>
                     ) : null}
                   </div>
-                </button>
+                </div>
               ))}
             </div>
           </>

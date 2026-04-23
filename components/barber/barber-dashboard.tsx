@@ -1,5 +1,6 @@
 import { CalendarClock, Scissors } from "lucide-react";
 import { SignOutButton } from "@/components/shared/sign-out-button";
+import { Logo } from "@/components/shared/logo";
 
 type BarberDashboardProps = {
   barberEmail: string;
@@ -36,9 +37,7 @@ export function BarberDashboard({
       <section className="rounded-[2rem] border border-white/10 bg-grain p-6 sm:p-8">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-xs uppercase tracking-[0.3em] text-accent/80">
-              PANEL BARBEROS
-            </p>
+            <Logo title="PANEL BARBEROS" />
             <h1 className="mt-3 text-4xl font-bold text-sand">
               AGENDA PERSONAL DE {initialData.barber?.nombre ?? "BARBERO"}
             </h1>

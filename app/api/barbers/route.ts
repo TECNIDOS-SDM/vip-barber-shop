@@ -142,6 +142,30 @@ async function syncBarberAccess(
     }
 
     authUserId = data.user.id;
+  } else {
+    const updates: {
+      email?: string;
+      password?: string;
+      user_metadata?: Record<string, string>;
+    } = {
+      email: authEmail,
+      user_metadata: {
+        role: "barbero"
+      }
+    };
+
+    if (accessPassword) {
+      updates.password = accessPassword;
+    }
+
+    const { error } = await adminSupabase.auth.admin.updateUserById(
+      authUserId,
+      updates
+    );
+
+    if (error) {
+      throw error;
+    }
   }
 
   const { error: profileError } = await (adminSupabase as any)
