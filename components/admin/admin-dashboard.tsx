@@ -20,7 +20,7 @@ import {
 import Link from "next/link";
 import { toast } from "sonner";
 import { TIME_SLOTS } from "@/lib/constants";
-import { adminIdentifierToEmail, getSuggestedCredentials } from "@/lib/admin-auth";
+import { adminIdentifierToEmail } from "@/lib/admin-auth";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { SignOutButton } from "@/components/shared/sign-out-button";
 import { cn } from "@/lib/utils";
@@ -103,7 +103,6 @@ const statusStyles: Record<
 };
 
 export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
-  const suggestedCredentials = getSuggestedCredentials();
   const [barbers, setBarbers] = useState(initialData.barbers);
   const [reservations, setReservations] = useState(initialData.reservations);
   const [todayReservations, setTodayReservations] = useState(
@@ -297,7 +296,8 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
           telefono: barberForm.telefono.trim() || null,
           auth_email: barberForm.auth_email.trim()
             ? adminIdentifierToEmail(barberForm.auth_email)
-            : null
+            : null,
+          access_password: barberForm.access_password.trim() || "12345678"
         };
 
         const { data, error } = editingId
@@ -305,13 +305,13 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
               .from("barberos")
               .update(normalizedBarberForm)
               .eq("id", editingId)
-              .select("id, nombre, foto, whatsapp, telefono, auth_email, activo")
+              .select("id, nombre, foto, whatsapp, telefono, auth_email, access_password, activo")
               .single()
           : await supabase.from("barberos").insert({
               ...normalizedBarberForm,
               activo: true
             })
-              .select("id, nombre, foto, whatsapp, telefono, auth_email, activo")
+              .select("id, nombre, foto, whatsapp, telefono, auth_email, access_password, activo")
               .single();
 
         if (error) {
@@ -731,12 +731,8 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                 className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-accent"
               />
               <div className="rounded-2xl border border-accent/15 bg-accent/5 p-4 text-xs text-sand/75">
-                Si escribes un alias como{" "}
-                <span className="font-semibold">{suggestedCredentials.barberAlias}</span>,
-                el sistema lo guarda como{" "}
-                <span className="font-semibold">{suggestedCredentials.barberEmail}</span>.
-                Si `SUPABASE_SERVICE_ROLE_KEY` esta configurada, al guardar tambien
-                se crea o enlaza automaticamente el acceso del panel Barberos.
+                Guarda aqui el usuario y la clave que le vas a entregar al
+                barbero. El administrador podra verlos luego en este panel.
               </div>
               <label className="flex cursor-pointer items-center justify-center gap-2 rounded-2xl border border-dashed border-white/15 px-4 py-4 text-sm text-sand/70 transition hover:border-accent">
                 <Upload className="h-4 w-4" />
@@ -920,7 +916,8 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
               <h2 className="text-xl font-semibold">Perfil Barberos</h2>
             </div>
             <p className="mt-2 text-sm text-sand/75">
-              Credenciales iniciales sugeridas: Usuario {suggestedCredentials.barberAlias} / 12345678. Ahora puedes habilitar el acceso de cada barbero enlazando su email de login directamente desde este panel.
+              Aqui puedes consultar el usuario y la clave de cada barbero para
+              entregarselos cuando necesiten entrar a su panel.
             </p>
             <div className="mt-4 space-y-3">
               {barbers.length ? (
@@ -940,6 +937,9 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                           <p className="font-semibold text-sand">{barber.nombre}</p>
                           <p className="mt-1 text-sm text-sand/65">
                             Acceso login: {barber.auth_email || "Sin configurar"}
+                          </p>
+                          <p className="mt-1 text-sm text-sand/65">
+                            Clave: {barber.access_password || "Sin clave guardada"}
                           </p>
                         </div>
                         <span
@@ -1005,7 +1005,10 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                         {barber.telefono || "Sin telefono"}
                       </p>
                       <p className="text-sm text-sand/50">
-                        {barber.auth_email || "Sin acceso configurado"}
+                        Usuario: {barber.auth_email || "Sin acceso configurado"}
+                      </p>
+                      <p className="text-sm text-sand/50">
+                        Clave: {barber.access_password || "Sin clave guardada"}
                       </p>
                     </div>
                   </div>
@@ -1020,7 +1023,7 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                           whatsapp: barber.whatsapp ?? "",
                           telefono: barber.telefono ?? "",
                           auth_email: barber.auth_email ?? "",
-                          access_password: "12345678"
+                          access_password: barber.access_password ?? "12345678"
                         });
                         window.scrollTo({ top: 0, behavior: "smooth" });
                       }}

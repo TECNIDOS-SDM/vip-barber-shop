@@ -14,6 +14,7 @@ create table if not exists public.barberos (
   telefono text,
   activo boolean not null default true,
   auth_email text unique,
+  access_password text,
   created_at timestamptz not null default now()
 );
 

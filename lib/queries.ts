@@ -6,6 +6,22 @@ import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { cleanupExpiredReservations } from "@/lib/reservation-cleanup";
 import type { Barber, ReservationSlot } from "@/types";
 
+async function fetchAdminBarbers(supabase: any) {
+  const withPassword = await supabase
+    .from("barberos")
+    .select("id, nombre, foto, whatsapp, telefono, auth_email, access_password, activo, created_at")
+    .order("created_at", { ascending: true });
+
+  if (!withPassword.error) {
+    return withPassword;
+  }
+
+  return supabase
+    .from("barberos")
+    .select("id, nombre, foto, whatsapp, telefono, auth_email, activo, created_at")
+    .order("created_at", { ascending: true });
+}
+
 const getCachedPublicBookingData = unstable_cache(
   async () => {
     const supabase = getSupabasePublicClient();
@@ -77,10 +93,7 @@ export async function getAdminDashboardData() {
 
   const [barbersResult, reservationsResult, profilesResult] =
     await Promise.all([
-      supabase
-        .from("barberos")
-        .select("id, nombre, foto, whatsapp, telefono, auth_email, activo, created_at")
-        .order("created_at", { ascending: true }),
+      fetchAdminBarbers(supabase),
       supabase
         .from("reservas")
         .select(
@@ -108,7 +121,7 @@ export async function getAdminDashboardData() {
     weeklyStats: {
       totalReservations: reservations.length,
       activeBarbers:
-        barbersResult.data?.filter((barber) => barber.activo).length ?? 0,
+        barbersResult.data?.filter((barber: Barber) => barber.activo).length ?? 0,
       blockedSlots:
         reservations.filter((reservation) => reservation.estado === "bloqueado")
           .length ?? 0,
@@ -140,10 +153,7 @@ export async function getAdminDashboardShellData() {
 
   await cleanupExpiredReservations();
 
-  const { data: barbers } = await supabase
-    .from("barberos")
-    .select("id, nombre, foto, whatsapp, telefono, auth_email, activo, created_at")
-    .order("created_at", { ascending: true });
+  const { data: barbers } = await fetchAdminBarbers(supabase);
 
   const barberList = (barbers ?? []) as Barber[];
 

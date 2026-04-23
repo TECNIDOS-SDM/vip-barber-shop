@@ -191,22 +191,36 @@ export async function POST(request: Request) {
         ? adminIdentifierToEmail(payload.auth_email)
         : null;
 
-    const { data: barber, error } = await adminCheck.supabase
+    const insertPayload = {
+      nombre,
+      foto: payload.foto?.trim() || null,
+      whatsapp: payload.whatsapp?.trim() || null,
+      telefono: payload.telefono?.trim() || null,
+      auth_email: authEmail,
+      access_password: payload.access_password?.trim() || "12345678",
+      activo: true
+    };
+
+    let insertResult = await adminCheck.supabase
       .from("barberos")
-      .insert({
-        nombre,
-        foto: payload.foto?.trim() || null,
-        whatsapp: payload.whatsapp?.trim() || null,
-        telefono: payload.telefono?.trim() || null,
-        auth_email: authEmail,
-        activo: true
-      })
-      .select("id, nombre, foto, whatsapp, telefono, auth_email, activo")
+      .insert(insertPayload)
+      .select("id, nombre, foto, whatsapp, telefono, auth_email, access_password, activo")
       .single();
 
-    if (error) {
-      throw error;
+    if (insertResult.error && getReadableErrorMessage(insertResult.error, "").includes("access_password")) {
+      const { access_password: _accessPassword, ...fallbackPayload } = insertPayload;
+      insertResult = await adminCheck.supabase
+        .from("barberos")
+        .insert(fallbackPayload)
+        .select("id, nombre, foto, whatsapp, telefono, auth_email, activo")
+        .single();
     }
+
+    if (insertResult.error) {
+      throw insertResult.error;
+    }
+
+    const barber = insertResult.data;
 
     const access = await syncBarberAccess(
       barber.id,
@@ -259,22 +273,37 @@ export async function PATCH(request: Request) {
         ? adminIdentifierToEmail(payload.auth_email)
         : null;
 
-    const { data: barber, error } = await adminCheck.supabase
+    const updatePayload = {
+      nombre,
+      foto: payload.foto?.trim() || null,
+      whatsapp: payload.whatsapp?.trim() || null,
+      telefono: payload.telefono?.trim() || null,
+      auth_email: authEmail,
+      access_password: payload.access_password?.trim() || "12345678"
+    };
+
+    let updateResult = await adminCheck.supabase
       .from("barberos")
-      .update({
-        nombre,
-        foto: payload.foto?.trim() || null,
-        whatsapp: payload.whatsapp?.trim() || null,
-        telefono: payload.telefono?.trim() || null,
-        auth_email: authEmail
-      })
+      .update(updatePayload)
       .eq("id", payload.id)
-      .select("id, nombre, foto, whatsapp, telefono, auth_email, activo")
+      .select("id, nombre, foto, whatsapp, telefono, auth_email, access_password, activo")
       .single();
 
-    if (error) {
-      throw error;
+    if (updateResult.error && getReadableErrorMessage(updateResult.error, "").includes("access_password")) {
+      const { access_password: _accessPassword, ...fallbackPayload } = updatePayload;
+      updateResult = await adminCheck.supabase
+        .from("barberos")
+        .update(fallbackPayload)
+        .eq("id", payload.id)
+        .select("id, nombre, foto, whatsapp, telefono, auth_email, activo")
+        .single();
     }
+
+    if (updateResult.error) {
+      throw updateResult.error;
+    }
+
+    const barber = updateResult.data;
 
     const access = await syncBarberAccess(
       barber.id,

@@ -3,10 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import {
-  adminIdentifierToEmail,
-  getSuggestedCredentials
-} from "@/lib/admin-auth";
+import { adminIdentifierToEmail } from "@/lib/admin-auth";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 
 export function AdminLoginForm() {
@@ -17,7 +14,6 @@ export function AdminLoginForm() {
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const suggestedCredentials = getSuggestedCredentials();
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -54,29 +50,6 @@ export function AdminLoginForm() {
       <h3 className="text-2xl font-semibold uppercase text-sand">
         INICIAR SESION
       </h3>
-      {!isBarberSwitch ? (
-        <>
-          <p className="mt-2 text-sm text-sand/70">
-            El sistema detecta automaticamente si eres administrador o parte del
-            equipo Barberos y te redirige al panel correcto.
-          </p>
-          <div className="mt-4 rounded-2xl border border-accent/20 bg-accent/10 p-4 text-xs text-sand/80">
-            <p>
-              ADMIN SUGERIDO:{" "}
-              <span className="font-semibold">
-                {suggestedCredentials.adminAlias}
-              </span>
-            </p>
-            <p className="mt-1">
-              PERFIL BARBEROS SUGERIDO:{" "}
-              <span className="font-semibold">
-                {suggestedCredentials.barberAlias}
-              </span>{" "}
-              / 12345678
-            </p>
-          </div>
-        </>
-      ) : null}
       <form className="mt-8 space-y-4" onSubmit={handleSubmit}>
         <div>
           <label className="mb-2 block text-sm uppercase text-sand/70">USUARIO</label>
