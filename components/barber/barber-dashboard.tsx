@@ -41,7 +41,7 @@ function CollapsibleSection({
   title,
   icon,
   children,
-  defaultOpen = true
+  defaultOpen = false
 }: CollapsibleSectionProps) {
   return (
     <details open={defaultOpen} className={cn("glass rounded-[2rem] p-6")}>

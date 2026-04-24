@@ -56,7 +56,7 @@ function CollapsibleSection({
   title,
   icon,
   children,
-  defaultOpen = true,
+  defaultOpen = false,
   className
 }: CollapsibleSectionProps) {
   return (
@@ -924,7 +924,6 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
           <CollapsibleSection
             title="Perfil Barberos"
             icon={<ShieldCheck className="h-4 w-4 text-accent" />}
-            defaultOpen={false}
           >
             <div className="space-y-3">
               {barbers.length ? (
