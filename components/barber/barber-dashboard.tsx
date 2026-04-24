@@ -1,4 +1,6 @@
 import { CalendarClock, Scissors } from "lucide-react";
+import type { ReactNode } from "react";
+import { cn } from "@/lib/utils";
 import { SignOutButton } from "@/components/shared/sign-out-button";
 import { Logo } from "@/components/shared/logo";
 
@@ -28,6 +30,35 @@ type BarberDashboardProps = {
   };
 };
 
+type CollapsibleSectionProps = {
+  title: string;
+  icon: ReactNode;
+  children: ReactNode;
+  defaultOpen?: boolean;
+};
+
+function CollapsibleSection({
+  title,
+  icon,
+  children,
+  defaultOpen = true
+}: CollapsibleSectionProps) {
+  return (
+    <details open={defaultOpen} className={cn("glass rounded-[2rem] p-6")}>
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
+        <div className="flex items-center gap-2">
+          {icon}
+          <h2 className="text-xl font-semibold">{title}</h2>
+        </div>
+        <span className="text-xs font-semibold uppercase tracking-[0.18em] text-accent/80">
+          Abrir / cerrar
+        </span>
+      </summary>
+      <div className="mt-5">{children}</div>
+    </details>
+  );
+}
+
 export function BarberDashboard({
   barberEmail,
   initialData
@@ -55,12 +86,11 @@ export function BarberDashboard({
       </section>
 
       <section className="mt-8 grid gap-8 lg:grid-cols-[0.8fr_1.2fr]">
-        <div className="glass rounded-[2rem] p-6">
-          <div className="flex items-center gap-2">
-            <CalendarClock className="h-5 w-5 text-accent" />
-            <h2 className="text-xl font-semibold">Semana activa</h2>
-          </div>
-          <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <CollapsibleSection
+          title="Semana activa"
+          icon={<CalendarClock className="h-5 w-5 text-accent" />}
+        >
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {initialData.currentWeek.map((day) => (
               <div
                 key={day.key}
@@ -75,13 +105,12 @@ export function BarberDashboard({
               </div>
             ))}
           </div>
-        </div>
+        </CollapsibleSection>
 
-        <div className="glass rounded-[2rem] p-6">
-          <div className="mb-6 flex items-center gap-2">
-            <Scissors className="h-5 w-5 text-accent" />
-            <h2 className="text-xl font-semibold">Mis reservas</h2>
-          </div>
+        <CollapsibleSection
+          title="Mis reservas"
+          icon={<Scissors className="h-5 w-5 text-accent" />}
+        >
           <div className="space-y-3">
             {initialData.reservations.length ? (
               initialData.reservations.map((reservation) => (
@@ -106,7 +135,7 @@ export function BarberDashboard({
               </div>
             )}
           </div>
-        </div>
+        </CollapsibleSection>
       </section>
     </main>
   );

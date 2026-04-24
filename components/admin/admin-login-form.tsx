@@ -74,10 +74,7 @@ export function AdminLoginForm() {
 
   return (
     <section className="glass rounded-[2rem] p-6 sm:p-8">
-      <h3 className="text-2xl font-semibold uppercase text-sand">
-        INICIAR SESION
-      </h3>
-      <form className="mt-8 space-y-4" onSubmit={handleSubmit}>
+      <form className="space-y-4" onSubmit={handleSubmit}>
         <div>
           <label className="mb-2 block text-sm uppercase text-sand/70">USUARIO</label>
           <input

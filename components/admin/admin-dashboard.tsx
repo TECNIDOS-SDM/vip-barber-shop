@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Image from "next/image";
 import {
   Bell,
@@ -43,6 +43,40 @@ type DashboardProps = {
     };
   };
 };
+
+type CollapsibleSectionProps = {
+  title: string;
+  icon: ReactNode;
+  children: ReactNode;
+  defaultOpen?: boolean;
+  className?: string;
+};
+
+function CollapsibleSection({
+  title,
+  icon,
+  children,
+  defaultOpen = true,
+  className
+}: CollapsibleSectionProps) {
+  return (
+    <details
+      open={defaultOpen}
+      className={cn("glass rounded-[2rem] p-6", className)}
+    >
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
+        <div className="flex items-center gap-2">
+          {icon}
+          <h2 className="text-xl font-semibold">{title}</h2>
+        </div>
+        <span className="text-xs font-semibold uppercase tracking-[0.18em] text-accent/80">
+          Abrir / cerrar
+        </span>
+      </summary>
+      <div className="mt-5">{children}</div>
+    </details>
+  );
+}
 
 function getUiErrorMessage(error: unknown, fallback: string) {
   if (error instanceof Error) {
@@ -651,14 +685,11 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
 
       <section className="mt-8 grid gap-8 xl:grid-cols-[0.92fr_1.08fr]">
         <div className="space-y-8">
-          <div className="glass rounded-[2rem] p-6">
-            <div className="flex items-center gap-2">
-              <Plus className="h-4 w-4 text-accent" />
-              <h2 className="text-xl font-semibold">
-                {editingId ? "Editar barbero" : "Nuevo barbero"}
-              </h2>
-            </div>
-            <div className="mt-5 space-y-4">
+          <CollapsibleSection
+            title={editingId ? "Editar barbero" : "Nuevo barbero"}
+            icon={<Plus className="h-4 w-4 text-accent" />}
+          >
+            <div className="space-y-4">
               <input
                 value={barberForm.nombre}
                 onChange={(event) =>
@@ -754,14 +785,13 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                 </button>
               ) : null}
             </div>
-          </div>
+          </CollapsibleSection>
 
-          <div className="glass rounded-[2rem] p-6">
-            <div className="flex items-center gap-2">
-              <Clock3 className="h-4 w-4 text-accent" />
-              <h2 className="text-xl font-semibold">Citas fijadas y bloqueos</h2>
-            </div>
-            <div className="mt-5 space-y-4">
+          <CollapsibleSection
+            title="Citas fijadas y bloqueos"
+            icon={<Clock3 className="h-4 w-4 text-accent" />}
+          >
+            <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
@@ -889,14 +919,14 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                 </button>
               </div>
             </div>
-          </div>
+          </CollapsibleSection>
 
-          <div className="glass rounded-[2rem] p-6">
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="h-4 w-4 text-accent" />
-              <h2 className="text-xl font-semibold">Perfil Barberos</h2>
-            </div>
-            <div className="mt-4 space-y-3">
+          <CollapsibleSection
+            title="Perfil Barberos"
+            icon={<ShieldCheck className="h-4 w-4 text-accent" />}
+            defaultOpen={false}
+          >
+            <div className="space-y-3">
               {barbers.length ? (
                 barbers.map((barber) => {
                   const linkedProfile = profiles.find(
@@ -956,15 +986,14 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                 </div>
               )}
             </div>
-          </div>
+          </CollapsibleSection>
         </div>
 
         <div className="space-y-8">
-          <div className="glass rounded-[2rem] p-6">
-            <div className="mb-4 flex items-center gap-2">
-              <UserRoundCheck className="h-4 w-4 text-accent" />
-              <h2 className="text-xl font-semibold">Barberos</h2>
-            </div>
+          <CollapsibleSection
+            title="Barberos"
+            icon={<UserRoundCheck className="h-4 w-4 text-accent" />}
+          >
             <div className="grid gap-4 md:grid-cols-2">
               {barbers.map((barber) => (
                 <article
@@ -1047,14 +1076,14 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                 </article>
               ))}
             </div>
-          </div>
+          </CollapsibleSection>
 
-          <div className="glass rounded-[2rem] p-6">
+          <CollapsibleSection
+            title="Reservas del dia"
+            icon={<CheckCircle2 className="h-5 w-5 text-accent" />}
+          >
             <div className="mb-6">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-5 w-5 text-accent" />
-                <h2 className="text-xl font-semibold">Reservas del dia</h2>
-              </div>
+              <div className="flex items-center gap-2" />
             </div>
             <div className="mb-8 grid gap-3">
               {todayReservations.length ? (
@@ -1180,7 +1209,7 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                 </div>
               ))}
             </div>
-          </div>
+          </CollapsibleSection>
         </div>
       </section>
 
