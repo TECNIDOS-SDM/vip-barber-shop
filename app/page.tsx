@@ -20,7 +20,7 @@ export default async function HomePage() {
         <div className="absolute right-6 top-6 hidden animate-float rounded-full border border-white/10 bg-white/5 p-4 text-accent lg:block">
           <Sparkles className="h-8 w-8" />
         </div>
-        <Logo />
+        <Logo title="" />
       </section>
 
       <section id="reservas" className="mt-8 scroll-mt-6">

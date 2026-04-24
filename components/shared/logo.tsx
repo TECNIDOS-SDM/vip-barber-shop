@@ -17,9 +17,11 @@ export function Logo({ title = "AGENDA TU CITA" }: LogoProps) {
           priority
         />
       </div>
-      <h1 className="text-xl font-black uppercase tracking-[0.08em] text-[#facc15] sm:text-2xl">
-        {title}
-      </h1>
+      {title ? (
+        <h1 className="text-xl font-black uppercase tracking-[0.08em] text-[#facc15] sm:text-2xl">
+          {title}
+        </h1>
+      ) : null}
     </div>
   );
 }

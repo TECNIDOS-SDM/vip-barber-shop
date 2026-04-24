@@ -229,6 +229,11 @@ export function BookingShell({
                       </a>
                     ) : null}
                   </div>
+                  <div className="mt-4 border-t border-white/10 pt-3">
+                    <p className="text-sm font-black uppercase tracking-[0.12em] text-[#facc15]">
+                      AGENDA TU CITA
+                    </p>
+                  </div>
                 </div>
               ))}
             </div>
