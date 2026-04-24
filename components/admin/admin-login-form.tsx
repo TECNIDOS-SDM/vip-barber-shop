@@ -4,6 +4,10 @@ import { useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { adminIdentifierToEmail } from "@/lib/admin-auth";
+import {
+  createSessionLockKey,
+  setSessionLockCookie
+} from "@/lib/session-lock";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 
 export function AdminLoginForm() {
@@ -32,6 +36,29 @@ export function AdminLoginForm() {
 
       if (error) {
         throw error;
+      }
+
+      const {
+        data: { user }
+      } = await supabase.auth.getUser();
+
+      if (user) {
+        const sessionKey = createSessionLockKey();
+        const { error: lockError } = await supabase
+          .from("user_session_locks")
+          .upsert(
+            {
+              user_id: user.id,
+              session_key: sessionKey
+            },
+            {
+              onConflict: "user_id"
+            }
+          );
+
+        if (!lockError) {
+          setSessionLockCookie(sessionKey);
+        }
       }
 
       router.replace(next);

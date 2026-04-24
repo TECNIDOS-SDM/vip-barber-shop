@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { SESSION_LOCK_COOKIE } from "@/lib/session-lock";
 
 type CookieToSet = {
   name: string;
@@ -75,6 +76,16 @@ async function resolveRole(supabase: ReturnType<typeof createServerClient>) {
   };
 }
 
+function clearSessionCookies(request: NextRequest, response: NextResponse) {
+  response.cookies.delete(SESSION_LOCK_COOKIE);
+
+  request.cookies.getAll().forEach((cookie) => {
+    if (cookie.name.startsWith("sb-")) {
+      response.cookies.delete(cookie.name);
+    }
+  });
+}
+
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const response = NextResponse.next({
@@ -114,6 +125,26 @@ export async function middleware(request: NextRequest) {
     const loginUrl = new URL("/auth/login", request.url);
     loginUrl.searchParams.set("next", isAdminRoute ? "/admin-vip" : "/gestion-equipo");
     return NextResponse.redirect(loginUrl);
+  }
+
+  if ((isAdminRoute || isBarberRoute) && user) {
+    const sessionKey = request.cookies.get(SESSION_LOCK_COOKIE)?.value ?? "";
+    const { data: sessionLock, error: sessionLockError } = await supabase
+      .from("user_session_locks")
+      .select("session_key")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (
+      !sessionLockError &&
+      (!sessionKey || !sessionLock || sessionLock.session_key !== sessionKey)
+    ) {
+      const loginUrl = new URL("/auth/login", request.url);
+      loginUrl.searchParams.set("next", isAdminRoute ? "/admin-vip" : "/gestion-equipo");
+      const redirectResponse = NextResponse.redirect(loginUrl);
+      clearSessionCookies(request, redirectResponse);
+      return redirectResponse;
+    }
   }
 
   if (isAdminRoute && role !== "administrador") {
