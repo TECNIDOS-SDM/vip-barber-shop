@@ -597,9 +597,6 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
         <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <Logo title="PANEL ADMIN" />
-            <h1 className="mt-3 text-4xl font-bold text-sand">
-              Administra toda la agenda de tu equipo
-            </h1>
             <p className="mt-3 text-sm text-sand/70">{adminEmail}</p>
             {bootstrapping ? (
               <p className="mt-2 text-sm text-accent/80">
@@ -764,9 +761,6 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
               <Clock3 className="h-4 w-4 text-accent" />
               <h2 className="text-xl font-semibold">Citas fijadas y bloqueos</h2>
             </div>
-            <p className="mt-2 text-sm text-sand/75">
-              El administrador puede fijar citas manuales, bloquear horas o habilitarlas nuevamente.
-            </p>
             <div className="mt-5 space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <button
@@ -902,10 +896,6 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
               <ShieldCheck className="h-4 w-4 text-accent" />
               <h2 className="text-xl font-semibold">Perfil Barberos</h2>
             </div>
-            <p className="mt-2 text-sm text-sand/75">
-              Aqui puedes consultar el usuario y la clave de cada barbero para
-              entregarselos cuando necesiten entrar a su panel.
-            </p>
             <div className="mt-4 space-y-3">
               {barbers.length ? (
                 barbers.map((barber) => {
@@ -1065,9 +1055,6 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                 <CheckCircle2 className="h-5 w-5 text-accent" />
                 <h2 className="text-xl font-semibold">Reservas del dia</h2>
               </div>
-              <p className="mt-1 text-sm text-sand/75">
-                Vista rapida de las citas, fijadas y bloqueos del dia.
-              </p>
             </div>
             <div className="mb-8 grid gap-3">
               {todayReservations.length ? (

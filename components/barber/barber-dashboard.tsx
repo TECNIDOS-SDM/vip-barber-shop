@@ -38,14 +38,7 @@ export function BarberDashboard({
         <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <Logo title="PANEL BARBEROS" />
-            <h1 className="mt-3 text-4xl font-bold text-sand">
-              AGENDA PERSONAL DE {initialData.barber?.nombre ?? "BARBERO"}
-            </h1>
             <p className="mt-3 text-sm text-sand/70">{barberEmail}</p>
-            <p className="mt-2 max-w-2xl text-sm text-sand/55">
-              Este panel muestra unicamente la agenda del barbero autenticado,
-              sin exponer WhatsApp del cliente ni configuracion administrativa.
-            </p>
           </div>
           <div className="flex flex-wrap gap-3">
             <div className="glass rounded-2xl px-4 py-3">
