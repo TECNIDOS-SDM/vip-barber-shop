@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { adminIdentifierToEmail } from "@/lib/admin-auth";
 import {
@@ -10,11 +10,16 @@ import {
 } from "@/lib/session-lock";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 
-export function AdminLoginForm() {
+type AdminLoginFormProps = {
+  nextPath?: string;
+  isBarberSwitch?: boolean;
+};
+
+export function AdminLoginForm({
+  nextPath = "/admin-vip",
+  isBarberSwitch = false
+}: AdminLoginFormProps) {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const next = searchParams.get("next") || "/admin-vip";
-  const isBarberSwitch = searchParams.get("switch") === "barbero";
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -61,7 +66,7 @@ export function AdminLoginForm() {
         }
       }
 
-      router.replace(next);
+      router.replace(nextPath);
       router.refresh();
     } catch (error) {
       toast.error(

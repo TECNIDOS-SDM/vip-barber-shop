@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState } from "react";
 import { CalendarClock, Scissors } from "lucide-react";
 import { TIME_SLOTS } from "@/lib/constants";
 import { formatHourDisplay } from "@/lib/date";
@@ -34,30 +34,6 @@ type BarberDashboardProps = {
   };
 };
 
-type CollapsibleSectionProps = {
-  title: string;
-  icon: ReactNode;
-  children: ReactNode;
-  defaultOpen?: boolean;
-};
-
-function CollapsibleSection({
-  title,
-  icon,
-  children,
-  defaultOpen = false
-}: CollapsibleSectionProps) {
-  return (
-    <details open={defaultOpen} className="glass rounded-[2rem] p-6">
-      <summary className="flex cursor-pointer list-none items-center gap-2 [&::-webkit-details-marker]:hidden">
-        {icon}
-        <h2 className="text-xl font-semibold">{title}</h2>
-      </summary>
-      <div className="mt-5">{children}</div>
-    </details>
-  );
-}
-
 export function BarberDashboard({
   barberEmail,
   initialData
@@ -67,6 +43,7 @@ export function BarberDashboard({
     initialData.currentWeek[0]?.isoDate ??
     "";
   const [selectedDate, setSelectedDate] = useState(defaultDate);
+  const [panelView, setPanelView] = useState<"days" | "hours">("days");
 
   const selectedDayReservations = useMemo(() => {
     return initialData.reservations.filter(
@@ -102,86 +79,101 @@ export function BarberDashboard({
         </div>
       </section>
 
-      <section className="mt-8 grid gap-8 lg:grid-cols-[0.8fr_1.2fr]">
-        <CollapsibleSection
-          title="Semana activa"
-          icon={<CalendarClock className="h-5 w-5 text-accent" />}
-        >
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {initialData.currentWeek.map((day) => (
+      <section className="mt-8">
+        <div className="glass rounded-[2rem] p-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2">
+              {panelView === "days" ? (
+                <CalendarClock className="h-5 w-5 text-accent" />
+              ) : (
+                <Scissors className="h-5 w-5 text-accent" />
+              )}
+              <div>
+                <h2 className="text-xl font-semibold">
+                  {panelView === "days" ? "Selecciona el dia" : "Agenda por horario"}
+                </h2>
+                {panelView === "hours" ? (
+                  <p className="mt-1 text-sm text-sand/65">
+                    {
+                      initialData.currentWeek.find((day) => day.isoDate === selectedDate)
+                        ?.label
+                    }
+                  </p>
+                ) : null}
+              </div>
+            </div>
+            {panelView === "hours" ? (
               <button
-                key={day.key}
                 type="button"
-                onClick={() => setSelectedDate(day.isoDate)}
-                className={cn(
-                  "rounded-2xl border px-4 py-4 text-left transition",
-                  selectedDate === day.isoDate
-                    ? "border-accent bg-accent/10 text-sand"
-                    : "border-white/10 bg-white/5 text-sand/75"
-                )}
+                onClick={() => setPanelView("days")}
+                className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-sand/80"
               >
-                <p className="text-sm font-semibold">{day.shortLabel}</p>
-                <p className="mt-1 text-xs">{day.label}</p>
+                Retroceder
               </button>
-            ))}
+            ) : null}
           </div>
-        </CollapsibleSection>
 
-        <CollapsibleSection
-          title="Agenda por horario"
-          icon={<Scissors className="h-5 w-5 text-accent" />}
-        >
-          <div className="grid gap-3 sm:grid-cols-2">
-            {TIME_SLOTS.map((hour) => {
-              const reservation = reservationMap.get(hour);
-              const busy = Boolean(reservation);
-
-              return (
-                <div
-                  key={hour}
+          {panelView === "days" ? (
+            <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {initialData.currentWeek.map((day) => (
+                <button
+                  key={day.key}
+                  type="button"
+                  onClick={() => {
+                    setSelectedDate(day.isoDate);
+                    setPanelView("hours");
+                  }}
                   className={cn(
-                    "rounded-2xl border p-4",
-                    busy
-                      ? "border-danger/40 bg-danger/15 text-white"
-                      : "border-white/10 bg-white/5 text-sand/70"
+                    "rounded-2xl border px-4 py-4 text-left transition",
+                    selectedDate === day.isoDate
+                      ? "border-accent bg-accent/10 text-sand"
+                      : "border-white/10 bg-white/5 text-sand/75"
                   )}
                 >
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="font-semibold text-sand">
-                      {formatHourDisplay(hour)}
-                    </p>
-                    <span
-                      className={cn(
-                        "rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]",
-                        busy
-                          ? "bg-danger text-white"
-                          : "bg-emerald-500 text-slate-950"
-                      )}
-                    >
-                      {busy ? reservation?.estado : "Disponible"}
-                    </span>
-                  </div>
-                  <div className="mt-3">
-                    {reservation ? (
-                      <>
-                        <p className="text-sm font-semibold text-white">
-                          {reservation.cliente_nombre}
-                        </p>
-                        <p className="mt-1 text-xs uppercase tracking-[0.18em] text-white/75">
-                          Horario ocupado
-                        </p>
-                      </>
-                    ) : (
-                      <p className="text-sm text-sand/60">
-                        No tienes reserva asignada en esta hora.
-                      </p>
+                  <p className="text-sm font-semibold">{day.shortLabel}</p>
+                  <p className="mt-1 text-xs">{day.label}</p>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {TIME_SLOTS.map((hour) => {
+                const reservation = reservationMap.get(hour);
+                const busy = Boolean(reservation);
+
+                return (
+                  <div
+                    key={hour}
+                    className={cn(
+                      "rounded-2xl px-4 py-4 text-center transition",
+                      busy
+                        ? "bg-danger text-white"
+                        : "bg-emerald-500 text-slate-950"
                     )}
+                  >
+                    <span className="block text-base font-semibold">
+                      {formatHourDisplay(hour)}
+                    </span>
+                    <span className="mt-2 block text-[11px] font-semibold uppercase tracking-[0.24em]">
+                      {busy
+                        ? reservation?.estado === "cita_fijada"
+                          ? "FIJADA"
+                          : reservation?.estado === "bloqueado"
+                            ? "BLOQUEADA"
+                            : "OCUPADO"
+                        : "DISPONIBLE"}
+                    </span>
+                    {reservation ? (
+                      <span className="mt-2 block truncate text-xs font-medium">
+                        {reservation.cliente_nombre}
+                      </span>
+                    ) : null}
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        </CollapsibleSection>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </section>
     </main>
   );
