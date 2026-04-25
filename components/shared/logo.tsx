@@ -25,7 +25,7 @@ export function Logo({
       {title ? (
         <h1
           className={cn(
-            "text-xl font-black uppercase tracking-[0.08em] text-[#facc15] sm:text-2xl",
+            "whitespace-nowrap text-xl font-black uppercase tracking-[0.08em] text-[#facc15] sm:text-2xl",
             titleClassName
           )}
         >

@@ -862,54 +862,61 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
             title="Barberos"
             icon={<UserRoundCheck className="h-4 w-4 text-accent" />}
           >
-            <div className="grid gap-4 md:grid-cols-2">
-              {barbers.map((barber) => (
-                <button
-                  key={barber.id}
-                  type="button"
-                  onClick={() => {
-                    setActiveBarberId(barber.id);
-                    setActiveBarberView("menu");
-                    updateScheduleForBarber(barber.id, {}, true);
-                  }}
-                  className={cn(
-                    "rounded-[1.5rem] border bg-white/5 p-4 text-left transition",
-                    activeBarberId === barber.id
-                      ? "border-accent bg-accent/10"
-                      : "border-white/10 hover:border-accent/40"
-                  )}
-                >
-                  <div className="flex gap-4">
-                    <div className="relative h-20 w-20 overflow-hidden rounded-2xl">
-                      <Image
-                        src={
-                          barber.foto ||
-                          "https://images.unsplash.com/photo-1622286342621-4bd786c2447c?auto=format&fit=crop&w=500&q=80"
-                        }
-                        alt={barber.nombre}
-                        fill
-                        className="object-cover"
-                      />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="font-semibold">{barber.nombre}</p>
-                      <p className="mt-1 text-sm text-sand/60">
-                        {barber.whatsapp || "Sin WhatsApp"}
-                      </p>
-                      <p className="text-sm text-sand/50">
-                        Usuario: {barber.auth_email || "Sin acceso configurado"}
-                      </p>
-                      <p className="text-sm text-sand/50">
-                        Clave: {barber.access_password || "Sin clave guardada"}
-                      </p>
-                    </div>
+            {activeBarberView === "list" || !activeBarber ? (
+              <>
+                <div className="grid gap-4 md:grid-cols-2">
+                  {barbers.map((barber) => (
+                    <button
+                      key={barber.id}
+                      type="button"
+                      onClick={() => {
+                        setActiveBarberId(barber.id);
+                        setActiveBarberView("menu");
+                        updateScheduleForBarber(barber.id, {}, true);
+                      }}
+                      className={cn(
+                        "rounded-[1.5rem] border bg-white/5 p-4 text-left transition",
+                        activeBarberId === barber.id
+                          ? "border-accent bg-accent/10"
+                          : "border-white/10 hover:border-accent/40"
+                      )}
+                    >
+                      <div className="flex gap-4">
+                        <div className="relative h-20 w-20 overflow-hidden rounded-2xl">
+                          <Image
+                            src={
+                              barber.foto ||
+                              "https://images.unsplash.com/photo-1622286342621-4bd786c2447c?auto=format&fit=crop&w=500&q=80"
+                            }
+                            alt={barber.nombre}
+                            fill
+                            className="object-cover"
+                          />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-semibold">{barber.nombre}</p>
+                          <p className="mt-1 text-sm text-sand/60">
+                            {barber.whatsapp || "Sin WhatsApp"}
+                          </p>
+                          <p className="text-sm text-sand/50">
+                            Usuario: {barber.auth_email || "Sin acceso configurado"}
+                          </p>
+                          <p className="text-sm text-sand/50">
+                            Clave: {barber.access_password || "Sin clave guardada"}
+                          </p>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+                {!barbers.length ? (
+                  <div className="mt-6 rounded-2xl border border-dashed border-white/10 p-4 text-sm text-sand/60">
+                    Aun no hay barberos creados.
                   </div>
-                </button>
-              ))}
-            </div>
-
-            {activeBarber && activeBarberView !== "list" ? (
-              <div className="mt-6 rounded-[1.75rem] border border-accent/20 bg-black/10 p-5">
+                ) : null}
+              </>
+            ) : (
+              <div className="rounded-[1.75rem] border border-accent/20 bg-black/10 p-5">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent/80">
@@ -919,17 +926,15 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                       {activeBarber.nombre}
                     </h3>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setActiveBarberView((current) =>
-                        current === "menu" ? "list" : "menu"
-                      )
-                    }
-                    className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-sand/80"
-                  >
-                    RETROCEDER
-                  </button>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setActiveBarberView("list")}
+                      className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-sand/80"
+                    >
+                      Retroceder
+                    </button>
+                  </div>
                 </div>
 
                 {activeBarberView === "menu" ? (
@@ -950,10 +955,7 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                         }
                         className="rounded-[1.25rem] border border-white/10 bg-white/5 px-4 py-4 text-left transition hover:border-accent/40"
                       >
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent/80">
-                          Funcion
-                        </p>
-                        <p className="mt-2 text-lg font-semibold text-sand">
+                        <p className="text-lg font-semibold text-sand">
                           {item.title}
                         </p>
                         <p className="mt-1 text-sm text-sand/70">{item.subtitle}</p>
@@ -1304,10 +1306,6 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                     </div>
                   </div>
                 ) : null}
-              </div>
-            ) : (
-              <div className="mt-6 rounded-2xl border border-dashed border-white/10 p-4 text-sm text-sand/60">
-                Selecciona un barbero para desplegar su informacion, agenda y reservas.
               </div>
             )}
           </CollapsibleSection>

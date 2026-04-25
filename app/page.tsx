@@ -22,7 +22,7 @@ export default async function HomePage() {
         </div>
         <Logo
           title="VIP BARBER TOP"
-          titleClassName="max-w-[12rem] text-2xl leading-none sm:max-w-none sm:text-4xl lg:text-[2.75rem]"
+          titleClassName="text-[clamp(1.7rem,5.8vw,4rem)] leading-none"
         />
       </section>
 
