@@ -140,26 +140,30 @@ export function BarberDashboard({
             <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
               {TIME_SLOTS.map((hour) => {
                 const reservation = reservationMap.get(hour);
-                const busy = Boolean(reservation);
+                const status = reservation?.estado;
 
                 return (
                   <div
                     key={hour}
                     className={cn(
                       "rounded-2xl px-4 py-4 text-center transition",
-                      busy
+                      status === "confirmada"
                         ? "bg-danger text-white"
-                        : "bg-emerald-500 text-slate-950"
+                        : status === "cita_fijada"
+                          ? "bg-sky-500 text-white"
+                          : status === "bloqueado"
+                            ? "bg-zinc-600 text-white"
+                            : "bg-emerald-500 text-slate-950"
                     )}
                   >
                     <span className="block text-base font-semibold">
                       {formatHourDisplay(hour)}
                     </span>
                     <span className="mt-2 block text-[11px] font-semibold uppercase tracking-[0.24em]">
-                      {busy
-                        ? reservation?.estado === "cita_fijada"
+                      {status
+                        ? status === "cita_fijada"
                           ? "FIJADA"
-                          : reservation?.estado === "bloqueado"
+                          : status === "bloqueado"
                             ? "BLOQUEADA"
                             : "OCUPADO"
                         : "DISPONIBLE"}
