@@ -1072,47 +1072,34 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                           Bloqueo
                         </button>
                       </div>
-                      <div>
-                        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-sand/60">
-                          Elige el dia de la semana
-                        </p>
-                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-7">
-                          {currentWeek.map((day) => (
+                      {scheduleForm.barbero_id === activeBarber.id &&
+                      scheduleForm.fecha ? (
+                        <div className="rounded-[1.5rem] border border-white/10 bg-black/10 p-4">
+                          <div className="mb-4 flex items-center justify-between gap-3">
+                            <div>
+                              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sand/60">
+                                Elige la hora
+                              </p>
+                              <p className="mt-1 text-sm font-semibold uppercase text-sand">
+                                {currentWeek
+                                  .find((day) => day.isoDate === scheduleForm.fecha)
+                                  ?.label.split(" ")[0] ?? "Dia seleccionado"}
+                              </p>
+                            </div>
                             <button
-                              key={day.key}
                               type="button"
                               onClick={() =>
                                 updateScheduleForBarber(
                                   activeBarber.id,
-                                  { fecha: day.isoDate },
+                                  { fecha: "", cliente_nombre: "", cliente_whatsapp: "" },
                                   true
                                 )
                               }
-                              className={cn(
-                                "rounded-2xl border px-4 py-4 text-left transition",
-                                scheduleForm.barbero_id === activeBarber.id &&
-                                  scheduleForm.fecha === day.isoDate
-                                  ? "border-accent bg-accent text-ink"
-                                  : "border-white/10 bg-white/5 text-sand/75 hover:border-accent/40"
-                              )}
+                              className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-sand/80"
                             >
-                              <p className="text-sm font-semibold uppercase">
-                                {day.label.split(" ")[0]}
-                              </p>
+                              Retroceder
                             </button>
-                          ))}
-                        </div>
-                        <p className="mt-3 text-xs text-sand/55">
-                          La cita fijada o el bloqueo se repetira cada semana hasta
-                          que lo liberes manualmente.
-                        </p>
-                      </div>
-                      {scheduleForm.barbero_id === activeBarber.id &&
-                      scheduleForm.fecha ? (
-                        <div className="rounded-[1.5rem] border border-white/10 bg-black/10 p-4">
-                          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-sand/60">
-                            Elige la hora
-                          </p>
+                          </div>
                           <div className="grid grid-cols-2 gap-2">
                             {TIME_SLOTS.map((hour) => {
                               const reservation = scheduleSlotMap.get(hour);
@@ -1159,7 +1146,37 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                             })}
                           </div>
                         </div>
-                      ) : null}
+                      ) : (
+                        <div>
+                          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-sand/60">
+                            Elige el dia de la semana
+                          </p>
+                          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-7">
+                            {currentWeek.map((day) => (
+                              <button
+                                key={day.key}
+                                type="button"
+                                onClick={() =>
+                                  updateScheduleForBarber(
+                                    activeBarber.id,
+                                    { fecha: day.isoDate },
+                                    true
+                                  )
+                                }
+                                className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-left text-sand/75 transition hover:border-accent/40"
+                              >
+                                <p className="text-sm font-semibold uppercase">
+                                  {day.label.split(" ")[0]}
+                                </p>
+                              </button>
+                            ))}
+                          </div>
+                          <p className="mt-3 text-xs text-sand/55">
+                            La cita fijada o el bloqueo se repetira cada semana hasta
+                            que lo liberes manualmente.
+                          </p>
+                        </div>
+                      )}
                       {scheduleMode === "cita_fijada" ? (
                         <>
                           <input
