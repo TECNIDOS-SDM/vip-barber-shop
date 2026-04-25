@@ -1096,8 +1096,9 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                                   : "border-white/10 bg-white/5 text-sand/75 hover:border-accent/40"
                               )}
                             >
-                              <p className="text-sm font-semibold">{day.shortLabel}</p>
-                              <p className="mt-1 text-xs opacity-80">{day.label}</p>
+                              <p className="text-sm font-semibold uppercase">
+                                {day.label.split(" ")[0]}
+                              </p>
                             </button>
                           ))}
                         </div>
@@ -1106,6 +1107,59 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                           que lo liberes manualmente.
                         </p>
                       </div>
+                      {scheduleForm.barbero_id === activeBarber.id &&
+                      scheduleForm.fecha ? (
+                        <div className="rounded-[1.5rem] border border-white/10 bg-black/10 p-4">
+                          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-sand/60">
+                            Elige la hora
+                          </p>
+                          <div className="grid grid-cols-2 gap-2">
+                            {TIME_SLOTS.map((hour) => {
+                              const reservation = scheduleSlotMap.get(hour);
+
+                              return (
+                                <button
+                                  key={hour}
+                                  type="button"
+                                  onClick={() => {
+                                    updateScheduleForBarber(activeBarber.id, {});
+                                    toggleHour(hour);
+                                  }}
+                                  className={cn(
+                                    "rounded-2xl px-4 py-3 text-sm font-semibold transition",
+                                    selectedHours.includes(hour) &&
+                                      scheduleForm.barbero_id === activeBarber.id
+                                      ? scheduleMode === "cita_fijada"
+                                        ? "bg-sky-500 text-white"
+                                        : "bg-zinc-600 text-white"
+                                      : reservation
+                                        ? reservation.estado === "confirmada"
+                                          ? "border border-danger/40 bg-danger/15 text-white"
+                                          : reservation.estado === "cita_fijada"
+                                            ? "border border-sky-400/40 bg-sky-500/15 text-sky-100"
+                                            : "border border-zinc-500/40 bg-zinc-600/30 text-zinc-100"
+                                        : "border border-white/10 bg-white/5 text-sand/70"
+                                  )}
+                                >
+                                  <span className="block">{hour}</span>
+                                  <span className="mt-1 block text-[11px] uppercase tracking-[0.18em]">
+                                    {selectedHours.includes(hour) &&
+                                    scheduleForm.barbero_id === activeBarber.id
+                                      ? "Seleccionado"
+                                      : reservation
+                                        ? reservation.estado === "confirmada"
+                                          ? "Ocupado"
+                                          : reservation.estado === "cita_fijada"
+                                            ? "Fijada"
+                                            : "Bloqueado"
+                                        : "Disponible"}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ) : null}
                       {scheduleMode === "cita_fijada" ? (
                         <>
                           <input
@@ -1147,54 +1201,6 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                           Bloquear dia completo
                         </label>
                       )}
-                      <div className="grid grid-cols-2 gap-2">
-                        {TIME_SLOTS.map((hour) => {
-                          const reservation =
-                            scheduleForm.barbero_id === activeBarber.id
-                              ? scheduleSlotMap.get(hour)
-                              : undefined;
-
-                          return (
-                            <button
-                              key={hour}
-                              type="button"
-                              onClick={() => {
-                                updateScheduleForBarber(activeBarber.id, {});
-                                toggleHour(hour);
-                              }}
-                              className={cn(
-                                "rounded-2xl px-4 py-3 text-sm font-semibold transition",
-                                selectedHours.includes(hour) &&
-                                  scheduleForm.barbero_id === activeBarber.id
-                                  ? scheduleMode === "cita_fijada"
-                                    ? "bg-sky-500 text-white"
-                                    : "bg-zinc-600 text-white"
-                                  : reservation
-                                    ? reservation.estado === "confirmada"
-                                      ? "border border-danger/40 bg-danger/15 text-white"
-                                      : reservation.estado === "cita_fijada"
-                                        ? "border border-sky-400/40 bg-sky-500/15 text-sky-100"
-                                        : "border border-zinc-500/40 bg-zinc-600/30 text-zinc-100"
-                                    : "border border-white/10 bg-white/5 text-sand/70"
-                              )}
-                            >
-                              <span className="block">{hour}</span>
-                              <span className="mt-1 block text-[11px] uppercase tracking-[0.18em]">
-                                {selectedHours.includes(hour) &&
-                                scheduleForm.barbero_id === activeBarber.id
-                                  ? "Seleccionado"
-                                  : reservation
-                                    ? reservation.estado === "confirmada"
-                                      ? "Ocupado"
-                                      : reservation.estado === "cita_fijada"
-                                        ? "Fijada"
-                                        : "Bloqueado"
-                                    : "Disponible"}
-                              </span>
-                            </button>
-                          );
-                        })}
-                      </div>
                       <div className="grid gap-3 sm:grid-cols-2">
                         <button
                           type="button"
