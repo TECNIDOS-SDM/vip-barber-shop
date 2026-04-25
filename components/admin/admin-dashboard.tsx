@@ -159,8 +159,11 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
     initialData.barbers[0]?.id ?? null
   );
   const [activeBarberView, setActiveBarberView] = useState<
-    "list" | "menu" | "perfil" | "agenda" | "hoy" | "semana"
+    "list" | "menu" | "perfil" | "agenda"
   >("list");
+  const [activeAgendaTab, setActiveAgendaTab] = useState<
+    "reservas" | "cita_fijada" | "bloqueado"
+  >("reservas");
   const [newReservationCount, setNewReservationCount] = useState(0);
   const [lastReservation, setLastReservation] = useState<any | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(true);
@@ -665,12 +668,18 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
     [activeBarberId, reservations]
   );
 
-  const activeTodayReservations = useMemo(
+  const selectedAgendaReservations = useMemo(
     () =>
-      todayReservations.filter(
-        (reservation) => reservation.barbero_id === activeBarberId
+      activeBarberReservations.filter(
+        (reservation) =>
+          scheduleForm.fecha && reservation.fecha === scheduleForm.fecha
       ),
-    [activeBarberId, todayReservations]
+    [activeBarberReservations, scheduleForm.fecha]
+  );
+
+  const selectedAgendaReservationMap = useMemo(
+    () => new Map(selectedAgendaReservations.map((reservation) => [reservation.hora, reservation])),
+    [selectedAgendaReservations]
   );
 
   return (
@@ -851,13 +860,14 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
         </div>
 
         <div className="space-y-8">
-          <CollapsibleSection
-            title="Barberos"
-            icon={<UserRoundCheck className="h-4 w-4 text-accent" />}
-          >
+          <section className="glass rounded-[2rem] p-6">
+            <div className="flex items-center gap-2">
+              <UserRoundCheck className="h-4 w-4 text-accent" />
+              <h2 className="text-xl font-semibold">Perfiles de barberos</h2>
+            </div>
             {activeBarberView === "list" || !activeBarber ? (
               <>
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="mt-5 grid gap-4 md:grid-cols-2">
                   {barbers.map((barber) => (
                     <button
                       key={barber.id}
@@ -865,7 +875,8 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                       onClick={() => {
                         setActiveBarberId(barber.id);
                         setActiveBarberView("menu");
-                        updateScheduleForBarber(barber.id, {}, true);
+                        setActiveAgendaTab("reservas");
+                        updateScheduleForBarber(barber.id, { fecha: "", cliente_nombre: "", cliente_whatsapp: "" }, true);
                       }}
                       className={cn(
                         "rounded-[1.5rem] border bg-white/5 p-4 text-left transition",
@@ -909,7 +920,7 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                 ) : null}
               </>
             ) : (
-              <div className="rounded-[1.75rem] border border-accent/20 bg-black/10 p-5">
+              <div className="mt-5 rounded-[1.75rem] border border-accent/20 bg-black/10 p-5">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent/80">
@@ -919,33 +930,29 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                       {activeBarber.nombre}
                     </h3>
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setActiveBarberView("list")}
-                      className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-sand/80"
-                    >
-                      Retroceder
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveBarberView("list");
+                      setActiveAgendaTab("reservas");
+                      updateScheduleForBarber(activeBarber.id, { fecha: "", cliente_nombre: "", cliente_whatsapp: "" }, true);
+                    }}
+                    className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-sand/80"
+                  >
+                    Retroceder
+                  </button>
                 </div>
 
                 {activeBarberView === "menu" ? (
-                  <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                  <div className="mt-6 grid gap-4 md:grid-cols-2">
                     {[
                       { key: "perfil", title: "Perfil", subtitle: "Editar e informacion" },
-                      { key: "agenda", title: "Agenda", subtitle: "Fijar y bloquear" },
-                      { key: "hoy", title: "Hoy", subtitle: "Reservas del dia" },
-                      { key: "semana", title: "Semana", subtitle: "Reservas semanales" }
+                      { key: "agenda", title: "Agenda", subtitle: "Reservas, fijar y bloquear" }
                     ].map((item) => (
                       <button
                         key={item.key}
                         type="button"
-                        onClick={() =>
-                          setActiveBarberView(
-                            item.key as "perfil" | "agenda" | "hoy" | "semana"
-                          )
-                        }
+                        onClick={() => setActiveBarberView(item.key as "perfil" | "agenda")}
                         className="rounded-[1.25rem] border border-white/10 bg-white/5 px-4 py-4 text-left transition hover:border-accent/40"
                       >
                         <p className="text-lg font-semibold text-sand">
@@ -1030,13 +1037,32 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                       </h4>
                     </div>
                     <div className="mt-4 space-y-4">
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-3 gap-3">
                         <button
                           type="button"
-                          onClick={() => setScheduleMode("cita_fijada")}
+                          onClick={() => {
+                            setActiveAgendaTab("reservas");
+                            updateScheduleForBarber(activeBarber.id, { fecha: "", cliente_nombre: "", cliente_whatsapp: "" }, true);
+                          }}
                           className={cn(
                             "rounded-2xl px-4 py-3 text-sm font-semibold transition",
-                            scheduleMode === "cita_fijada"
+                            activeAgendaTab === "reservas"
+                              ? "bg-accent text-ink"
+                              : "border border-white/10 bg-white/5 text-sand/70"
+                          )}
+                        >
+                          Reservas
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveAgendaTab("cita_fijada");
+                            setScheduleMode("cita_fijada");
+                            updateScheduleForBarber(activeBarber.id, { fecha: "", cliente_nombre: "", cliente_whatsapp: "" }, true);
+                          }}
+                          className={cn(
+                            "rounded-2xl px-4 py-3 text-sm font-semibold transition",
+                            activeAgendaTab === "cita_fijada"
                               ? "bg-sky-500 text-white"
                               : "border border-white/10 bg-white/5 text-sand/70"
                           )}
@@ -1045,10 +1071,14 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                         </button>
                         <button
                           type="button"
-                          onClick={() => setScheduleMode("bloqueado")}
+                          onClick={() => {
+                            setActiveAgendaTab("bloqueado");
+                            setScheduleMode("bloqueado");
+                            updateScheduleForBarber(activeBarber.id, { fecha: "", cliente_nombre: "", cliente_whatsapp: "" }, true);
+                          }}
                           className={cn(
                             "rounded-2xl px-4 py-3 text-sm font-semibold transition",
-                            scheduleMode === "bloqueado"
+                            activeAgendaTab === "bloqueado"
                               ? "bg-zinc-600 text-white"
                               : "border border-white/10 bg-white/5 text-sand/70"
                           )}
@@ -1056,18 +1086,16 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                           Bloqueo
                         </button>
                       </div>
-                      {scheduleForm.barbero_id === activeBarber.id &&
-                      scheduleForm.fecha ? (
+
+                      {scheduleForm.barbero_id === activeBarber.id && scheduleForm.fecha ? (
                         <div className="rounded-[1.5rem] border border-white/10 bg-black/10 p-4">
                           <div className="mb-4 flex items-center justify-between gap-3">
                             <div>
                               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sand/60">
-                                Elige la hora
+                                {activeAgendaTab === "reservas" ? "Horarios del dia" : "Elige la hora"}
                               </p>
                               <p className="mt-1 text-sm font-semibold uppercase text-sand">
-                                {currentWeek
-                                  .find((day) => day.isoDate === scheduleForm.fecha)
-                                  ?.label.split(" ")[0] ?? "Dia seleccionado"}
+                                {currentWeek.find((day) => day.isoDate === scheduleForm.fecha)?.label.split(" ")[0] ?? "Dia seleccionado"}
                               </p>
                             </div>
                             <button
@@ -1086,7 +1114,46 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                           </div>
                           <div className="grid grid-cols-2 gap-2">
                             {TIME_SLOTS.map((hour) => {
-                              const reservation = scheduleSlotMap.get(hour);
+                              const reservation =
+                                activeAgendaTab === "reservas"
+                                  ? selectedAgendaReservationMap.get(hour)
+                                  : scheduleSlotMap.get(hour);
+
+                              if (activeAgendaTab === "reservas") {
+                                return (
+                                  <div
+                                    key={hour}
+                                    className={cn(
+                                      "rounded-2xl px-4 py-4 text-center transition",
+                                      reservation
+                                        ? reservation.estado === "confirmada"
+                                          ? "bg-danger text-white"
+                                          : reservation.estado === "cita_fijada"
+                                            ? "bg-sky-500/85 text-white"
+                                            : "bg-zinc-600 text-white"
+                                        : "bg-emerald-500 text-slate-950"
+                                    )}
+                                  >
+                                    <span className="block text-sm font-semibold">{hour}</span>
+                                    <span className="mt-1 block text-[11px] uppercase tracking-[0.18em]">
+                                      {reservation
+                                        ? reservation.estado === "confirmada"
+                                          ? "Ocupado"
+                                          : reservation.estado === "cita_fijada"
+                                            ? "Fijada"
+                                            : "Bloqueado"
+                                        : "Disponible"}
+                                    </span>
+                                    {reservation ? (
+                                      <span className="mt-2 block truncate text-xs font-medium">
+                                        {reservation.estado === "bloqueado"
+                                          ? "Horario bloqueado"
+                                          : reservation.cliente_nombre}
+                                      </span>
+                                    ) : null}
+                                  </div>
+                                );
+                              }
 
                               return (
                                 <button
@@ -1100,7 +1167,7 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                                     "rounded-2xl px-4 py-3 text-sm font-semibold transition",
                                     selectedHours.includes(hour) &&
                                       scheduleForm.barbero_id === activeBarber.id
-                                      ? scheduleMode === "cita_fijada"
+                                      ? activeAgendaTab === "cita_fijada"
                                         ? "bg-sky-500 text-white"
                                         : "bg-zinc-600 text-white"
                                       : reservation
@@ -1156,12 +1223,14 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                             ))}
                           </div>
                           <p className="mt-3 text-xs text-sand/55">
-                            La cita fijada o el bloqueo se repetira cada semana hasta
-                            que lo liberes manualmente.
+                            {activeAgendaTab === "reservas"
+                              ? "Selecciona un dia para ver las reservas de la semana dentro del mismo cuadro."
+                              : "La cita fijada o el bloqueo se repetira cada semana hasta que lo liberes manualmente."}
                           </p>
                         </div>
                       )}
-                      {scheduleMode === "cita_fijada" ? (
+
+                      {activeAgendaTab === "cita_fijada" ? (
                         <>
                           <input
                             value={
@@ -1192,7 +1261,7 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                             className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-accent"
                           />
                         </>
-                      ) : (
+                      ) : activeAgendaTab === "bloqueado" ? (
                         <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-sand/80">
                           <input
                             type="checkbox"
@@ -1201,148 +1270,53 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                           />
                           Bloquear dia completo
                         </label>
-                      )}
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <button
-                          type="button"
-                          disabled={saving}
-                          onClick={() => {
-                            updateScheduleForBarber(activeBarber.id, {});
-                            void saveScheduleAction();
-                          }}
-                          className="rounded-2xl bg-accent px-4 py-4 text-sm font-bold uppercase tracking-[0.16em] text-ink disabled:opacity-60"
-                        >
-                          Guardar accion
-                        </button>
-                        <button
-                          type="button"
-                          disabled={saving}
-                          onClick={() => {
-                            updateScheduleForBarber(activeBarber.id, {});
-                            void unblockSelectedSlots();
-                          }}
-                          className="rounded-2xl border border-white/10 px-4 py-4 text-sm font-semibold text-sand/80 disabled:opacity-60"
-                        >
-                          Liberar horarios
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ) : null}
+                      ) : null}
 
-                {activeBarberView === "hoy" ? (
-                  <div className="mt-6 rounded-[1.5rem] border border-white/10 bg-white/5 p-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sand/60">
-                      Reservas del dia
-                    </p>
-                    <div className="mt-3 space-y-3">
-                      {activeTodayReservations.length ? (
-                        activeTodayReservations.map((reservation) => (
-                          <div
-                            key={reservation.id}
-                            className="rounded-2xl border border-white/10 bg-black/10 p-3"
+                      {activeAgendaTab !== "reservas" ? (
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <button
+                            type="button"
+                            disabled={saving}
+                            onClick={() => {
+                              updateScheduleForBarber(activeBarber.id, {});
+                              void saveScheduleAction();
+                            }}
+                            className="rounded-2xl bg-accent px-4 py-4 text-sm font-bold uppercase tracking-[0.16em] text-ink disabled:opacity-60"
                           >
-                            <div className="flex items-center justify-between gap-3">
-                              <p className="font-semibold text-sand">
-                                {reservation.cliente_nombre}
-                              </p>
-                              <span
-                                className={cn(
-                                  "rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]",
-                                  statusStyles[
-                                    (reservation.estado === "cancelada"
-                                      ? "confirmada"
-                                      : reservation.estado) as Exclude<ReservationStatus, "cancelada">
-                                  ]?.badge ?? "bg-white/10"
-                                )}
-                              >
-                                {statusStyles[
-                                  (reservation.estado === "cancelada"
-                                    ? "confirmada"
-                                    : reservation.estado) as Exclude<ReservationStatus, "cancelada">
-                                ]?.label ?? reservation.estado}
-                              </span>
-                            </div>
-                            <p className="mt-1 text-sm text-sand/70">
-                              {reservation.hora}
-                            </p>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="rounded-2xl border border-dashed border-white/10 p-3 text-sm text-sand/60">
-                          Este barbero no tiene reservas hoy.
+                            Guardar accion
+                          </button>
+                          <button
+                            type="button"
+                            disabled={saving}
+                            onClick={() => {
+                              updateScheduleForBarber(activeBarber.id, {});
+                              void unblockSelectedSlots();
+                            }}
+                            className="rounded-2xl border border-white/10 px-4 py-4 text-sm font-semibold text-sand/80 disabled:opacity-60"
+                          >
+                            Liberar horarios
+                          </button>
                         </div>
-                      )}
-                    </div>
-                  </div>
-                ) : null}
-
-                {activeBarberView === "semana" ? (
-                  <div className="mt-6 rounded-[1.5rem] border border-white/10 bg-white/5 p-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sand/60">
-                      Reservas de la semana
-                    </p>
-                    <div className="mt-3 space-y-3">
-                      {activeBarberReservations.length ? (
-                        activeBarberReservations.map((reservation) => (
-                          <div
-                            key={reservation.id}
-                            className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-black/10 p-4"
-                          >
-                            <div className="flex flex-wrap items-center justify-between gap-3">
-                              <p className="font-semibold text-sand">
-                                {reservation.cliente_nombre}
-                              </p>
-                              <span
-                                className={cn(
-                                  "rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]",
-                                  statusStyles[
-                                    (reservation.estado === "cancelada"
-                                      ? "confirmada"
-                                      : reservation.estado) as Exclude<ReservationStatus, "cancelada">
-                                  ]?.badge ?? "bg-white/10"
-                                )}
-                              >
-                                {statusStyles[
-                                  (reservation.estado === "cancelada"
-                                    ? "confirmada"
-                                    : reservation.estado) as Exclude<ReservationStatus, "cancelada">
-                                ]?.label ?? reservation.estado}
-                              </span>
-                            </div>
-                            <p className="text-sm text-sand/70">
-                              {reservation.fecha} - {reservation.hora}
-                            </p>
-                            {reservation.estado !== "bloqueado" ? (
-                              <a
-                                href={buildWhatsAppUrl(reservation.cliente_whatsapp)}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="text-sm text-accent underline-offset-4 hover:underline"
-                              >
-                                {reservation.cliente_whatsapp}
-                              </a>
-                            ) : null}
+                      ) : scheduleForm.fecha && selectedAgendaReservations.length ? (
+                        <div className="grid gap-3">
+                          {selectedAgendaReservations.map((reservation) => (
                             <button
+                              key={reservation.id}
                               type="button"
                               onClick={() => void releaseReservation(reservation.id)}
                               className="rounded-2xl border border-rose-400/30 bg-rose-500/10 px-4 py-3 text-sm font-semibold text-rose-200"
                             >
-                              Liberar horario
+                              Liberar {reservation.hora}
                             </button>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="rounded-2xl border border-dashed border-white/10 p-3 text-sm text-sand/60">
-                          No hay reservas visibles para este barbero.
+                          ))}
                         </div>
-                      )}
+                      ) : null}
                     </div>
                   </div>
                 ) : null}
               </div>
             )}
-          </CollapsibleSection>
+          </section>
         </div>
       </section>
 
