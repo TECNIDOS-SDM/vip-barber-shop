@@ -150,6 +150,7 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
   const [activeBarberId, setActiveBarberId] = useState<string | null>(
     initialData.barbers[0]?.id ?? null
   );
+  const [activeBarberStep, setActiveBarberStep] = useState<1 | 2 | 3 | 4>(1);
   const [newReservationCount, setNewReservationCount] = useState(0);
   const [lastReservation, setLastReservation] = useState<any | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(true);
@@ -479,6 +480,7 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
 
   function loadBarberIntoForm(barber: any) {
     setEditingId(barber.id);
+    setActiveBarberStep(1);
     setBarberForm({
       nombre: barber.nombre ?? "",
       foto: barber.foto ?? "",
@@ -864,10 +866,11 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                 <button
                   key={barber.id}
                   type="button"
-                  onClick={() => {
-                    setActiveBarberId(barber.id);
-                    updateScheduleForBarber(barber.id, {}, true);
-                  }}
+                    onClick={() => {
+                      setActiveBarberId(barber.id);
+                      setActiveBarberStep(1);
+                      updateScheduleForBarber(barber.id, {}, true);
+                    }}
                   className={cn(
                     "rounded-[1.5rem] border bg-white/5 p-4 text-left transition",
                     activeBarberId === barber.id
@@ -967,18 +970,114 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                 </div>
 
                 <div className="mt-6 grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
-                  <div className="space-y-6">
-                    <div className="rounded-[1.5rem] border border-white/10 bg-white/5 p-4">
-                      <div className="flex items-center gap-2">
-                        <Clock3 className="h-4 w-4 text-accent" />
-                        <h4 className="text-lg font-semibold text-sand">
-                          Agenda del barbero
-                        </h4>
+                  <div className="space-y-6 xl:col-span-2">
+                    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                      {[
+                        { step: 1, title: "Perfil", subtitle: "Editar e informacion" },
+                        { step: 2, title: "Agenda", subtitle: "Fijar y bloquear" },
+                        { step: 3, title: "Hoy", subtitle: "Reservas del dia" },
+                        { step: 4, title: "Semana", subtitle: "Reservas semanales" }
+                      ].map((item) => (
+                        <button
+                          key={item.step}
+                          type="button"
+                          onClick={() =>
+                            setActiveBarberStep(item.step as 1 | 2 | 3 | 4)
+                          }
+                          className={cn(
+                            "rounded-[1.25rem] border px-4 py-4 text-left transition",
+                            activeBarberStep === item.step
+                              ? "border-accent bg-accent/12 text-sand"
+                              : "border-white/10 bg-white/5 text-sand/70"
+                          )}
+                        >
+                          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent/80">
+                            Paso {item.step}
+                          </p>
+                          <p className="mt-2 text-lg font-semibold">{item.title}</p>
+                          <p className="mt-1 text-sm">{item.subtitle}</p>
+                        </button>
+                      ))}
+                    </div>
+
+                    {activeBarberStep === 1 ? (
+                      <div className="rounded-[1.5rem] border border-white/10 bg-white/5 p-4">
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                          <div>
+                            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent/80">
+                              Perfil del barbero
+                            </p>
+                            <h4 className="mt-2 text-xl font-semibold text-sand">
+                              {activeBarber.nombre}
+                            </h4>
+                            <p className="mt-2 text-sm text-sand/65">
+                              Usuario: {activeBarber.auth_email || "Sin configurar"}
+                            </p>
+                            <p className="mt-1 text-sm text-sand/65">
+                              Clave: {activeBarber.access_password || "Sin clave guardada"}
+                            </p>
+                            {activeBarber.whatsapp ? (
+                              <a
+                                href={buildWhatsAppUrl(activeBarber.whatsapp)}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="mt-2 inline-flex text-sm text-accent underline-offset-4 hover:underline"
+                              >
+                                WhatsApp: {activeBarber.whatsapp}
+                              </a>
+                            ) : null}
+                            <p className="mt-2 text-xs text-sand/60">
+                              {activeProfile
+                                ? "Perfil enlazado correctamente para el panel Barberos."
+                                : "Aun no tiene un perfil enlazado en perfiles_usuario."}
+                            </p>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              onClick={() => loadBarberIntoForm(activeBarber)}
+                              className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-sand/80"
+                            >
+                              Editar perfil
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                toggleBarber(activeBarber.id, activeBarber.activo)
+                              }
+                              className={cn(
+                                "rounded-2xl px-4 py-3 text-sm font-semibold",
+                                activeBarber.activo
+                                  ? "bg-emerald-500 text-slate-950"
+                                  : "bg-zinc-700 text-sand"
+                              )}
+                            >
+                              {activeBarber.activo ? "Activo" : "Inactivo"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setDeleteTarget(activeBarber)}
+                              className="rounded-2xl bg-danger px-4 py-3 text-white"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
                       </div>
-                      <div className="mt-4 space-y-4">
-                        <div className="grid grid-cols-2 gap-3">
-                          <button
-                            type="button"
+                    ) : null}
+
+                    {activeBarberStep === 2 ? (
+                      <div className="rounded-[1.5rem] border border-white/10 bg-white/5 p-4">
+                        <div className="flex items-center gap-2">
+                          <Clock3 className="h-4 w-4 text-accent" />
+                          <h4 className="text-lg font-semibold text-sand">
+                            Agenda del barbero
+                          </h4>
+                        </div>
+                        <div className="mt-4 space-y-4">
+                          <div className="grid grid-cols-2 gap-3">
+                            <button
+                              type="button"
                             onClick={() => setScheduleMode("cita_fijada")}
                             className={cn(
                               "rounded-2xl px-4 py-3 text-sm font-semibold transition",
@@ -1132,13 +1231,15 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                           </button>
                         </div>
                       </div>
-                    </div>
+                      </div>
+                    ) : null}
 
-                    <div className="rounded-[1.5rem] border border-white/10 bg-white/5 p-4">
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sand/60">
-                        Reservas del dia
-                      </p>
-                      <div className="mt-3 space-y-3">
+                    {activeBarberStep === 3 ? (
+                      <div className="rounded-[1.5rem] border border-white/10 bg-white/5 p-4">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sand/60">
+                          Reservas del dia
+                        </p>
+                        <div className="mt-3 space-y-3">
                         {activeTodayReservations.length ? (
                           activeTodayReservations.map((reservation) => (
                             <div
@@ -1177,14 +1278,15 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                           </div>
                         )}
                       </div>
-                    </div>
-                  </div>
+                      </div>
+                    ) : null}
 
-                  <div className="rounded-[1.5rem] border border-white/10 bg-white/5 p-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sand/60">
-                      Reservas de la semana
-                    </p>
-                    <div className="mt-3 space-y-3">
+                    {activeBarberStep === 4 ? (
+                      <div className="rounded-[1.5rem] border border-white/10 bg-white/5 p-4">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sand/60">
+                          Reservas de la semana
+                        </p>
+                        <div className="mt-3 space-y-3">
                       {activeBarberReservations.length ? (
                         activeBarberReservations.map((reservation) => (
                           <div
@@ -1240,6 +1342,8 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                         </div>
                       )}
                     </div>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               </div>
