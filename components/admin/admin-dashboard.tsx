@@ -150,7 +150,6 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
   const [activeBarberId, setActiveBarberId] = useState<string | null>(
     initialData.barbers[0]?.id ?? null
   );
-  const [activeBarberStep, setActiveBarberStep] = useState<1 | 2 | 3 | 4>(1);
   const [newReservationCount, setNewReservationCount] = useState(0);
   const [lastReservation, setLastReservation] = useState<any | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(true);
@@ -480,7 +479,6 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
 
   function loadBarberIntoForm(barber: any) {
     setEditingId(barber.id);
-    setActiveBarberStep(1);
     setBarberForm({
       nombre: barber.nombre ?? "",
       foto: barber.foto ?? "",
@@ -866,11 +864,10 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                 <button
                   key={barber.id}
                   type="button"
-                    onClick={() => {
-                      setActiveBarberId(barber.id);
-                      setActiveBarberStep(1);
-                      updateScheduleForBarber(barber.id, {}, true);
-                    }}
+                  onClick={() => {
+                    setActiveBarberId(barber.id);
+                    updateScheduleForBarber(barber.id, {}, true);
+                  }}
                   className={cn(
                     "rounded-[1.5rem] border bg-white/5 p-4 text-left transition",
                     activeBarberId === barber.id
@@ -969,39 +966,15 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                   </div>
                 </div>
 
-                <div className="mt-6 grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
-                  <div className="space-y-6 xl:col-span-2">
-                    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                      {[
-                        { step: 1, title: "Perfil", subtitle: "Editar e informacion" },
-                        { step: 2, title: "Agenda", subtitle: "Fijar y bloquear" },
-                        { step: 3, title: "Hoy", subtitle: "Reservas del dia" },
-                        { step: 4, title: "Semana", subtitle: "Reservas semanales" }
-                      ].map((item) => (
-                        <button
-                          key={item.step}
-                          type="button"
-                          onClick={() =>
-                            setActiveBarberStep(item.step as 1 | 2 | 3 | 4)
-                          }
-                          className={cn(
-                            "rounded-[1.25rem] border px-4 py-4 text-left transition",
-                            activeBarberStep === item.step
-                              ? "border-accent bg-accent/12 text-sand"
-                              : "border-white/10 bg-white/5 text-sand/70"
-                          )}
-                        >
-                          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent/80">
-                            Paso {item.step}
-                          </p>
-                          <p className="mt-2 text-lg font-semibold">{item.title}</p>
-                          <p className="mt-1 text-sm">{item.subtitle}</p>
-                        </button>
-                      ))}
-                    </div>
-
-                    {activeBarberStep === 1 ? (
-                      <div className="rounded-[1.5rem] border border-white/10 bg-white/5 p-4">
+                <div className="mt-6 space-y-4">
+                  <details className="rounded-[1.5rem] border border-white/10 bg-white/5 p-4">
+                    <summary className="cursor-pointer list-none text-left [&::-webkit-details-marker]:hidden">
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent/80">
+                        Funcion
+                      </p>
+                      <p className="mt-2 text-lg font-semibold text-sand">Perfil</p>
+                    </summary>
+                    <div className="mt-4">
                         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                           <div>
                             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent/80">
@@ -1063,11 +1036,17 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                             </button>
                           </div>
                         </div>
-                      </div>
-                    ) : null}
+                    </div>
+                  </details>
 
-                    {activeBarberStep === 2 ? (
-                      <div className="rounded-[1.5rem] border border-white/10 bg-white/5 p-4">
+                  <details className="rounded-[1.5rem] border border-white/10 bg-white/5 p-4">
+                    <summary className="cursor-pointer list-none text-left [&::-webkit-details-marker]:hidden">
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent/80">
+                        Funcion
+                      </p>
+                      <p className="mt-2 text-lg font-semibold text-sand">Agenda</p>
+                    </summary>
+                    <div className="mt-4">
                         <div className="flex items-center gap-2">
                           <Clock3 className="h-4 w-4 text-accent" />
                           <h4 className="text-lg font-semibold text-sand">
@@ -1231,11 +1210,17 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                           </button>
                         </div>
                       </div>
-                      </div>
-                    ) : null}
+                    </div>
+                  </details>
 
-                    {activeBarberStep === 3 ? (
-                      <div className="rounded-[1.5rem] border border-white/10 bg-white/5 p-4">
+                  <details className="rounded-[1.5rem] border border-white/10 bg-white/5 p-4">
+                    <summary className="cursor-pointer list-none text-left [&::-webkit-details-marker]:hidden">
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent/80">
+                        Funcion
+                      </p>
+                      <p className="mt-2 text-lg font-semibold text-sand">Hoy</p>
+                    </summary>
+                    <div className="mt-4">
                         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sand/60">
                           Reservas del dia
                         </p>
@@ -1278,11 +1263,17 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                           </div>
                         )}
                       </div>
-                      </div>
-                    ) : null}
+                    </div>
+                  </details>
 
-                    {activeBarberStep === 4 ? (
-                      <div className="rounded-[1.5rem] border border-white/10 bg-white/5 p-4">
+                  <details className="rounded-[1.5rem] border border-white/10 bg-white/5 p-4">
+                    <summary className="cursor-pointer list-none text-left [&::-webkit-details-marker]:hidden">
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent/80">
+                        Funcion
+                      </p>
+                      <p className="mt-2 text-lg font-semibold text-sand">Semana</p>
+                    </summary>
+                    <div className="mt-4">
                         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sand/60">
                           Reservas de la semana
                         </p>
@@ -1342,9 +1333,8 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                         </div>
                       )}
                     </div>
-                      </div>
-                    ) : null}
-                  </div>
+                    </div>
+                  </details>
                 </div>
               </div>
             ) : (
