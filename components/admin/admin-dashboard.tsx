@@ -150,6 +150,9 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
   const [activeBarberId, setActiveBarberId] = useState<string | null>(
     initialData.barbers[0]?.id ?? null
   );
+  const [activeBarberView, setActiveBarberView] = useState<
+    "list" | "menu" | "perfil" | "agenda" | "hoy" | "semana"
+  >("list");
   const [newReservationCount, setNewReservationCount] = useState(0);
   const [lastReservation, setLastReservation] = useState<any | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(true);
@@ -904,380 +907,345 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
               ))}
             </div>
 
-            {activeBarber ? (
+            {activeBarber && activeBarberView !== "list" ? (
               <div className="mt-6 rounded-[1.75rem] border border-accent/20 bg-black/10 p-5">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent/80">
-                      Perfil seleccionado
+                      Barbero seleccionado
                     </p>
                     <h3 className="mt-2 text-2xl font-semibold text-sand">
                       {activeBarber.nombre}
                     </h3>
-                    <p className="mt-2 text-sm text-sand/65">
-                      Usuario: {activeBarber.auth_email || "Sin configurar"}
-                    </p>
-                    <p className="mt-1 text-sm text-sand/65">
-                      Clave: {activeBarber.access_password || "Sin clave guardada"}
-                    </p>
-                    {activeBarber.whatsapp ? (
-                      <a
-                        href={buildWhatsAppUrl(activeBarber.whatsapp)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="mt-2 inline-flex text-sm text-accent underline-offset-4 hover:underline"
-                      >
-                        WhatsApp: {activeBarber.whatsapp}
-                      </a>
-                    ) : null}
-                    <p className="mt-2 text-xs text-sand/60">
-                      {activeProfile
-                        ? "Perfil enlazado correctamente para el panel Barberos."
-                        : "Aun no tiene un perfil enlazado en perfiles_usuario."}
-                    </p>
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => loadBarberIntoForm(activeBarber)}
-                      className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-sand/80"
-                    >
-                      Editar perfil
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => toggleBarber(activeBarber.id, activeBarber.activo)}
-                      className={cn(
-                        "rounded-2xl px-4 py-3 text-sm font-semibold",
-                        activeBarber.activo
-                          ? "bg-emerald-500 text-slate-950"
-                          : "bg-zinc-700 text-sand"
-                      )}
-                    >
-                      {activeBarber.activo ? "Activo" : "Inactivo"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setDeleteTarget(activeBarber)}
-                      className="rounded-2xl bg-danger px-4 py-3 text-white"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setActiveBarberView((current) =>
+                        current === "menu" ? "list" : "menu"
+                      )
+                    }
+                    className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-sand/80"
+                  >
+                    RETROCEDER
+                  </button>
                 </div>
 
-                <div className="mt-6 space-y-4">
-                  <details className="rounded-[1.5rem] border border-white/10 bg-white/5 p-4">
-                    <summary className="cursor-pointer list-none text-left [&::-webkit-details-marker]:hidden">
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent/80">
-                        Funcion
-                      </p>
-                      <p className="mt-2 text-lg font-semibold text-sand">Perfil</p>
-                    </summary>
-                    <div className="mt-4">
-                        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                          <div>
-                            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent/80">
-                              Perfil del barbero
-                            </p>
-                            <h4 className="mt-2 text-xl font-semibold text-sand">
-                              {activeBarber.nombre}
-                            </h4>
-                            <p className="mt-2 text-sm text-sand/65">
-                              Usuario: {activeBarber.auth_email || "Sin configurar"}
-                            </p>
-                            <p className="mt-1 text-sm text-sand/65">
-                              Clave: {activeBarber.access_password || "Sin clave guardada"}
-                            </p>
-                            {activeBarber.whatsapp ? (
-                              <a
-                                href={buildWhatsAppUrl(activeBarber.whatsapp)}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="mt-2 inline-flex text-sm text-accent underline-offset-4 hover:underline"
-                              >
-                                WhatsApp: {activeBarber.whatsapp}
-                              </a>
-                            ) : null}
-                            <p className="mt-2 text-xs text-sand/60">
-                              {activeProfile
-                                ? "Perfil enlazado correctamente para el panel Barberos."
-                                : "Aun no tiene un perfil enlazado en perfiles_usuario."}
-                            </p>
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            <button
-                              type="button"
-                              onClick={() => loadBarberIntoForm(activeBarber)}
-                              className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-sand/80"
-                            >
-                              Editar perfil
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                toggleBarber(activeBarber.id, activeBarber.activo)
-                              }
-                              className={cn(
-                                "rounded-2xl px-4 py-3 text-sm font-semibold",
-                                activeBarber.activo
-                                  ? "bg-emerald-500 text-slate-950"
-                                  : "bg-zinc-700 text-sand"
-                              )}
-                            >
-                              {activeBarber.activo ? "Activo" : "Inactivo"}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setDeleteTarget(activeBarber)}
-                              className="rounded-2xl bg-danger px-4 py-3 text-white"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </div>
-                        </div>
-                    </div>
-                  </details>
+                {activeBarberView === "menu" ? (
+                  <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    {[
+                      { key: "perfil", title: "Perfil", subtitle: "Editar e informacion" },
+                      { key: "agenda", title: "Agenda", subtitle: "Fijar y bloquear" },
+                      { key: "hoy", title: "Hoy", subtitle: "Reservas del dia" },
+                      { key: "semana", title: "Semana", subtitle: "Reservas semanales" }
+                    ].map((item) => (
+                      <button
+                        key={item.key}
+                        type="button"
+                        onClick={() =>
+                          setActiveBarberView(
+                            item.key as "perfil" | "agenda" | "hoy" | "semana"
+                          )
+                        }
+                        className="rounded-[1.25rem] border border-white/10 bg-white/5 px-4 py-4 text-left transition hover:border-accent/40"
+                      >
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent/80">
+                          Funcion
+                        </p>
+                        <p className="mt-2 text-lg font-semibold text-sand">
+                          {item.title}
+                        </p>
+                        <p className="mt-1 text-sm text-sand/70">{item.subtitle}</p>
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
 
-                  <details className="rounded-[1.5rem] border border-white/10 bg-white/5 p-4">
-                    <summary className="cursor-pointer list-none text-left [&::-webkit-details-marker]:hidden">
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent/80">
-                        Funcion
-                      </p>
-                      <p className="mt-2 text-lg font-semibold text-sand">Agenda</p>
-                    </summary>
-                    <div className="mt-4">
-                        <div className="flex items-center gap-2">
-                          <Clock3 className="h-4 w-4 text-accent" />
-                          <h4 className="text-lg font-semibold text-sand">
-                            Agenda del barbero
-                          </h4>
-                        </div>
-                        <div className="mt-4 space-y-4">
-                          <div className="grid grid-cols-2 gap-3">
-                            <button
-                              type="button"
-                            onClick={() => setScheduleMode("cita_fijada")}
-                            className={cn(
-                              "rounded-2xl px-4 py-3 text-sm font-semibold transition",
-                              scheduleMode === "cita_fijada"
-                                ? "bg-sky-500 text-white"
-                                : "border border-white/10 bg-white/5 text-sand/70"
-                            )}
+                {activeBarberView === "perfil" ? (
+                  <div className="mt-6 rounded-[1.5rem] border border-white/10 bg-white/5 p-4">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent/80">
+                          Perfil del barbero
+                        </p>
+                        <h4 className="mt-2 text-xl font-semibold text-sand">
+                          {activeBarber.nombre}
+                        </h4>
+                        <p className="mt-2 text-sm text-sand/65">
+                          Usuario: {activeBarber.auth_email || "Sin configurar"}
+                        </p>
+                        <p className="mt-1 text-sm text-sand/65">
+                          Clave: {activeBarber.access_password || "Sin clave guardada"}
+                        </p>
+                        {activeBarber.whatsapp ? (
+                          <a
+                            href={buildWhatsAppUrl(activeBarber.whatsapp)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="mt-2 inline-flex text-sm text-accent underline-offset-4 hover:underline"
                           >
-                            Cita fijada
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setScheduleMode("bloqueado")}
-                            className={cn(
-                              "rounded-2xl px-4 py-3 text-sm font-semibold transition",
-                              scheduleMode === "bloqueado"
-                                ? "bg-zinc-600 text-white"
-                                : "border border-white/10 bg-white/5 text-sand/70"
-                            )}
-                          >
-                            Bloqueo
-                          </button>
-                        </div>
-                        <input
-                          type="date"
-                          value={
-                            scheduleForm.barbero_id === activeBarber.id
-                              ? scheduleForm.fecha
-                              : ""
-                          }
-                          onChange={(event) =>
-                            updateScheduleForBarber(
-                              activeBarber.id,
-                              { fecha: event.target.value },
-                              true
-                            )
-                          }
-                          className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-accent"
-                        />
-                        {scheduleMode === "cita_fijada" ? (
-                          <>
-                            <input
-                              value={
-                                scheduleForm.barbero_id === activeBarber.id
-                                  ? scheduleForm.cliente_nombre
-                                  : ""
-                              }
-                              onChange={(event) =>
-                                updateScheduleForBarber(activeBarber.id, {
-                                  cliente_nombre: event.target.value
-                                })
-                              }
-                              placeholder="Nombre cliente"
-                              className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-accent"
-                            />
-                            <input
-                              value={
-                                scheduleForm.barbero_id === activeBarber.id
-                                  ? scheduleForm.cliente_whatsapp
-                                  : ""
-                              }
-                              onChange={(event) =>
-                                updateScheduleForBarber(activeBarber.id, {
-                                  cliente_whatsapp: event.target.value
-                                })
-                              }
-                              placeholder="WhatsApp cliente"
-                              className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-accent"
-                            />
-                          </>
-                        ) : (
-                          <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-sand/80">
-                            <input
-                              type="checkbox"
-                              checked={fullDayBlock}
-                              onChange={(event) => setFullDayBlock(event.target.checked)}
-                            />
-                            Bloquear dia completo
-                          </label>
-                        )}
-                        <div className="grid grid-cols-2 gap-2">
-                          {TIME_SLOTS.map((hour) => {
-                            const reservation =
-                              scheduleForm.barbero_id === activeBarber.id
-                                ? scheduleSlotMap.get(hour)
-                                : undefined;
-
-                            return (
-                              <button
-                                key={hour}
-                                type="button"
-                                onClick={() => {
-                                  updateScheduleForBarber(activeBarber.id, {});
-                                  toggleHour(hour);
-                                }}
-                                className={cn(
-                                  "rounded-2xl px-4 py-3 text-sm font-semibold transition",
-                                  selectedHours.includes(hour) &&
-                                    scheduleForm.barbero_id === activeBarber.id
-                                    ? scheduleMode === "cita_fijada"
-                                      ? "bg-sky-500 text-white"
-                                      : "bg-zinc-600 text-white"
-                                    : reservation
-                                      ? reservation.estado === "confirmada"
-                                        ? "border border-danger/40 bg-danger/15 text-white"
-                                        : reservation.estado === "cita_fijada"
-                                          ? "border border-sky-400/40 bg-sky-500/15 text-sky-100"
-                                          : "border border-zinc-500/40 bg-zinc-600/30 text-zinc-100"
-                                      : "border border-white/10 bg-white/5 text-sand/70"
-                                )}
-                              >
-                                <span className="block">{hour}</span>
-                                <span className="mt-1 block text-[11px] uppercase tracking-[0.18em]">
-                                  {selectedHours.includes(hour) &&
-                                  scheduleForm.barbero_id === activeBarber.id
-                                    ? "Seleccionado"
-                                    : reservation
-                                      ? reservation.estado === "confirmada"
-                                        ? "Ocupado"
-                                        : reservation.estado === "cita_fijada"
-                                          ? "Fijada"
-                                          : "Bloqueado"
-                                      : "Disponible"}
-                                </span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                        <div className="grid gap-3 sm:grid-cols-2">
-                          <button
-                            type="button"
-                            disabled={saving}
-                            onClick={() => {
-                              updateScheduleForBarber(activeBarber.id, {});
-                              void saveScheduleAction();
-                            }}
-                            className="rounded-2xl bg-accent px-4 py-4 text-sm font-bold uppercase tracking-[0.16em] text-ink disabled:opacity-60"
-                          >
-                            Guardar accion
-                          </button>
-                          <button
-                            type="button"
-                            disabled={saving}
-                            onClick={() => {
-                              updateScheduleForBarber(activeBarber.id, {});
-                              void unblockSelectedSlots();
-                            }}
-                            className="rounded-2xl border border-white/10 px-4 py-4 text-sm font-semibold text-sand/80 disabled:opacity-60"
-                          >
-                            Habilitar horarios
-                          </button>
-                        </div>
+                            WhatsApp: {activeBarber.whatsapp}
+                          </a>
+                        ) : null}
+                        <p className="mt-2 text-xs text-sand/60">
+                          {activeProfile
+                            ? "Perfil enlazado correctamente para el panel Barberos."
+                            : "Aun no tiene un perfil enlazado en perfiles_usuario."}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => loadBarberIntoForm(activeBarber)}
+                          className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-sand/80"
+                        >
+                          Editar perfil
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => toggleBarber(activeBarber.id, activeBarber.activo)}
+                          className={cn(
+                            "rounded-2xl px-4 py-3 text-sm font-semibold",
+                            activeBarber.activo
+                              ? "bg-emerald-500 text-slate-950"
+                              : "bg-zinc-700 text-sand"
+                          )}
+                        >
+                          {activeBarber.activo ? "Activo" : "Inactivo"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDeleteTarget(activeBarber)}
+                          className="rounded-2xl bg-danger px-4 py-3 text-white"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
                       </div>
                     </div>
-                  </details>
+                  </div>
+                ) : null}
 
-                  <details className="rounded-[1.5rem] border border-white/10 bg-white/5 p-4">
-                    <summary className="cursor-pointer list-none text-left [&::-webkit-details-marker]:hidden">
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent/80">
-                        Funcion
-                      </p>
-                      <p className="mt-2 text-lg font-semibold text-sand">Hoy</p>
-                    </summary>
-                    <div className="mt-4">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sand/60">
-                          Reservas del dia
-                        </p>
-                        <div className="mt-3 space-y-3">
-                        {activeTodayReservations.length ? (
-                          activeTodayReservations.map((reservation) => (
-                            <div
-                              key={reservation.id}
-                              className="rounded-2xl border border-white/10 bg-black/10 p-3"
+                {activeBarberView === "agenda" ? (
+                  <div className="mt-6 rounded-[1.5rem] border border-white/10 bg-white/5 p-4">
+                    <div className="flex items-center gap-2">
+                      <Clock3 className="h-4 w-4 text-accent" />
+                      <h4 className="text-lg font-semibold text-sand">
+                        Agenda del barbero
+                      </h4>
+                    </div>
+                    <div className="mt-4 space-y-4">
+                      <div className="grid grid-cols-2 gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setScheduleMode("cita_fijada")}
+                          className={cn(
+                            "rounded-2xl px-4 py-3 text-sm font-semibold transition",
+                            scheduleMode === "cita_fijada"
+                              ? "bg-sky-500 text-white"
+                              : "border border-white/10 bg-white/5 text-sand/70"
+                          )}
+                        >
+                          Cita fijada
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setScheduleMode("bloqueado")}
+                          className={cn(
+                            "rounded-2xl px-4 py-3 text-sm font-semibold transition",
+                            scheduleMode === "bloqueado"
+                              ? "bg-zinc-600 text-white"
+                              : "border border-white/10 bg-white/5 text-sand/70"
+                          )}
+                        >
+                          Bloqueo
+                        </button>
+                      </div>
+                      <input
+                        type="date"
+                        value={
+                          scheduleForm.barbero_id === activeBarber.id
+                            ? scheduleForm.fecha
+                            : ""
+                        }
+                        onChange={(event) =>
+                          updateScheduleForBarber(
+                            activeBarber.id,
+                            { fecha: event.target.value },
+                            true
+                          )
+                        }
+                        className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-accent"
+                      />
+                      {scheduleMode === "cita_fijada" ? (
+                        <>
+                          <input
+                            value={
+                              scheduleForm.barbero_id === activeBarber.id
+                                ? scheduleForm.cliente_nombre
+                                : ""
+                            }
+                            onChange={(event) =>
+                              updateScheduleForBarber(activeBarber.id, {
+                                cliente_nombre: event.target.value
+                              })
+                            }
+                            placeholder="Nombre cliente"
+                            className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-accent"
+                          />
+                          <input
+                            value={
+                              scheduleForm.barbero_id === activeBarber.id
+                                ? scheduleForm.cliente_whatsapp
+                                : ""
+                            }
+                            onChange={(event) =>
+                              updateScheduleForBarber(activeBarber.id, {
+                                cliente_whatsapp: event.target.value
+                              })
+                            }
+                            placeholder="WhatsApp cliente"
+                            className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-accent"
+                          />
+                        </>
+                      ) : (
+                        <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-sand/80">
+                          <input
+                            type="checkbox"
+                            checked={fullDayBlock}
+                            onChange={(event) => setFullDayBlock(event.target.checked)}
+                          />
+                          Bloquear dia completo
+                        </label>
+                      )}
+                      <div className="grid grid-cols-2 gap-2">
+                        {TIME_SLOTS.map((hour) => {
+                          const reservation =
+                            scheduleForm.barbero_id === activeBarber.id
+                              ? scheduleSlotMap.get(hour)
+                              : undefined;
+
+                          return (
+                            <button
+                              key={hour}
+                              type="button"
+                              onClick={() => {
+                                updateScheduleForBarber(activeBarber.id, {});
+                                toggleHour(hour);
+                              }}
+                              className={cn(
+                                "rounded-2xl px-4 py-3 text-sm font-semibold transition",
+                                selectedHours.includes(hour) &&
+                                  scheduleForm.barbero_id === activeBarber.id
+                                  ? scheduleMode === "cita_fijada"
+                                    ? "bg-sky-500 text-white"
+                                    : "bg-zinc-600 text-white"
+                                  : reservation
+                                    ? reservation.estado === "confirmada"
+                                      ? "border border-danger/40 bg-danger/15 text-white"
+                                      : reservation.estado === "cita_fijada"
+                                        ? "border border-sky-400/40 bg-sky-500/15 text-sky-100"
+                                        : "border border-zinc-500/40 bg-zinc-600/30 text-zinc-100"
+                                    : "border border-white/10 bg-white/5 text-sand/70"
+                              )}
                             >
-                              <div className="flex items-center justify-between gap-3">
-                                <p className="font-semibold text-sand">
-                                  {reservation.cliente_nombre}
-                                </p>
-                                <span
-                                  className={cn(
-                                    "rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]",
-                                    statusStyles[
-                                      (reservation.estado === "cancelada"
-                                        ? "confirmada"
-                                        : reservation.estado) as Exclude<ReservationStatus, "cancelada">
-                                    ]?.badge ?? "bg-white/10"
-                                  )}
-                                >
-                                  {statusStyles[
+                              <span className="block">{hour}</span>
+                              <span className="mt-1 block text-[11px] uppercase tracking-[0.18em]">
+                                {selectedHours.includes(hour) &&
+                                scheduleForm.barbero_id === activeBarber.id
+                                  ? "Seleccionado"
+                                  : reservation
+                                    ? reservation.estado === "confirmada"
+                                      ? "Ocupado"
+                                      : reservation.estado === "cita_fijada"
+                                        ? "Fijada"
+                                        : "Bloqueado"
+                                    : "Disponible"}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <button
+                          type="button"
+                          disabled={saving}
+                          onClick={() => {
+                            updateScheduleForBarber(activeBarber.id, {});
+                            void saveScheduleAction();
+                          }}
+                          className="rounded-2xl bg-accent px-4 py-4 text-sm font-bold uppercase tracking-[0.16em] text-ink disabled:opacity-60"
+                        >
+                          Guardar accion
+                        </button>
+                        <button
+                          type="button"
+                          disabled={saving}
+                          onClick={() => {
+                            updateScheduleForBarber(activeBarber.id, {});
+                            void unblockSelectedSlots();
+                          }}
+                          className="rounded-2xl border border-white/10 px-4 py-4 text-sm font-semibold text-sand/80 disabled:opacity-60"
+                        >
+                          Habilitar horarios
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+
+                {activeBarberView === "hoy" ? (
+                  <div className="mt-6 rounded-[1.5rem] border border-white/10 bg-white/5 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sand/60">
+                      Reservas del dia
+                    </p>
+                    <div className="mt-3 space-y-3">
+                      {activeTodayReservations.length ? (
+                        activeTodayReservations.map((reservation) => (
+                          <div
+                            key={reservation.id}
+                            className="rounded-2xl border border-white/10 bg-black/10 p-3"
+                          >
+                            <div className="flex items-center justify-between gap-3">
+                              <p className="font-semibold text-sand">
+                                {reservation.cliente_nombre}
+                              </p>
+                              <span
+                                className={cn(
+                                  "rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]",
+                                  statusStyles[
                                     (reservation.estado === "cancelada"
                                       ? "confirmada"
                                       : reservation.estado) as Exclude<ReservationStatus, "cancelada">
-                                  ]?.label ?? reservation.estado}
-                                </span>
-                              </div>
-                              <p className="mt-1 text-sm text-sand/70">
-                                {reservation.hora}
-                              </p>
+                                  ]?.badge ?? "bg-white/10"
+                                )}
+                              >
+                                {statusStyles[
+                                  (reservation.estado === "cancelada"
+                                    ? "confirmada"
+                                    : reservation.estado) as Exclude<ReservationStatus, "cancelada">
+                                ]?.label ?? reservation.estado}
+                              </span>
                             </div>
-                          ))
-                        ) : (
-                          <div className="rounded-2xl border border-dashed border-white/10 p-3 text-sm text-sand/60">
-                            Este barbero no tiene reservas hoy.
+                            <p className="mt-1 text-sm text-sand/70">
+                              {reservation.hora}
+                            </p>
                           </div>
-                        )}
-                      </div>
+                        ))
+                      ) : (
+                        <div className="rounded-2xl border border-dashed border-white/10 p-3 text-sm text-sand/60">
+                          Este barbero no tiene reservas hoy.
+                        </div>
+                      )}
                     </div>
-                  </details>
+                  </div>
+                ) : null}
 
-                  <details className="rounded-[1.5rem] border border-white/10 bg-white/5 p-4">
-                    <summary className="cursor-pointer list-none text-left [&::-webkit-details-marker]:hidden">
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent/80">
-                        Funcion
-                      </p>
-                      <p className="mt-2 text-lg font-semibold text-sand">Semana</p>
-                    </summary>
-                    <div className="mt-4">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sand/60">
-                          Reservas de la semana
-                        </p>
-                        <div className="mt-3 space-y-3">
+                {activeBarberView === "semana" ? (
+                  <div className="mt-6 rounded-[1.5rem] border border-white/10 bg-white/5 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sand/60">
+                      Reservas de la semana
+                    </p>
+                    <div className="mt-3 space-y-3">
                       {activeBarberReservations.length ? (
                         activeBarberReservations.map((reservation) => (
                           <div
@@ -1333,9 +1301,8 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                         </div>
                       )}
                     </div>
-                    </div>
-                  </details>
-                </div>
+                  </div>
+                ) : null}
               </div>
             ) : (
               <div className="mt-6 rounded-2xl border border-dashed border-white/10 p-4 text-sm text-sand/60">
