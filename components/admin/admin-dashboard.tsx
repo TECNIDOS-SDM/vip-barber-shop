@@ -869,6 +869,7 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                   type="button"
                   onClick={() => {
                     setActiveBarberId(barber.id);
+                    setActiveBarberView("menu");
                     updateScheduleForBarber(barber.id, {}, true);
                   }}
                   className={cn(
