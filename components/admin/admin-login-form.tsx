@@ -30,9 +30,6 @@ export function AdminLoginForm({
 
     try {
       const supabase = getSupabaseBrowserClient();
-      if (isBarberSwitch) {
-        await supabase.auth.signOut();
-      }
       const email = adminIdentifierToEmail(identifier);
       const { error } = await supabase.auth.signInWithPassword({
         email,

@@ -38,6 +38,10 @@ export function BarberDashboard({
   barberEmail,
   initialData
 }: BarberDashboardProps) {
+  function normalizeHourKey(hour?: string | null) {
+    return (hour ?? "").slice(0, 5);
+  }
+
   const defaultDate =
     initialData.currentWeek.find((day) => day.isToday)?.isoDate ??
     initialData.currentWeek[0]?.isoDate ??
@@ -53,7 +57,10 @@ export function BarberDashboard({
 
   const reservationMap = useMemo(() => {
     return new Map(
-      selectedDayReservations.map((reservation) => [reservation.hora, reservation])
+      selectedDayReservations.map((reservation) => [
+        normalizeHourKey(reservation.hora),
+        reservation
+      ])
     );
   }, [selectedDayReservations]);
 
@@ -158,11 +165,20 @@ export function BarberDashboard({
                         : "DISPONIBLE"}
                     </span>
                     {reservation ? (
-                      <span className="mt-2 block truncate text-xs font-medium">
-                        {reservation.estado === "bloqueado"
-                          ? "HORARIO BLOQUEADO"
-                          : reservation.cliente_nombre || "CITA FIJADA"}
-                      </span>
+                      <>
+                        <span className="mt-2 block truncate text-xs font-medium">
+                          {reservation.estado === "bloqueado"
+                            ? "HORARIO BLOQUEADO"
+                            : reservation.cliente_nombre || "CITA FIJADA"}
+                        </span>
+                        {reservation.estado !== "bloqueado" ? (
+                          <span className="mt-1 block truncate text-[11px]">
+                            {reservation.estado === "cita_fijada"
+                              ? "CITA FIJADA"
+                              : "RESERVA CONFIRMADA"}
+                          </span>
+                        ) : null}
+                      </>
                     ) : null}
                   </div>
                 );
