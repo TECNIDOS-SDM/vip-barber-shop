@@ -168,6 +168,7 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
   const [lastReservation, setLastReservation] = useState<any | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
+  const [releaseTarget, setReleaseTarget] = useState<any | null>(null);
   const [bootstrapping, setBootstrapping] = useState(
     initialData.reservations.length === 0 &&
       initialData.todayReservations.length === 0 &&
@@ -481,6 +482,15 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
         error instanceof Error ? error.message : "No fue posible liberar el horario."
       );
     }
+  }
+
+  async function confirmReleaseReservation() {
+    if (!releaseTarget?.id) {
+      return;
+    }
+
+    await releaseReservation(releaseTarget.id);
+    setReleaseTarget(null);
   }
 
   function toggleHour(hour: string) {
@@ -1017,8 +1027,14 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
 
                               if (activeAgendaTab === "reservas") {
                                 return (
-                                  <div
+                                  <button
                                     key={hour}
+                                    type="button"
+                                    onClick={() => {
+                                      if (reservation) {
+                                        setReleaseTarget(reservation);
+                                      }
+                                    }}
                                     className={cn(
                                       "rounded-2xl px-4 py-4 text-center transition",
                                       reservation
@@ -1029,6 +1045,7 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                                             : "bg-zinc-600 text-white"
                                         : "bg-emerald-500 text-slate-950"
                                     )}
+                                    disabled={!reservation}
                                   >
                                     <span className="block text-sm font-semibold">{hour}</span>
                                     <span className="mt-1 block text-[11px] uppercase tracking-[0.18em]">
@@ -1041,13 +1058,21 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                                         : "Disponible"}
                                     </span>
                                     {reservation ? (
-                                      <span className="mt-2 block truncate text-xs font-medium">
-                                        {reservation.estado === "bloqueado"
-                                          ? "Horario bloqueado"
-                                          : reservation.cliente_nombre}
-                                      </span>
+                                      <>
+                                        <span className="mt-2 block truncate text-xs font-medium">
+                                          {reservation.estado === "bloqueado"
+                                            ? "Horario bloqueado"
+                                            : reservation.cliente_nombre}
+                                        </span>
+                                        {reservation.estado !== "bloqueado" &&
+                                        reservation.cliente_whatsapp ? (
+                                          <span className="mt-1 block truncate text-[11px]">
+                                            {reservation.cliente_whatsapp}
+                                          </span>
+                                        ) : null}
+                                      </>
                                     ) : null}
-                                  </div>
+                                  </button>
                                 );
                               }
 
@@ -1056,6 +1081,10 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                                   key={hour}
                                   type="button"
                                   onClick={() => {
+                                    if (reservation) {
+                                      setReleaseTarget(reservation);
+                                      return;
+                                    }
                                     updateScheduleForBarber(activeBarber.id, {});
                                     toggleHour(hour);
                                   }}
@@ -1088,6 +1117,21 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                                             : "Bloqueado"
                                         : "Disponible"}
                                   </span>
+                                  {reservation ? (
+                                    <>
+                                      <span className="mt-2 block truncate text-xs font-medium">
+                                        {reservation.estado === "bloqueado"
+                                          ? "Horario bloqueado"
+                                          : reservation.cliente_nombre}
+                                      </span>
+                                      {reservation.estado !== "bloqueado" &&
+                                      reservation.cliente_whatsapp ? (
+                                        <span className="mt-1 block truncate text-[11px]">
+                                          {reservation.cliente_whatsapp}
+                                        </span>
+                                      ) : null}
+                                    </>
+                                  ) : null}
                                 </button>
                               );
                             })}
@@ -1169,7 +1213,7 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                       ) : null}
 
                       {activeAgendaTab !== "reservas" ? (
-                        <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="grid gap-3">
                           <button
                             type="button"
                             disabled={saving}
@@ -1181,30 +1225,6 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                           >
                             Guardar accion
                           </button>
-                          <button
-                            type="button"
-                            disabled={saving}
-                            onClick={() => {
-                              updateScheduleForBarber(activeBarber.id, {});
-                              void unblockSelectedSlots();
-                            }}
-                            className="rounded-2xl border border-white/10 px-4 py-4 text-sm font-semibold text-sand/80 disabled:opacity-60"
-                          >
-                            Liberar horarios
-                          </button>
-                        </div>
-                      ) : scheduleForm.fecha && selectedAgendaReservations.length ? (
-                        <div className="grid gap-3">
-                          {selectedAgendaReservations.map((reservation) => (
-                            <button
-                              key={reservation.id}
-                              type="button"
-                              onClick={() => void releaseReservation(reservation.id)}
-                              className="rounded-2xl border border-rose-400/30 bg-rose-500/10 px-4 py-3 text-sm font-semibold text-rose-200"
-                            >
-                              Liberar {reservation.hora}
-                            </button>
-                          ))}
                         </div>
                       ) : null}
                     </div>
@@ -1342,6 +1362,49 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                 className="flex-1 rounded-2xl bg-danger px-4 py-3 text-sm font-semibold text-white"
               >
                 Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {releaseTarget ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
+          <div className="w-full max-w-md rounded-[2rem] border border-white/10 bg-[#120f0b] p-6">
+            <h3 className="text-2xl font-semibold text-sand">
+              Liberar horario
+            </h3>
+            <p className="mt-3 text-sm text-sand/70">
+              Quieres liberar este espacio?
+            </p>
+            <div className="mt-4 rounded-2xl border border-white/10 bg-black/10 p-4 text-sm text-sand/80">
+              <p className="font-semibold text-sand">
+                {releaseTarget.hora} - {releaseTarget.estado}
+              </p>
+              <p className="mt-1">
+                {releaseTarget.estado === "bloqueado"
+                  ? "Horario bloqueado"
+                  : releaseTarget.cliente_nombre}
+              </p>
+              {releaseTarget.estado !== "bloqueado" &&
+              releaseTarget.cliente_whatsapp ? (
+                <p className="mt-1">{releaseTarget.cliente_whatsapp}</p>
+              ) : null}
+            </div>
+            <div className="mt-6 flex gap-3">
+              <button
+                type="button"
+                onClick={() => setReleaseTarget(null)}
+                className="flex-1 rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-sand/80"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => void confirmReleaseReservation()}
+                className="flex-1 rounded-2xl bg-danger px-4 py-3 text-sm font-semibold text-white"
+              >
+                Liberar
               </button>
             </div>
           </div>
