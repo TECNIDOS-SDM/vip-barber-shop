@@ -95,8 +95,9 @@ export function BarberDashboard({
                 {panelView === "hours" ? (
                   <p className="mt-1 text-sm text-sand/65">
                     {
-                      initialData.currentWeek.find((day) => day.isoDate === selectedDate)
-                        ?.label
+                      initialData.currentWeek
+                        .find((day) => day.isoDate === selectedDate)
+                        ?.label.split(" ")[0]
                     }
                   </p>
                 ) : null}
@@ -130,8 +131,9 @@ export function BarberDashboard({
                       : "border-white/10 bg-white/5 text-sand/75"
                   )}
                 >
-                  <p className="text-sm font-semibold">{day.shortLabel}</p>
-                  <p className="mt-1 text-xs">{day.label}</p>
+                  <p className="text-sm font-semibold uppercase">
+                    {day.label.split(" ")[0]}
+                  </p>
                 </button>
               ))}
             </div>
