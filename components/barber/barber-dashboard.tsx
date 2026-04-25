@@ -165,7 +165,9 @@ export function BarberDashboard({
                     </span>
                     {reservation ? (
                       <span className="mt-2 block truncate text-xs font-medium">
-                        {reservation.cliente_nombre}
+                        {reservation.estado === "bloqueado"
+                          ? "HORARIO BLOQUEADO"
+                          : reservation.cliente_nombre || "CITA FIJADA"}
                       </span>
                     ) : null}
                   </div>
