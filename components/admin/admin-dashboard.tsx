@@ -64,14 +64,11 @@ function CollapsibleSection({
       open={defaultOpen}
       className={cn("glass rounded-[2rem] p-6", className)}
     >
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
+      <summary className="flex cursor-pointer list-none items-center gap-2 [&::-webkit-details-marker]:hidden">
         <div className="flex items-center gap-2">
           {icon}
           <h2 className="text-xl font-semibold">{title}</h2>
         </div>
-        <span className="text-xs font-semibold uppercase tracking-[0.18em] text-accent/80">
-          Abrir / cerrar
-        </span>
       </summary>
       <div className="mt-5">{children}</div>
     </details>
@@ -446,11 +443,21 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
 
   async function releaseReservation(id: string) {
     try {
-      const supabase = getSupabaseBrowserClient();
-      const { error } = await supabase.from("reservas").delete().eq("id", id);
+      const response = await fetch("/api/admin-schedule", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          action: "release",
+          reservation_id: id
+        })
+      });
 
-      if (error) {
-        throw error;
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? "No fue posible liberar el horario.");
       }
 
       toast.success("Horario liberado.");
@@ -493,26 +500,28 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
     setSaving(true);
 
     try {
-      const supabase = getSupabaseBrowserClient();
-      const rows = selectedHours.map((hora) => ({
-        barbero_id: scheduleForm.barbero_id,
-        fecha: scheduleForm.fecha,
-        hora,
-        estado: scheduleMode,
-        cliente_nombre:
-          scheduleMode === "cita_fijada"
-            ? scheduleForm.cliente_nombre
-            : "Horario bloqueado",
-        cliente_whatsapp:
-          scheduleMode === "cita_fijada"
-            ? scheduleForm.cliente_whatsapp
-            : "N/A"
-      }));
+      const response = await fetch("/api/admin-schedule", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          action: "create",
+          barbero_id: scheduleForm.barbero_id,
+          fecha: scheduleForm.fecha,
+          horas: selectedHours,
+          estado: scheduleMode,
+          cliente_nombre: scheduleForm.cliente_nombre,
+          cliente_whatsapp: scheduleForm.cliente_whatsapp
+        })
+      });
 
-      const { error } = await supabase.from("reservas").insert(rows);
+      const payload = await response.json();
 
-      if (error) {
-        throw error;
+      if (!response.ok) {
+        throw new Error(
+          payload.error ?? "No fue posible guardar la accion de agenda."
+        );
       }
 
       toast.success(
@@ -544,17 +553,23 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
     setSaving(true);
 
     try {
-      const supabase = getSupabaseBrowserClient();
-      const { error } = await supabase
-        .from("reservas")
-        .delete()
-        .eq("barbero_id", scheduleForm.barbero_id)
-        .eq("fecha", scheduleForm.fecha)
-        .eq("estado", "bloqueado")
-        .in("hora", selectedHours);
+      const response = await fetch("/api/admin-schedule", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          action: "unblock",
+          barbero_id: scheduleForm.barbero_id,
+          fecha: scheduleForm.fecha,
+          horas: selectedHours
+        })
+      });
 
-      if (error) {
-        throw error;
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? "No fue posible habilitar los horarios.");
       }
 
       toast.success("Horarios habilitados nuevamente.");
@@ -590,6 +605,18 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
     blockedSlots: reservations.filter((item) => item.estado === "bloqueado").length,
     fixedAppointments: reservations.filter((item) => item.estado === "cita_fijada").length
   };
+
+  const scheduleSlotMap = useMemo(() => {
+    return new Map(
+      reservations
+        .filter(
+          (reservation) =>
+            reservation.barbero_id === scheduleForm.barbero_id &&
+            reservation.fecha === scheduleForm.fecha
+        )
+        .map((reservation) => [reservation.hora, reservation])
+    );
+  }, [reservations, scheduleForm.barbero_id, scheduleForm.fecha]);
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
@@ -893,10 +920,27 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                         ? scheduleMode === "cita_fijada"
                           ? "bg-sky-500 text-white"
                           : "bg-zinc-600 text-white"
-                        : "border border-white/10 bg-white/5 text-sand/70"
+                        : scheduleSlotMap.has(hour)
+                          ? scheduleSlotMap.get(hour)?.estado === "confirmada"
+                            ? "border border-danger/40 bg-danger/15 text-white"
+                            : scheduleSlotMap.get(hour)?.estado === "cita_fijada"
+                              ? "border border-sky-400/40 bg-sky-500/15 text-sky-100"
+                              : "border border-zinc-500/40 bg-zinc-600/30 text-zinc-100"
+                          : "border border-white/10 bg-white/5 text-sand/70"
                     )}
                   >
-                    {hour}
+                    <span className="block">{hour}</span>
+                    <span className="mt-1 block text-[11px] uppercase tracking-[0.18em]">
+                      {selectedHours.includes(hour)
+                        ? "Seleccionado"
+                        : scheduleSlotMap.has(hour)
+                          ? scheduleSlotMap.get(hour)?.estado === "confirmada"
+                            ? "Ocupado"
+                            : scheduleSlotMap.get(hour)?.estado === "cita_fijada"
+                              ? "Fijada"
+                              : "Bloqueado"
+                          : "Disponible"}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -932,31 +976,21 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                     (profile) =>
                       profile.rol === "barbero" && profile.barbero_id === barber.id
                   );
+                  const barberReservations = reservations.filter(
+                    (reservation) => reservation.barbero_id === barber.id
+                  );
 
                   return (
-                    <div
+                    <details
                       key={barber.id}
                       className="rounded-2xl border border-white/10 bg-white/5 p-4"
                     >
-                      <div className="flex flex-wrap items-center justify-between gap-3">
+                      <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
                         <div>
                           <p className="font-semibold text-sand">{barber.nombre}</p>
                           <p className="mt-1 text-sm text-sand/65">
                             Acceso login: {barber.auth_email || "Sin configurar"}
                           </p>
-                          <p className="mt-1 text-sm text-sand/65">
-                            Clave: {barber.access_password || "Sin clave guardada"}
-                          </p>
-                          {barber.whatsapp ? (
-                            <a
-                              href={buildWhatsAppUrl(barber.whatsapp)}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="mt-1 inline-flex text-sm text-accent underline-offset-4 hover:underline"
-                            >
-                              WhatsApp: {barber.whatsapp}
-                            </a>
-                          ) : null}
                         </div>
                         <span
                           className={cn(
@@ -968,15 +1002,105 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                         >
                           {barber.auth_email ? "Acceso habilitado" : "Pendiente"}
                         </span>
+                      </summary>
+                      <div className="mt-4 space-y-4">
+                        <div className="rounded-2xl border border-white/10 bg-black/10 p-4">
+                          <p className="text-sm text-sand/70">
+                            Clave: {barber.access_password || "Sin clave guardada"}
+                          </p>
+                          {barber.whatsapp ? (
+                            <a
+                              href={buildWhatsAppUrl(barber.whatsapp)}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="mt-2 inline-flex text-sm text-accent underline-offset-4 hover:underline"
+                            >
+                              WhatsApp: {barber.whatsapp}
+                            </a>
+                          ) : null}
+                          <p className="mt-2 text-xs text-sand/60">
+                            {linkedProfile
+                              ? "Perfil del barbero enlazado correctamente."
+                              : barber.auth_email
+                                ? "Tiene acceso listo para su panel."
+                                : "Aun no tiene acceso configurado."}
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingId(barber.id);
+                              setBarberForm({
+                                nombre: barber.nombre ?? "",
+                                foto: barber.foto ?? "",
+                                whatsapp: barber.whatsapp ?? "",
+                                auth_email: barber.auth_email ?? "",
+                                access_password: barber.access_password ?? "12345678"
+                              });
+                              window.scrollTo({ top: 0, behavior: "smooth" });
+                            }}
+                            className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-sand/80"
+                          >
+                            Editar perfil
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setScheduleForm((current) => ({
+                                ...current,
+                                barbero_id: barber.id
+                              }))
+                            }
+                            className="rounded-2xl border border-accent/30 bg-accent/10 px-4 py-3 text-sm font-semibold text-accent"
+                          >
+                            Preparar agenda
+                          </button>
+                        </div>
+                        <div className="space-y-2">
+                          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sand/60">
+                            Reservas del barbero
+                          </p>
+                          {barberReservations.length ? (
+                            barberReservations.map((reservation) => (
+                              <div
+                                key={reservation.id}
+                                className="rounded-2xl border border-white/10 bg-white/5 p-3"
+                              >
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                  <p className="font-semibold text-sand">
+                                    {reservation.cliente_nombre}
+                                  </p>
+                                  <span
+                                    className={cn(
+                                      "rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]",
+                                      statusStyles[
+                                        (reservation.estado === "cancelada"
+                                          ? "confirmada"
+                                          : reservation.estado) as Exclude<ReservationStatus, "cancelada">
+                                      ]?.badge ?? "bg-white/10"
+                                    )}
+                                  >
+                                    {statusStyles[
+                                      (reservation.estado === "cancelada"
+                                        ? "confirmada"
+                                        : reservation.estado) as Exclude<ReservationStatus, "cancelada">
+                                    ]?.label ?? reservation.estado}
+                                  </span>
+                                </div>
+                                <p className="mt-1 text-sm text-sand/70">
+                                  {reservation.fecha} - {reservation.hora}
+                                </p>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="rounded-2xl border border-dashed border-white/10 p-3 text-sm text-sand/60">
+                              No hay reservas visibles para este barbero en la semana.
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <p className="mt-3 text-xs text-sand/60">
-                        {linkedProfile
-                          ? "Tambien tiene un perfil asociado en perfiles_usuario."
-                          : barber.auth_email
-                            ? "Puede iniciar sesion con ese correo y vera solo su propia agenda."
-                            : "Edita el barbero y agrega su usuario o correo para activarlo."}
-                      </p>
-                    </div>
+                    </details>
                   );
                 })
               ) : (

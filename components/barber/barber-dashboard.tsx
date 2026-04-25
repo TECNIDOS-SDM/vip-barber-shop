@@ -1,8 +1,12 @@
+"use client";
+
+import { useMemo, useState, type ReactNode } from "react";
 import { CalendarClock, Scissors } from "lucide-react";
-import type { ReactNode } from "react";
+import { TIME_SLOTS } from "@/lib/constants";
+import { formatHourDisplay } from "@/lib/date";
 import { cn } from "@/lib/utils";
-import { SignOutButton } from "@/components/shared/sign-out-button";
 import { Logo } from "@/components/shared/logo";
+import { SignOutButton } from "@/components/shared/sign-out-button";
 
 type BarberDashboardProps = {
   barberEmail: string;
@@ -44,15 +48,10 @@ function CollapsibleSection({
   defaultOpen = false
 }: CollapsibleSectionProps) {
   return (
-    <details open={defaultOpen} className={cn("glass rounded-[2rem] p-6")}>
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
-        <div className="flex items-center gap-2">
-          {icon}
-          <h2 className="text-xl font-semibold">{title}</h2>
-        </div>
-        <span className="text-xs font-semibold uppercase tracking-[0.18em] text-accent/80">
-          Abrir / cerrar
-        </span>
+    <details open={defaultOpen} className="glass rounded-[2rem] p-6">
+      <summary className="flex cursor-pointer list-none items-center gap-2 [&::-webkit-details-marker]:hidden">
+        {icon}
+        <h2 className="text-xl font-semibold">{title}</h2>
       </summary>
       <div className="mt-5">{children}</div>
     </details>
@@ -63,6 +62,24 @@ export function BarberDashboard({
   barberEmail,
   initialData
 }: BarberDashboardProps) {
+  const defaultDate =
+    initialData.currentWeek.find((day) => day.isToday)?.isoDate ??
+    initialData.currentWeek[0]?.isoDate ??
+    "";
+  const [selectedDate, setSelectedDate] = useState(defaultDate);
+
+  const selectedDayReservations = useMemo(() => {
+    return initialData.reservations.filter(
+      (reservation) => reservation.fecha === selectedDate
+    );
+  }, [initialData.reservations, selectedDate]);
+
+  const reservationMap = useMemo(() => {
+    return new Map(
+      selectedDayReservations.map((reservation) => [reservation.hora, reservation])
+    );
+  }, [selectedDayReservations]);
+
   return (
     <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
       <section className="rounded-[2rem] border border-white/10 bg-grain p-6 sm:p-8">
@@ -92,48 +109,77 @@ export function BarberDashboard({
         >
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {initialData.currentWeek.map((day) => (
-              <div
+              <button
                 key={day.key}
-                className={`rounded-2xl border px-4 py-4 ${
-                  day.isToday
+                type="button"
+                onClick={() => setSelectedDate(day.isoDate)}
+                className={cn(
+                  "rounded-2xl border px-4 py-4 text-left transition",
+                  selectedDate === day.isoDate
                     ? "border-accent bg-accent/10 text-sand"
                     : "border-white/10 bg-white/5 text-sand/75"
-                }`}
+                )}
               >
                 <p className="text-sm font-semibold">{day.shortLabel}</p>
                 <p className="mt-1 text-xs">{day.label}</p>
-              </div>
+              </button>
             ))}
           </div>
         </CollapsibleSection>
 
         <CollapsibleSection
-          title="Mis reservas"
+          title="Agenda por horario"
           icon={<Scissors className="h-5 w-5 text-accent" />}
         >
-          <div className="space-y-3">
-            {initialData.reservations.length ? (
-              initialData.reservations.map((reservation) => (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {TIME_SLOTS.map((hour) => {
+              const reservation = reservationMap.get(hour);
+              const busy = Boolean(reservation);
+
+              return (
                 <div
-                  key={reservation.id}
-                  className="rounded-2xl border border-white/10 bg-white/5 p-4"
+                  key={hour}
+                  className={cn(
+                    "rounded-2xl border p-4",
+                    busy
+                      ? "border-danger/40 bg-danger/15 text-white"
+                      : "border-white/10 bg-white/5 text-sand/70"
+                  )}
                 >
-                  <p className="font-semibold text-sand">
-                    {reservation.cliente_nombre}
-                  </p>
-                  <p className="mt-1 text-sm text-sand/70">
-                    {reservation.fecha} - {reservation.hora}
-                  </p>
-                  <p className="mt-1 text-xs uppercase tracking-[0.2em] text-accent/80">
-                    {reservation.estado}
-                  </p>
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="font-semibold text-sand">
+                      {formatHourDisplay(hour)}
+                    </p>
+                    <span
+                      className={cn(
+                        "rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]",
+                        busy
+                          ? "bg-danger text-white"
+                          : "bg-emerald-500 text-slate-950"
+                      )}
+                    >
+                      {busy ? reservation?.estado : "Disponible"}
+                    </span>
+                  </div>
+                  <div className="mt-3">
+                    {reservation ? (
+                      <>
+                        <p className="text-sm font-semibold text-white">
+                          {reservation.cliente_nombre}
+                        </p>
+                        <p className="mt-1 text-xs uppercase tracking-[0.18em] text-white/75">
+                          Horario ocupado
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-sm text-sand/60">
+                        No tienes reserva asignada en esta hora.
+                      </p>
+                    )}
+                  </div>
                 </div>
-              ))
-            ) : (
-              <div className="rounded-2xl border border-dashed border-white/10 p-4 text-sm text-sand/60">
-                No tienes reservas asignadas en la semana actual.
-              </div>
-            )}
+              );
+            })}
           </div>
         </CollapsibleSection>
       </section>

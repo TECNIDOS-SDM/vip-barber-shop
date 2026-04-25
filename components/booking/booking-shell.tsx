@@ -84,6 +84,24 @@ export function BookingShell({
     );
   }, [reservations, selectedBarber, selectedDate]);
 
+  function getPublicSlotState(hour: string) {
+    const status = slotMap.get(hour);
+
+    if (!status) {
+      return {
+        busy: false,
+        label: "DISPONIBLE",
+        className: "bg-emerald-500 text-slate-950 hover:brightness-110"
+      };
+    }
+
+    return {
+      busy: true,
+      label: "OCUPADO",
+      className: "bg-danger text-white"
+    };
+  }
+
   function resetBookingFlow() {
     setSelectedBarber(null);
     setSelectedDate("");
@@ -340,23 +358,30 @@ export function BookingShell({
                   </div>
 
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                    {TIME_SLOTS.filter((hour) => !slotMap.has(hour)).map((hour) => {
+                    {TIME_SLOTS.map((hour) => {
+                      const slotState = getPublicSlotState(hour);
+
                       return (
                         <button
                           key={hour}
                           type="button"
+                          disabled={slotState.busy}
                           onClick={() => {
+                            if (slotState.busy) return;
                             setSelectedHour(hour);
                             setCurrentStep(4);
                           }}
                           className={cn(
-                            "rounded-2xl px-4 py-4 text-sm font-semibold transition",
+                            "rounded-2xl px-4 py-4 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-100",
                             selectedHour === hour
                               ? "bg-accent text-ink shadow-glow"
-                              : "bg-emerald-500 text-slate-950 hover:brightness-110"
+                              : slotState.className
                           )}
                         >
                           <span className="block">{formatHourDisplay(hour)}</span>
+                          <span className="mt-1 block text-[11px] uppercase tracking-[0.18em]">
+                            {slotState.label}
+                          </span>
                         </button>
                       );
                     })}
