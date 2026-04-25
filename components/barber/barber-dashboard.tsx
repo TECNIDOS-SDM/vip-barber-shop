@@ -66,14 +66,6 @@ export function BarberDashboard({
             <p className="mt-3 text-sm text-sand/70">{barberEmail}</p>
           </div>
           <div className="flex flex-wrap gap-3">
-            <div className="glass rounded-2xl px-4 py-3">
-              <p className="text-xs text-sand/60">Citas de hoy</p>
-              <p className="text-2xl font-bold">{initialData.todayTotal}</p>
-            </div>
-            <div className="glass rounded-2xl px-4 py-3">
-              <p className="text-xs text-sand/60">Semana actual</p>
-              <p className="text-2xl font-bold">{initialData.reservations.length}</p>
-            </div>
             <SignOutButton redirectTo="/" />
           </div>
         </div>

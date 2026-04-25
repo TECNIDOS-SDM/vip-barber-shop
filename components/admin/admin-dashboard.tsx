@@ -721,22 +721,6 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
             ) : null}
           </div>
           <div className="flex flex-wrap gap-3">
-            <div className="glass rounded-2xl px-4 py-3">
-              <p className="text-xs text-sand/80">Barberos activos</p>
-              <p className="text-2xl font-bold">{weeklyStats.activeBarbers}</p>
-            </div>
-            <div className="glass rounded-2xl px-4 py-3">
-              <p className="text-xs text-sand/80">Reservas</p>
-              <p className="text-2xl font-bold">{weeklyStats.totalReservations}</p>
-            </div>
-            <div className="glass rounded-2xl px-4 py-3">
-              <p className="text-xs text-sand/80">Citas fijadas</p>
-              <p className="text-2xl font-bold">{weeklyStats.fixedAppointments}</p>
-            </div>
-            <div className="glass rounded-2xl px-4 py-3">
-              <p className="text-xs text-sand/80">Bloqueos</p>
-              <p className="text-2xl font-bold">{weeklyStats.blockedSlots}</p>
-            </div>
             <button
               type="button"
               onClick={() => setSoundEnabled((current) => !current)}
