@@ -77,6 +77,7 @@ export async function getAdminDashboardData() {
       reservations: [] as any[],
       todayReservations: [] as any[],
       profiles: [] as any[],
+      currentWeek: getCurrentWeek(),
       weeklyStats: {
         totalReservations: 0,
         activeBarbers: 0,
@@ -118,6 +119,7 @@ export async function getAdminDashboardData() {
     reservations,
     todayReservations,
     profiles: profilesResult.error ? [] : profilesResult.data ?? [],
+    currentWeek: week,
     weeklyStats: {
       totalReservations: reservations.length,
       activeBarbers:
@@ -142,6 +144,7 @@ export async function getAdminDashboardShellData() {
       reservations: [] as any[],
       todayReservations: [] as any[],
       profiles: [] as any[],
+      currentWeek: getCurrentWeek(),
       weeklyStats: {
         totalReservations: 0,
         activeBarbers: 0,
@@ -162,6 +165,7 @@ export async function getAdminDashboardShellData() {
     reservations: [] as any[],
     todayReservations: [] as any[],
     profiles: [] as any[],
+    currentWeek: getCurrentWeek(),
     weeklyStats: {
       totalReservations: 0,
       activeBarbers: barberList.filter((barber) => barber.activo).length,

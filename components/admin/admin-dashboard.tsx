@@ -32,6 +32,13 @@ type DashboardProps = {
     reservations: any[];
     todayReservations: any[];
     profiles: any[];
+    currentWeek: {
+      key: string;
+      label: string;
+      shortLabel: string;
+      isoDate: string;
+      isToday: boolean;
+    }[];
     weeklyStats: {
       totalReservations: number;
       activeBarbers: number;
@@ -132,6 +139,7 @@ const statusStyles: Record<
 };
 
 export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
+  const currentWeek = initialData.currentWeek;
   const [barbers, setBarbers] = useState(initialData.barbers);
   const [reservations, setReservations] = useState(initialData.reservations);
   const [todayReservations, setTodayReservations] = useState(
@@ -199,6 +207,7 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
     setReservations(nextReservations);
     setTodayReservations(payload.todayReservations ?? []);
     setProfiles(payload.profiles ?? []);
+    // Keep the visible week stable across refreshes; the server still sends it for API consumers.
     setActiveBarberId((current) => current ?? payload.barbers?.[0]?.id ?? null);
     setBootstrapping(false);
   }
@@ -1063,22 +1072,40 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                           Bloqueo
                         </button>
                       </div>
-                      <input
-                        type="date"
-                        value={
-                          scheduleForm.barbero_id === activeBarber.id
-                            ? scheduleForm.fecha
-                            : ""
-                        }
-                        onChange={(event) =>
-                          updateScheduleForBarber(
-                            activeBarber.id,
-                            { fecha: event.target.value },
-                            true
-                          )
-                        }
-                        className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-accent"
-                      />
+                      <div>
+                        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-sand/60">
+                          Elige el dia de la semana
+                        </p>
+                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-7">
+                          {currentWeek.map((day) => (
+                            <button
+                              key={day.key}
+                              type="button"
+                              onClick={() =>
+                                updateScheduleForBarber(
+                                  activeBarber.id,
+                                  { fecha: day.isoDate },
+                                  true
+                                )
+                              }
+                              className={cn(
+                                "rounded-2xl border px-4 py-4 text-left transition",
+                                scheduleForm.barbero_id === activeBarber.id &&
+                                  scheduleForm.fecha === day.isoDate
+                                  ? "border-accent bg-accent text-ink"
+                                  : "border-white/10 bg-white/5 text-sand/75 hover:border-accent/40"
+                              )}
+                            >
+                              <p className="text-sm font-semibold">{day.shortLabel}</p>
+                              <p className="mt-1 text-xs opacity-80">{day.label}</p>
+                            </button>
+                          ))}
+                        </div>
+                        <p className="mt-3 text-xs text-sand/55">
+                          La cita fijada o el bloqueo se repetira cada semana hasta
+                          que lo liberes manualmente.
+                        </p>
+                      </div>
                       {scheduleMode === "cita_fijada" ? (
                         <>
                           <input
@@ -1189,7 +1216,7 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                           }}
                           className="rounded-2xl border border-white/10 px-4 py-4 text-sm font-semibold text-sand/80 disabled:opacity-60"
                         >
-                          Habilitar horarios
+                          Liberar horarios
                         </button>
                       </div>
                     </div>
