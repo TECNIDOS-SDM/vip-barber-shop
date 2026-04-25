@@ -412,17 +412,21 @@ export function BookingShell({
                         className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-base font-normal normal-case tracking-normal text-sand outline-none transition focus:border-accent"
                       />
                     </label>
-                    <label className="grid gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-sand/70">
-                      WHATSAPP
+                    <label className="grid gap-2">
                       <div className="relative">
-                        <MessageCircleMore className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-accent" />
+                        <div className="pointer-events-none absolute left-4 top-1/2 flex -translate-y-1/2 items-center gap-2 text-accent">
+                          <MessageCircleMore className="h-4 w-4" />
+                          <span className="text-sm font-semibold normal-case tracking-normal">
+                            WhatsApp
+                          </span>
+                        </div>
                         <input
                           value={clienteWhatsapp}
                           onChange={(event) =>
                             setClienteWhatsapp(event.target.value)
                           }
-                          placeholder="3001234567"
-                          className="w-full rounded-2xl border border-white/10 bg-white/5 py-4 pl-11 pr-4 text-base font-normal normal-case tracking-normal text-sand outline-none transition focus:border-accent"
+                          placeholder=""
+                          className="w-full rounded-2xl border border-white/10 bg-white/5 py-4 pl-32 pr-4 text-base font-normal normal-case tracking-normal text-sand outline-none transition focus:border-accent"
                         />
                       </div>
                     </label>
