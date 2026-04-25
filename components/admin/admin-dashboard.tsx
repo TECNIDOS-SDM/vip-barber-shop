@@ -7,6 +7,7 @@ import {
   CalendarDays,
   Clock3,
   LogOut,
+  MessageCircleMore,
   Plus,
   Trash2,
   Upload,
@@ -805,9 +806,22 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                         </div>
                         <div className="min-w-0 flex-1">
                           <p className="font-semibold">{barber.nombre}</p>
-                          <p className="mt-1 text-sm text-sand/60">
-                            {barber.whatsapp || "Sin WhatsApp"}
-                          </p>
+                          {barber.whatsapp ? (
+                            <a
+                              href={buildWhatsAppUrl(barber.whatsapp)}
+                              target="_blank"
+                              rel="noreferrer"
+                              onClick={(event) => event.stopPropagation()}
+                              className="mt-1 inline-flex items-center gap-2 text-sm font-medium text-accent underline-offset-4 hover:underline"
+                            >
+                              <MessageCircleMore className="h-4 w-4" />
+                              <span>WhatsApp</span>
+                            </a>
+                          ) : (
+                            <p className="mt-1 text-sm text-sand/60">
+                              Sin WhatsApp
+                            </p>
+                          )}
                           <p className="text-sm text-sand/50">
                             Usuario: {barber.auth_email || "Sin acceso configurado"}
                           </p>
@@ -891,9 +905,10 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                             href={buildWhatsAppUrl(activeBarber.whatsapp)}
                             target="_blank"
                             rel="noreferrer"
-                            className="mt-2 inline-flex text-sm text-accent underline-offset-4 hover:underline"
+                            className="mt-2 inline-flex items-center gap-2 text-sm font-medium text-accent underline-offset-4 hover:underline"
                           >
-                            WhatsApp: {activeBarber.whatsapp}
+                            <MessageCircleMore className="h-4 w-4" />
+                            <span>WhatsApp</span>
                           </a>
                         ) : null}
                         <p className="mt-2 text-xs text-sand/60">

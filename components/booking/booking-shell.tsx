@@ -240,10 +240,12 @@ export function BookingShell({
                         target="_blank"
                         rel="noreferrer"
                         onClick={(event) => event.stopPropagation()}
-                        className="inline-flex items-center gap-1 rounded-full bg-white/6 px-3 py-1 text-accent underline-offset-4 hover:underline"
+                        className="inline-flex items-center gap-2 rounded-full bg-white/6 px-3 py-1 text-accent underline-offset-4 hover:underline"
                       >
                         <MessageCircleMore className="h-3.5 w-3.5" />
-                        {barber.whatsapp}
+                        <span className="font-semibold normal-case tracking-normal">
+                          WhatsApp
+                        </span>
                       </a>
                     ) : null}
                   </div>
