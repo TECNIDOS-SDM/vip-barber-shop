@@ -414,8 +414,11 @@ export function BookingShell({
                     </label>
                     <label className="grid gap-2">
                       <div className="relative">
-                        <div className="pointer-events-none absolute left-4 top-1/2 flex -translate-y-1/2 items-center text-accent">
+                        <div className="pointer-events-none absolute left-4 top-1/2 flex -translate-y-1/2 items-center gap-2 text-accent">
                           <MessageCircleMore className="h-4 w-4" />
+                          <span className="text-sm font-semibold normal-case tracking-normal">
+                            WhatsApp
+                          </span>
                         </div>
                         <input
                           value={clienteWhatsapp}
@@ -423,7 +426,7 @@ export function BookingShell({
                             setClienteWhatsapp(event.target.value)
                           }
                           placeholder=""
-                          className="w-full rounded-2xl border border-white/10 bg-white/5 py-4 pl-12 pr-4 text-base font-normal normal-case tracking-normal text-sand outline-none transition focus:border-accent"
+                          className="w-full rounded-2xl border border-white/10 bg-white/5 py-4 pl-32 pr-4 text-base font-normal normal-case tracking-normal text-sand outline-none transition focus:border-accent"
                         />
                       </div>
                     </label>
