@@ -19,6 +19,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { TIME_SLOTS } from "@/lib/constants";
 import { adminIdentifierToEmail } from "@/lib/admin-auth";
+import { formatHourDisplay } from "@/lib/date";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { SignOutButton } from "@/components/shared/sign-out-button";
 import { Logo } from "@/components/shared/logo";
@@ -138,6 +139,10 @@ const statusStyles: Record<
     label: "Bloqueado"
   }
 };
+
+function normalizeHourKey(hour?: string | null) {
+  return (hour ?? "").slice(0, 5);
+}
 
 export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
   const currentWeek = initialData.currentWeek;
@@ -656,7 +661,7 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
             reservation.barbero_id === scheduleForm.barbero_id &&
             reservation.fecha === scheduleForm.fecha
         )
-        .map((reservation) => [reservation.hora, reservation])
+        .map((reservation) => [normalizeHourKey(reservation.hora), reservation])
     );
   }, [reservations, scheduleForm.barbero_id, scheduleForm.fecha]);
 
@@ -689,7 +694,13 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
   );
 
   const selectedAgendaReservationMap = useMemo(
-    () => new Map(selectedAgendaReservations.map((reservation) => [reservation.hora, reservation])),
+    () =>
+      new Map(
+        selectedAgendaReservations.map((reservation) => [
+          normalizeHourKey(reservation.hora),
+          reservation
+        ])
+      ),
     [selectedAgendaReservations]
   );
 
@@ -1062,7 +1073,9 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                                     )}
                                     disabled={!reservation}
                                   >
-                                    <span className="block text-sm font-semibold">{hour}</span>
+                                    <span className="block text-sm font-semibold">
+                                      {formatHourDisplay(hour)}
+                                    </span>
                                     <span className="mt-1 block text-[11px] uppercase tracking-[0.18em]">
                                       {reservation
                                         ? reservation.estado === "confirmada"
@@ -1119,7 +1132,9 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                                         : "border border-white/10 bg-white/5 text-sand/70"
                                   )}
                                 >
-                                  <span className="block">{hour}</span>
+                                  <span className="block">
+                                    {formatHourDisplay(hour)}
+                                  </span>
                                   <span className="mt-1 block text-[11px] uppercase tracking-[0.18em]">
                                     {selectedHours.includes(hour) &&
                                     scheduleForm.barbero_id === activeBarber.id
@@ -1394,7 +1409,7 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
             </p>
             <div className="mt-4 rounded-2xl border border-white/10 bg-black/10 p-4 text-sm text-sand/80">
               <p className="font-semibold text-sand">
-                {releaseTarget.hora} - {releaseTarget.estado}
+                {formatHourDisplay(normalizeHourKey(releaseTarget.hora))} - {releaseTarget.estado}
               </p>
               <p className="mt-1">
                 {releaseTarget.estado === "bloqueado"
