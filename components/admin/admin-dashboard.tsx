@@ -758,116 +758,12 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
         </div>
       </section>
 
-      <section className="mt-8 grid gap-8 xl:grid-cols-[0.92fr_1.08fr]">
-        <div className="space-y-8">
-          <CollapsibleSection
-            title="Nuevo barbero"
-            icon={<Plus className="h-4 w-4 text-accent" />}
-          >
-            <div className="space-y-4">
-              <input
-                value={barberForm.nombre}
-                onChange={(event) =>
-                  setBarberForm((current) => ({
-                    ...current,
-                    nombre: event.target.value
-                  }))
-                }
-                placeholder="Nombre completo"
-                className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-accent"
-              />
-              <input
-                value={barberForm.whatsapp}
-                onChange={(event) =>
-                  setBarberForm((current) => ({
-                    ...current,
-                    whatsapp: event.target.value
-                  }))
-                }
-                placeholder="WhatsApp"
-                className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-accent"
-              />
-              <input
-                value={barberForm.foto}
-                onChange={(event) =>
-                  setBarberForm((current) => ({
-                    ...current,
-                    foto: event.target.value
-                  }))
-                }
-                placeholder="URL de foto o sube una imagen"
-                className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-accent"
-              />
-              <input
-                value={barberForm.auth_email}
-                onChange={(event) =>
-                  setBarberForm((current) => ({
-                    ...current,
-                    auth_email: event.target.value
-                  }))
-                }
-                placeholder="Usuario o email de acceso del barbero"
-                className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-accent"
-              />
-              <input
-                value={barberForm.access_password}
-                onChange={(event) =>
-                  setBarberForm((current) => ({
-                    ...current,
-                    access_password: event.target.value
-                  }))
-                }
-                placeholder="Clave de acceso del barbero"
-                className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-accent"
-              />
-              <label className="flex cursor-pointer items-center justify-center gap-2 rounded-2xl border border-dashed border-white/15 px-4 py-4 text-sm text-sand/70 transition hover:border-accent">
-                <Upload className="h-4 w-4" />
-                Subir foto a Supabase Storage
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(event) => {
-                    const file = event.target.files?.[0];
-                    if (file) {
-                      void handlePhotoUpload(file);
-                    }
-                  }}
-                />
-              </label>
-              <button
-                type="button"
-                onClick={() => void saveBarber()}
-                disabled={saving}
-                className="w-full rounded-2xl bg-accent px-4 py-4 font-bold uppercase tracking-[0.2em] text-ink disabled:opacity-60"
-              >
-                {editingId ? "Guardar cambios" : "Crear barbero"}
-              </button>
-              {editingId ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEditingId(null);
-                    setBarberForm(emptyBarberForm);
-                  }}
-                  className="w-full rounded-2xl border border-white/10 px-4 py-4 text-sm font-semibold text-sand/80"
-                >
-                  Cancelar edicion
-                </button>
-              ) : null}
-            </div>
-          </CollapsibleSection>
-        </div>
-
+      <section className="mt-8 space-y-8">
         <div className="space-y-8">
           <section className="glass rounded-[2rem] p-6">
-            <div className="flex items-center gap-2">
-              <UserRoundCheck className="h-4 w-4 text-accent" />
-              <h2 className="text-xl font-semibold">Perfiles de barberos</h2>
-            </div>
             {activeBarberView === "list" || !activeBarber ? (
               <>
-                <div className="mt-5 grid gap-4 md:grid-cols-2">
+                <div className="grid gap-4 md:grid-cols-2">
                   {barbers.map((barber) => (
                     <button
                       key={barber.id}
@@ -1317,6 +1213,106 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
               </div>
             )}
           </section>
+        </div>
+
+        <div className="space-y-8">
+          <CollapsibleSection
+            title="Nuevo barbero"
+            icon={<Plus className="h-4 w-4 text-accent" />}
+          >
+            <div className="space-y-4">
+              <input
+                value={barberForm.nombre}
+                onChange={(event) =>
+                  setBarberForm((current) => ({
+                    ...current,
+                    nombre: event.target.value
+                  }))
+                }
+                placeholder="Nombre completo"
+                className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-accent"
+              />
+              <input
+                value={barberForm.whatsapp}
+                onChange={(event) =>
+                  setBarberForm((current) => ({
+                    ...current,
+                    whatsapp: event.target.value
+                  }))
+                }
+                placeholder="WhatsApp"
+                className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-accent"
+              />
+              <input
+                value={barberForm.foto}
+                onChange={(event) =>
+                  setBarberForm((current) => ({
+                    ...current,
+                    foto: event.target.value
+                  }))
+                }
+                placeholder="URL de foto o sube una imagen"
+                className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-accent"
+              />
+              <input
+                value={barberForm.auth_email}
+                onChange={(event) =>
+                  setBarberForm((current) => ({
+                    ...current,
+                    auth_email: event.target.value
+                  }))
+                }
+                placeholder="Usuario o email de acceso del barbero"
+                className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-accent"
+              />
+              <input
+                value={barberForm.access_password}
+                onChange={(event) =>
+                  setBarberForm((current) => ({
+                    ...current,
+                    access_password: event.target.value
+                  }))
+                }
+                placeholder="Clave de acceso del barbero"
+                className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-accent"
+              />
+              <label className="flex cursor-pointer items-center justify-center gap-2 rounded-2xl border border-dashed border-white/15 px-4 py-4 text-sm text-sand/70 transition hover:border-accent">
+                <Upload className="h-4 w-4" />
+                Subir foto a Supabase Storage
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (file) {
+                      void handlePhotoUpload(file);
+                    }
+                  }}
+                />
+              </label>
+              <button
+                type="button"
+                onClick={() => void saveBarber()}
+                disabled={saving}
+                className="w-full rounded-2xl bg-accent px-4 py-4 font-bold uppercase tracking-[0.2em] text-ink disabled:opacity-60"
+              >
+                {editingId ? "Guardar cambios" : "Crear barbero"}
+              </button>
+              {editingId ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingId(null);
+                    setBarberForm(emptyBarberForm);
+                  }}
+                  className="w-full rounded-2xl border border-white/10 px-4 py-4 text-sm font-semibold text-sand/80"
+                >
+                  Cancelar edicion
+                </button>
+              ) : null}
+            </div>
+          </CollapsibleSection>
         </div>
       </section>
 
