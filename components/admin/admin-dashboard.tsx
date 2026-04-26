@@ -144,6 +144,7 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
   >("confirmada");
   const [fullDayBlock, setFullDayBlock] = useState(false);
   const [showScheduleActionModal, setShowScheduleActionModal] = useState(false);
+  const [isAddingMoreHours, setIsAddingMoreHours] = useState(false);
   const [activeBarberId, setActiveBarberId] = useState<string | null>(
     initialData.barbers[0]?.id ?? null
   );
@@ -419,11 +420,14 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
         ? current.filter((value) => value !== hour)
         : [...current, hour]
     );
-    setShowScheduleActionModal(true);
+    if (!isAddingMoreHours) {
+      setShowScheduleActionModal(true);
+    }
   }
 
   function closeScheduleActionModal() {
     setShowScheduleActionModal(false);
+    setIsAddingMoreHours(false);
     setSelectedHours([]);
     setFullDayBlock(false);
     setSelectedAction("confirmada");
@@ -460,6 +464,7 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
 
     if (resetHours) {
       setShowScheduleActionModal(false);
+      setIsAddingMoreHours(false);
       setSelectedHours([]);
       setFullDayBlock(false);
     }
@@ -523,6 +528,7 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
           : "Horario bloqueado correctamente."
       );
       setShowScheduleActionModal(false);
+      setIsAddingMoreHours(false);
       setScheduleForm(emptyScheduleForm);
       setSelectedHours([]);
       setFullDayBlock(false);
@@ -567,6 +573,14 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
     () =>
       reservations.filter((reservation) => reservation.barbero_id === activeBarberId),
     [activeBarberId, reservations]
+  );
+
+  const canResumeScheduleAction = Boolean(
+    isAddingMoreHours &&
+      activeBarber &&
+      scheduleForm.barbero_id === activeBarber.id &&
+      scheduleForm.fecha &&
+      selectedHours.length > 0
   );
 
   const isScheduleActionModalOpen = Boolean(
@@ -821,6 +835,39 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                               Retroceder
                             </button>
                           </div>
+                          {canResumeScheduleAction ? (
+                            <div className="mb-4 flex flex-col gap-3 rounded-[1.25rem] border border-accent/20 bg-accent/10 p-4 sm:flex-row sm:items-center sm:justify-between">
+                              <div>
+                                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent/80">
+                                  Seleccion multiple activa
+                                </p>
+                                <p className="mt-1 text-sm text-sand/80">
+                                  Tienes {selectedHours.length} horario
+                                  {selectedHours.length === 1 ? "" : "s"} seleccionado
+                                  {selectedHours.length === 1 ? "" : "s"}.
+                                </p>
+                              </div>
+                              <div className="flex gap-3">
+                                <button
+                                  type="button"
+                                  onClick={closeScheduleActionModal}
+                                  className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-sand/80"
+                                >
+                                  Cancelar
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setIsAddingMoreHours(false);
+                                    setShowScheduleActionModal(true);
+                                  }}
+                                  className="rounded-2xl bg-accent px-4 py-3 text-sm font-semibold uppercase tracking-[0.12em] text-ink"
+                                >
+                                  Continuar
+                                </button>
+                              </div>
+                            </div>
+                          ) : null}
                           <div className="grid grid-cols-2 gap-2">
                             {TIME_SLOTS.map((hour) => {
                               const reservation = scheduleSlotMap.get(hour);
@@ -1230,7 +1277,10 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
               <div className="grid gap-3 sm:grid-cols-2">
                 <button
                   type="button"
-                  onClick={() => setShowScheduleActionModal(false)}
+                  onClick={() => {
+                    setShowScheduleActionModal(false);
+                    setIsAddingMoreHours(true);
+                  }}
                   className="rounded-2xl border border-white/10 px-4 py-4 text-sm font-semibold uppercase tracking-[0.12em] text-sand/80"
                 >
                   Agregar mas horarios
