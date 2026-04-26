@@ -47,7 +47,7 @@ export function BarberDashboard({
     initialData.currentWeek[0]?.isoDate ??
     "";
   const [selectedDate, setSelectedDate] = useState(defaultDate);
-  const [panelView, setPanelView] = useState<"days" | "hours">("days");
+  const [panelView, setPanelView] = useState<"home" | "days" | "hours">("home");
 
   const selectedDayReservations = useMemo(() => {
     return initialData.reservations.filter(
@@ -73,7 +73,7 @@ export function BarberDashboard({
             <p className="mt-3 text-sm text-sand/70">{barberEmail}</p>
           </div>
           <div className="flex flex-wrap gap-3">
-            <SignOutButton redirectTo="/" />
+            <SignOutButton redirectTo="/auth/login?next=/gestion-equipo" />
           </div>
         </div>
       </section>
@@ -82,14 +82,18 @@ export function BarberDashboard({
         <div className="glass rounded-[2rem] p-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2">
-              {panelView === "days" ? (
+              {panelView === "home" || panelView === "days" ? (
                 <CalendarClock className="h-5 w-5 text-accent" />
               ) : (
                 <Scissors className="h-5 w-5 text-accent" />
               )}
               <div>
                 <h2 className="text-xl font-semibold">
-                  {panelView === "days" ? "Selecciona el dia" : "Agenda por horario"}
+                  {panelView === "home"
+                    ? "Panel del barbero"
+                    : panelView === "days"
+                      ? "Selecciona el dia"
+                      : "Agenda por horario"}
                 </h2>
                 {panelView === "hours" ? (
                   <p className="mt-1 text-sm text-sand/65">
@@ -102,10 +106,17 @@ export function BarberDashboard({
                 ) : null}
               </div>
             </div>
-            {panelView === "hours" ? (
+            {panelView !== "home" ? (
               <button
                 type="button"
-                onClick={() => setPanelView("days")}
+                onClick={() => {
+                  if (panelView === "hours") {
+                    setPanelView("days");
+                    return;
+                  }
+
+                  setPanelView("home");
+                }}
                 className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-sand/80"
               >
                 Retroceder
@@ -113,7 +124,34 @@ export function BarberDashboard({
             ) : null}
           </div>
 
-          {panelView === "days" ? (
+          {panelView === "home" ? (
+            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => setPanelView("days")}
+                className="rounded-[1.5rem] border border-white/10 bg-white/5 p-5 text-left transition hover:border-accent/40"
+              >
+                <p className="text-lg font-semibold text-sand">Mi agenda</p>
+                <p className="mt-2 text-sm text-sand/65">
+                  Ver tus dias, horarios y reservas.
+                </p>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  window.location.href = "/";
+                }}
+                className="rounded-[1.5rem] border border-white/10 bg-white/5 p-5 text-left transition hover:border-accent/40"
+              >
+                <p className="text-lg font-semibold text-sand">
+                  Reservar con otro barbero
+                </p>
+                <p className="mt-2 text-sm text-sand/65">
+                  Abrir agenda publica para crear una reserva con otro profesional.
+                </p>
+              </button>
+            </div>
+          ) : panelView === "days" ? (
             <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
               {initialData.currentWeek.map((day) => (
                 <button

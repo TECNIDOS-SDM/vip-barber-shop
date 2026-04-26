@@ -614,7 +614,7 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                 Ver reservas
               </span>
             </Link>
-            <SignOutButton redirectTo="/" />
+            <SignOutButton redirectTo="/auth/login?next=/admin-vip" />
           </div>
         </div>
       </section>
@@ -704,10 +704,39 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                   <button
                     type="button"
                     onClick={() => {
-                      setActiveBarberView("list");
-                      setSelectedAction("confirmada");
-                      setScheduleMode("confirmada");
-                      updateScheduleForBarber(activeBarber.id, { fecha: "", cliente_nombre: "", cliente_whatsapp: "" }, true);
+                      if (activeBarberView === "menu") {
+                        setActiveBarberView("list");
+                        setSelectedAction("confirmada");
+                        setScheduleMode("confirmada");
+                        updateScheduleForBarber(activeBarber.id, { fecha: "", cliente_nombre: "", cliente_whatsapp: "" }, true);
+                        return;
+                      }
+
+                      if (activeBarberView === "agenda") {
+                        if (scheduleForm.barbero_id === activeBarber.id && scheduleForm.fecha) {
+                          updateScheduleForBarber(
+                            activeBarber.id,
+                            { fecha: "", cliente_nombre: "", cliente_whatsapp: "" },
+                            true
+                          );
+                          return;
+                        }
+
+                        setActiveBarberView("menu");
+                        setSelectedAction("confirmada");
+                        setScheduleMode("confirmada");
+                        updateScheduleForBarber(
+                          activeBarber.id,
+                          { fecha: "", cliente_nombre: "", cliente_whatsapp: "" },
+                          true
+                        );
+                        return;
+                      }
+
+                      if (activeBarberView === "perfil") {
+                        setActiveBarberView("menu");
+                        return;
+                      }
                     }}
                     className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-sand/80"
                   >

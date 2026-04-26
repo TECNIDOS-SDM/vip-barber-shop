@@ -9,7 +9,7 @@ type SignOutButtonProps = {
 };
 
 export function SignOutButton({
-  redirectTo = "/"
+  redirectTo = "/auth/login"
 }: SignOutButtonProps) {
   async function handleSignOut() {
     const supabase = getSupabaseBrowserClient();
