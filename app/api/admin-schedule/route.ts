@@ -23,7 +23,7 @@ const unblockSchema = z.object({
 
 const releaseSchema = z.object({
   action: z.literal("release"),
-  reservation_id: z.string().uuid()
+  reservation_ids: z.array(z.string().uuid()).min(1)
 });
 
 const schema = z.union([createSchema, unblockSchema, releaseSchema]);
@@ -60,7 +60,7 @@ export async function POST(request: Request) {
       const { error } = await adminSupabase
         .from("reservas")
         .delete()
-        .eq("id", payload.reservation_id);
+        .in("id", payload.reservation_ids);
 
       if (error) {
         throw error;

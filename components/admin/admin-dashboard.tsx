@@ -151,7 +151,9 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
     "list" | "menu" | "perfil" | "agenda"
   >("list");
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
-  const [releaseTarget, setReleaseTarget] = useState<any | null>(null);
+  const [selectedReleaseReservations, setSelectedReleaseReservations] = useState<any[]>([]);
+  const [showReleaseActionModal, setShowReleaseActionModal] = useState(false);
+  const [isAddingMoreReleaseHours, setIsAddingMoreReleaseHours] = useState(false);
   const [bootstrapping, setBootstrapping] = useState(
     initialData.reservations.length === 0 &&
       initialData.todayReservations.length === 0 &&
@@ -375,7 +377,7 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
     }
   }
 
-  async function releaseReservation(id: string) {
+  async function releaseReservation(ids: string[]) {
     try {
       const response = await fetch("/api/admin-schedule", {
         method: "POST",
@@ -384,7 +386,7 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
         },
         body: JSON.stringify({
           action: "release",
-          reservation_id: id
+          reservation_ids: ids
         })
       });
 
@@ -394,7 +396,9 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
         throw new Error(payload.error ?? "No fue posible liberar el horario.");
       }
 
-      toast.success("Horario liberado.");
+      toast.success(
+        ids.length === 1 ? "Horario liberado." : "Horarios liberados."
+      );
       await refreshData();
     } catch (error) {
       toast.error(
@@ -404,12 +408,31 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
   }
 
   async function confirmReleaseReservation() {
-    if (!releaseTarget?.id) {
+    if (!selectedReleaseReservations.length) {
       return;
     }
 
-    await releaseReservation(releaseTarget.id);
-    setReleaseTarget(null);
+    await releaseReservation(selectedReleaseReservations.map((reservation) => reservation.id));
+    closeReleaseActionModal();
+  }
+
+  function toggleReleaseReservation(reservation: any) {
+    setSelectedReleaseReservations((current) => {
+      const exists = current.some((item) => item.id === reservation.id);
+      return exists
+        ? current.filter((item) => item.id !== reservation.id)
+        : [...current, reservation];
+    });
+
+    if (!isAddingMoreReleaseHours) {
+      setShowReleaseActionModal(true);
+    }
+  }
+
+  function closeReleaseActionModal() {
+    setShowReleaseActionModal(false);
+    setIsAddingMoreReleaseHours(false);
+    setSelectedReleaseReservations([]);
   }
 
   function toggleHour(hour: string) {
@@ -464,6 +487,9 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
     if (resetHours) {
       setShowScheduleActionModal(false);
       setIsAddingMoreHours(false);
+      setShowReleaseActionModal(false);
+      setIsAddingMoreReleaseHours(false);
+      setSelectedReleaseReservations([]);
       setSelectedHours([]);
       setFullDayBlock(false);
     }
@@ -580,6 +606,14 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
       scheduleForm.barbero_id === activeBarber.id &&
       scheduleForm.fecha &&
       selectedHours.length > 0
+  );
+
+  const canResumeReleaseAction = Boolean(
+    isAddingMoreReleaseHours &&
+      activeBarber &&
+      scheduleForm.barbero_id === activeBarber.id &&
+      scheduleForm.fecha &&
+      selectedReleaseReservations.length > 0
   );
 
   const isScheduleActionModalOpen = Boolean(
@@ -887,6 +921,38 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                               </div>
                             </div>
                           ) : null}
+                          {canResumeReleaseAction ? (
+                            <div className="mb-4 flex flex-col gap-3 rounded-[1.25rem] border border-danger/20 bg-danger/10 p-4 sm:flex-row sm:items-center sm:justify-between">
+                              <div>
+                                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-rose-200">
+                                  Liberacion multiple activa
+                                </p>
+                                <p className="mt-1 text-sm text-sand/80">
+                                  Tienes {selectedReleaseReservations.length} espacio
+                                  {selectedReleaseReservations.length === 1 ? "" : "s"} para liberar.
+                                </p>
+                              </div>
+                              <div className="flex gap-3">
+                                <button
+                                  type="button"
+                                  onClick={closeReleaseActionModal}
+                                  className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-sand/80"
+                                >
+                                  Cancelar
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setIsAddingMoreReleaseHours(false);
+                                    setShowReleaseActionModal(true);
+                                  }}
+                                  className="rounded-2xl bg-danger px-4 py-3 text-sm font-semibold uppercase tracking-[0.12em] text-white"
+                                >
+                                  Continuar
+                                </button>
+                              </div>
+                            </div>
+                          ) : null}
                           <div className="grid grid-cols-2 gap-2">
                             {TIME_SLOTS.map((hour) => {
                               const reservation = scheduleSlotMap.get(hour);
@@ -897,7 +963,7 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                                   type="button"
                                   onClick={() => {
                                     if (reservation) {
-                                      setReleaseTarget(reservation);
+                                      toggleReleaseReservation(reservation);
                                       return;
                                     }
                                     updateScheduleForBarber(activeBarber.id, {});
@@ -905,6 +971,11 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                                   }}
                                   className={cn(
                                     "rounded-2xl px-4 py-3 text-sm font-semibold transition",
+                                    selectedReleaseReservations.some(
+                                      (item) => item.id === reservation?.id
+                                    )
+                                      ? "ring-2 ring-accent ring-offset-0"
+                                      : "",
                                     selectedHours.includes(hour) &&
                                       scheduleForm.barbero_id === activeBarber.id
                                       ? selectedAction === "cita_fijada"
@@ -1125,33 +1196,52 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
         </div>
       ) : null}
 
-      {releaseTarget ? (
+      {showReleaseActionModal && selectedReleaseReservations.length > 0 ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
-          <div className="w-full max-w-md rounded-[2rem] border border-white/10 bg-[#120f0b] p-6">
+          <div className="w-full max-w-lg rounded-[2rem] border border-white/10 bg-[#120f0b] p-6">
             <h3 className="text-2xl font-semibold text-sand">
-              Liberar horario
+              Liberar espacios
             </h3>
             <p className="mt-3 text-sm text-sand/70">
-              Quieres liberar este espacio?
+              Puedes liberar uno o varios horarios reservados, fijados o bloqueados.
             </p>
             <div className="mt-4 rounded-2xl border border-white/10 bg-black/10 p-4 text-sm text-sand/80">
-              <p className="font-semibold text-sand">
-                {formatHourDisplay(normalizeHourKey(releaseTarget.hora))} - {releaseTarget.estado}
-              </p>
-              <p className="mt-1">
-                {releaseTarget.estado === "bloqueado"
-                  ? "Horario bloqueado"
-                  : releaseTarget.cliente_nombre}
-              </p>
-              {releaseTarget.estado !== "bloqueado" &&
-              releaseTarget.cliente_whatsapp ? (
-                <p className="mt-1">{releaseTarget.cliente_whatsapp}</p>
-              ) : null}
+              <div className="space-y-3">
+                {selectedReleaseReservations.map((reservation) => (
+                  <div
+                    key={reservation.id}
+                    className="rounded-2xl border border-white/10 bg-white/[0.03] p-3"
+                  >
+                    <p className="font-semibold text-sand">
+                      {formatHourDisplay(normalizeHourKey(reservation.hora))} - {reservation.estado}
+                    </p>
+                    <p className="mt-1">
+                      {reservation.estado === "bloqueado"
+                        ? "Horario bloqueado"
+                        : reservation.cliente_nombre}
+                    </p>
+                    {reservation.estado !== "bloqueado" &&
+                    reservation.cliente_whatsapp ? (
+                      <p className="mt-1">{reservation.cliente_whatsapp}</p>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
             </div>
             <div className="mt-6 flex gap-3">
               <button
                 type="button"
-                onClick={() => setReleaseTarget(null)}
+                onClick={() => {
+                  setShowReleaseActionModal(false);
+                  setIsAddingMoreReleaseHours(true);
+                }}
+                className="flex-1 rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-sand/80"
+              >
+                Agregar mas horarios
+              </button>
+              <button
+                type="button"
+                onClick={closeReleaseActionModal}
                 className="flex-1 rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-sand/80"
               >
                 Cancelar
