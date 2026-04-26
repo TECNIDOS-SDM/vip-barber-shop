@@ -2,8 +2,7 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Image from "next/image";
-import { CalendarDays, Clock3, Plus, Trash2, Upload, UserRoundCheck } from "lucide-react";
-import Link from "next/link";
+import { Clock3, Plus, Trash2, Upload, UserRoundCheck } from "lucide-react";
 import { toast } from "sonner";
 import { TIME_SLOTS } from "@/lib/constants";
 import { adminIdentifierToEmail } from "@/lib/admin-auth";
@@ -605,15 +604,6 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
             ) : null}
           </div>
           <div className="flex flex-wrap gap-3">
-            <Link
-              href="/"
-              className="rounded-2xl border border-white/10 px-4 py-3 text-sm text-sand/80"
-            >
-              <span className="inline-flex items-center gap-2">
-                <CalendarDays className="h-4 w-4" />
-                Ver reservas
-              </span>
-            </Link>
             <SignOutButton redirectTo="/auth/login?next=/admin-vip" />
           </div>
         </div>
