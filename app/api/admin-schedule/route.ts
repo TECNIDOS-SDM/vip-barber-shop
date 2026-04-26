@@ -9,7 +9,7 @@ const createSchema = z.object({
   barbero_id: z.string().uuid(),
   fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   horas: z.array(z.string().regex(/^\d{2}:\d{2}$/)).min(1),
-  estado: z.enum(["cita_fijada", "bloqueado"]),
+  estado: z.enum(["confirmada", "cita_fijada", "bloqueado"]),
   cliente_nombre: z.string().optional(),
   cliente_whatsapp: z.string().optional()
 });
@@ -118,13 +118,17 @@ export async function POST(request: Request) {
       hora,
       estado: payload.estado,
       cliente_nombre:
-        payload.estado === "cita_fijada"
+        payload.estado === "bloqueado"
+          ? "Horario bloqueado"
+          : payload.estado === "cita_fijada"
           ? payload.cliente_nombre?.trim() || "Cliente fijo"
-          : "Horario bloqueado",
+          : payload.cliente_nombre?.trim() || "Reserva manual",
       cliente_whatsapp:
-        payload.estado === "cita_fijada"
+        payload.estado === "bloqueado"
+          ? "N/A"
+          : payload.estado === "cita_fijada"
           ? payload.cliente_whatsapp?.trim() || "N/A"
-          : "N/A"
+          : payload.cliente_whatsapp?.trim() || "N/A"
     }));
 
     const { error } = await (adminSupabase

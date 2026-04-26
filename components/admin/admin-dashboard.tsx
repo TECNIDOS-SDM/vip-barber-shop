@@ -1,20 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Image from "next/image";
-import {
-  Bell,
-  CalendarDays,
-  Clock3,
-  LogOut,
-  MessageCircleMore,
-  Plus,
-  Trash2,
-  Upload,
-  UserRoundCheck,
-  Volume2,
-  VolumeX
-} from "lucide-react";
+import { CalendarDays, Clock3, Plus, Trash2, Upload, UserRoundCheck } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { TIME_SLOTS } from "@/lib/constants";
@@ -25,8 +13,6 @@ import { SignOutButton } from "@/components/shared/sign-out-button";
 import { Logo } from "@/components/shared/logo";
 import { cn } from "@/lib/utils";
 import { buildWhatsAppUrl } from "@/lib/whatsapp";
-import type { ReservationStatus } from "@/types";
-
 type DashboardProps = {
   adminEmail: string;
   initialData: {
@@ -57,6 +43,20 @@ type CollapsibleSectionProps = {
   defaultOpen?: boolean;
   className?: string;
 };
+
+function WhatsAppGoldIcon({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 32 32"
+      aria-hidden="true"
+      className={className}
+      fill="currentColor"
+    >
+      <path d="M19.11 17.24c-.27-.14-1.59-.78-1.84-.87-.25-.09-.43-.14-.61.14-.18.27-.7.87-.86 1.05-.16.18-.31.2-.58.07-.27-.14-1.13-.42-2.16-1.34-.8-.71-1.34-1.58-1.5-1.85-.16-.27-.02-.42.12-.56.12-.12.27-.31.41-.47.14-.16.18-.27.27-.45.09-.18.05-.34-.02-.47-.07-.14-.61-1.47-.84-2.02-.22-.53-.44-.46-.61-.47h-.52c-.18 0-.47.07-.72.34-.25.27-.95.93-.95 2.28s.97 2.64 1.11 2.82c.14.18 1.9 2.9 4.61 4.06.64.28 1.14.45 1.53.57.64.2 1.22.17 1.68.1.51-.08 1.59-.65 1.81-1.28.22-.63.22-1.17.16-1.28-.06-.11-.24-.18-.51-.32Z" />
+      <path d="M16.02 3.2c-6.98 0-12.65 5.67-12.65 12.65 0 2.22.58 4.4 1.67 6.31L3.2 28.8l6.8-1.78a12.61 12.61 0 0 0 6.02 1.54h.01c6.97 0 12.65-5.68 12.65-12.65 0-3.38-1.32-6.56-3.72-8.95A12.56 12.56 0 0 0 16.02 3.2Zm0 22.98h-.01a10.45 10.45 0 0 1-5.33-1.46l-.38-.22-4.03 1.06 1.08-3.92-.25-.4a10.47 10.47 0 0 1-1.61-5.62c0-5.78 4.71-10.49 10.52-10.49 2.8 0 5.42 1.09 7.4 3.06a10.4 10.4 0 0 1 3.08 7.42c0 5.79-4.71 10.5-10.47 10.5Z" />
+    </svg>
+  );
+}
 
 function CollapsibleSection({
   title,
@@ -122,24 +122,6 @@ const emptyScheduleForm = {
   cliente_whatsapp: ""
 };
 
-const statusStyles: Record<
-  Exclude<ReservationStatus, "cancelada">,
-  { badge: string; label: string }
-> = {
-  confirmada: {
-    badge: "bg-danger/15 text-rose-200 border border-danger/30",
-    label: "Reservado"
-  },
-  cita_fijada: {
-    badge: "bg-sky-500/15 text-sky-100 border border-sky-400/30",
-    label: "Cita fijada"
-  },
-  bloqueado: {
-    badge: "bg-zinc-600/40 text-zinc-100 border border-zinc-500/30",
-    label: "Bloqueado"
-  }
-};
-
 function normalizeHourKey(hour?: string | null) {
   return (hour ?? "").slice(0, 5);
 }
@@ -148,18 +130,18 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
   const currentWeek = initialData.currentWeek;
   const [barbers, setBarbers] = useState(initialData.barbers);
   const [reservations, setReservations] = useState(initialData.reservations);
-  const [todayReservations, setTodayReservations] = useState(
-    initialData.todayReservations
-  );
   const [profiles, setProfiles] = useState(initialData.profiles);
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [barberForm, setBarberForm] = useState(emptyBarberForm);
   const [scheduleForm, setScheduleForm] = useState(emptyScheduleForm);
   const [selectedHours, setSelectedHours] = useState<string[]>([]);
-  const [scheduleMode, setScheduleMode] = useState<"cita_fijada" | "bloqueado">(
-    "cita_fijada"
-  );
+  const [scheduleMode, setScheduleMode] = useState<
+    "confirmada" | "cita_fijada" | "bloqueado"
+  >("confirmada");
+  const [selectedAction, setSelectedAction] = useState<
+    "confirmada" | "cita_fijada" | "bloqueado"
+  >("confirmada");
   const [fullDayBlock, setFullDayBlock] = useState(false);
   const [activeBarberId, setActiveBarberId] = useState<string | null>(
     initialData.barbers[0]?.id ?? null
@@ -167,21 +149,12 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
   const [activeBarberView, setActiveBarberView] = useState<
     "list" | "menu" | "perfil" | "agenda"
   >("list");
-  const [activeAgendaTab, setActiveAgendaTab] = useState<
-    "reservas" | "cita_fijada" | "bloqueado"
-  >("reservas");
-  const [newReservationCount, setNewReservationCount] = useState(0);
-  const [lastReservation, setLastReservation] = useState<any | null>(null);
-  const [soundEnabled, setSoundEnabled] = useState(true);
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
   const [releaseTarget, setReleaseTarget] = useState<any | null>(null);
   const [bootstrapping, setBootstrapping] = useState(
     initialData.reservations.length === 0 &&
       initialData.todayReservations.length === 0 &&
       initialData.profiles.length === 0
-  );
-  const knownReservationIds = useRef(
-    new Set((initialData.reservations ?? []).map((reservation) => reservation.id))
   );
 
   async function refreshData() {
@@ -192,72 +165,11 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
       throw new Error(payload.error ?? "No fue posible actualizar el panel.");
     }
 
-    const nextReservations = payload.reservations ?? [];
-    const freshReservations = nextReservations.filter(
-      (reservation: any) => !knownReservationIds.current.has(reservation.id)
-    );
-
-    if (freshReservations.length > 0) {
-      freshReservations.forEach((reservation: any) =>
-        knownReservationIds.current.add(reservation.id)
-      );
-      setNewReservationCount((current) => current + freshReservations.length);
-      setLastReservation(freshReservations[0]);
-
-      if (soundEnabled) {
-        playNotificationSound();
-      }
-    } else {
-      nextReservations.forEach((reservation: any) =>
-        knownReservationIds.current.add(reservation.id)
-      );
-    }
-
     setBarbers(payload.barbers ?? []);
-    setReservations(nextReservations);
-    setTodayReservations(payload.todayReservations ?? []);
+    setReservations(payload.reservations ?? []);
     setProfiles(payload.profiles ?? []);
-    // Keep the visible week stable across refreshes; the server still sends it for API consumers.
     setActiveBarberId((current) => current ?? payload.barbers?.[0]?.id ?? null);
     setBootstrapping(false);
-  }
-
-  function playNotificationSound() {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    const AudioContextClass =
-      window.AudioContext ||
-      // @ts-expect-error Safari support
-      window.webkitAudioContext;
-
-    if (!AudioContextClass) {
-      return;
-    }
-
-    const context = new AudioContextClass();
-    const oscillator = context.createOscillator();
-    const gain = context.createGain();
-
-    oscillator.type = "triangle";
-    oscillator.frequency.setValueAtTime(900, context.currentTime);
-    oscillator.frequency.exponentialRampToValueAtTime(
-      620,
-      context.currentTime + 0.22
-    );
-    gain.gain.setValueAtTime(0.0001, context.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.12, context.currentTime + 0.03);
-    gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.35);
-
-    oscillator.connect(gain);
-    gain.connect(context.destination);
-    oscillator.start();
-    oscillator.stop(context.currentTime + 0.36);
-
-    oscillator.onended = () => {
-      void context.close();
-    };
   }
 
   useEffect(() => {
@@ -274,7 +186,7 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
     }, 15000);
 
     return () => window.clearInterval(interval);
-  }, [soundEnabled]);
+  }, []);
 
   useEffect(() => {
     if (fullDayBlock) {
@@ -543,13 +455,16 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
       return;
     }
 
-    if (scheduleMode === "cita_fijada" && scheduleForm.cliente_nombre.trim().length < 3) {
+    if (
+      ["confirmada", "cita_fijada"].includes(scheduleMode) &&
+      scheduleForm.cliente_nombre.trim().length < 3
+    ) {
       toast.error("Ingresa el nombre del cliente para la cita fijada.");
       return;
     }
 
     if (
-      scheduleMode === "cita_fijada" &&
+      ["confirmada", "cita_fijada"].includes(scheduleMode) &&
       scheduleForm.cliente_whatsapp.trim().length < 7
     ) {
       toast.error("Ingresa el WhatsApp del cliente.");
@@ -584,6 +499,9 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
       }
 
       toast.success(
+        scheduleMode === "confirmada"
+          ? "Reserva creada correctamente."
+          : 
         scheduleMode === "cita_fijada"
           ? "Cita fijada creada correctamente."
           : "Horario bloqueado correctamente."
@@ -602,56 +520,6 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
       setSaving(false);
     }
   }
-
-  async function unblockSelectedSlots() {
-    if (!scheduleForm.barbero_id || !scheduleForm.fecha || selectedHours.length === 0) {
-      toast.error("Selecciona barbero, fecha y los horarios a habilitar.");
-      return;
-    }
-
-    setSaving(true);
-
-    try {
-      const response = await fetch("/api/admin-schedule", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          action: "unblock",
-          barbero_id: scheduleForm.barbero_id,
-          fecha: scheduleForm.fecha,
-          horas: selectedHours
-        })
-      });
-
-      const payload = await response.json();
-
-      if (!response.ok) {
-        throw new Error(payload.error ?? "No fue posible habilitar los horarios.");
-      }
-
-      toast.success("Horarios habilitados nuevamente.");
-      setSelectedHours([]);
-      setFullDayBlock(false);
-      await refreshData();
-    } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "No fue posible habilitar los horarios."
-      );
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  const weeklyStats = {
-    totalReservations: reservations.length,
-    activeBarbers: barbers.filter((barber) => barber.activo).length,
-    blockedSlots: reservations.filter((item) => item.estado === "bloqueado").length,
-    fixedAppointments: reservations.filter((item) => item.estado === "cita_fijada").length
-  };
 
   const scheduleSlotMap = useMemo(() => {
     return new Map(
@@ -684,62 +552,8 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
     [activeBarberId, reservations]
   );
 
-  const selectedAgendaReservations = useMemo(
-    () =>
-      activeBarberReservations.filter(
-        (reservation) =>
-          scheduleForm.fecha && reservation.fecha === scheduleForm.fecha
-      ),
-    [activeBarberReservations, scheduleForm.fecha]
-  );
-
-  const selectedAgendaReservationMap = useMemo(
-    () =>
-      new Map(
-        selectedAgendaReservations.map((reservation) => [
-          normalizeHourKey(reservation.hora),
-          reservation
-        ])
-      ),
-    [selectedAgendaReservations]
-  );
-
   return (
     <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-      {newReservationCount > 0 ? (
-        <section className="mb-6 rounded-[1.75rem] border border-accent/40 bg-[#20170a] p-4 text-sand shadow-glow">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-start gap-3">
-              <div className="rounded-2xl border border-accent/25 bg-black p-3 text-accent">
-                <Bell className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="text-sm font-black uppercase tracking-[0.25em] text-accent">
-                  Nueva reserva
-                </p>
-                <p className="mt-1 text-sm font-medium leading-6 text-sand">
-                  {newReservationCount} reserva
-                  {newReservationCount > 1 ? "s nuevas" : " nueva"} detectada
-                  {lastReservation
-                    ? `: ${lastReservation.cliente_nombre} con ${lastReservation.barberos?.nombre ?? "barbero"} a las ${lastReservation.hora}.`
-                    : "."}
-                </p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                setNewReservationCount(0);
-                setLastReservation(null);
-              }}
-              className="rounded-2xl border border-accent/30 bg-accent px-4 py-3 text-sm font-semibold text-ink"
-            >
-              Marcar como visto
-            </button>
-          </div>
-        </section>
-      ) : null}
-
       <section className="rounded-[2rem] border border-white/10 bg-grain p-6 sm:p-8">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div>
@@ -752,20 +566,6 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
             ) : null}
           </div>
           <div className="flex flex-wrap gap-3">
-            <button
-              type="button"
-              onClick={() => setSoundEnabled((current) => !current)}
-              className="rounded-2xl border border-white/10 px-4 py-3 text-sm text-sand/80"
-            >
-              <span className="inline-flex items-center gap-2">
-                {soundEnabled ? (
-                  <Volume2 className="h-4 w-4" />
-                ) : (
-                  <VolumeX className="h-4 w-4" />
-                )}
-                Sonido {soundEnabled ? "activo" : "apagado"}
-              </span>
-            </button>
             <Link
               href="/"
               className="rounded-2xl border border-white/10 px-4 py-3 text-sm text-sand/80"
@@ -793,7 +593,8 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                       onClick={() => {
                         setActiveBarberId(barber.id);
                         setActiveBarberView("menu");
-                        setActiveAgendaTab("reservas");
+                        setSelectedAction("confirmada");
+                        setScheduleMode("confirmada");
                         updateScheduleForBarber(barber.id, { fecha: "", cliente_nombre: "", cliente_whatsapp: "" }, true);
                       }}
                       className={cn(
@@ -825,7 +626,7 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                               onClick={(event) => event.stopPropagation()}
                               className="mt-1 inline-flex items-center gap-2 text-sm font-medium text-accent underline-offset-4 hover:underline"
                             >
-                              <MessageCircleMore className="h-4 w-4" />
+                              <WhatsAppGoldIcon className="h-4 w-4" />
                               <span>WhatsApp</span>
                             </a>
                           ) : (
@@ -865,7 +666,8 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                     type="button"
                     onClick={() => {
                       setActiveBarberView("list");
-                      setActiveAgendaTab("reservas");
+                      setSelectedAction("confirmada");
+                      setScheduleMode("confirmada");
                       updateScheduleForBarber(activeBarber.id, { fecha: "", cliente_nombre: "", cliente_whatsapp: "" }, true);
                     }}
                     className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-sand/80"
@@ -918,7 +720,7 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                             rel="noreferrer"
                             className="mt-2 inline-flex items-center gap-2 text-sm font-medium text-accent underline-offset-4 hover:underline"
                           >
-                            <MessageCircleMore className="h-4 w-4" />
+                            <WhatsAppGoldIcon className="h-4 w-4" />
                             <span>WhatsApp</span>
                           </a>
                         ) : null}
@@ -969,62 +771,12 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                       </h4>
                     </div>
                     <div className="mt-4 space-y-4">
-                      <div className="grid grid-cols-3 gap-3">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setActiveAgendaTab("reservas");
-                            updateScheduleForBarber(activeBarber.id, { fecha: "", cliente_nombre: "", cliente_whatsapp: "" }, true);
-                          }}
-                          className={cn(
-                            "rounded-2xl px-4 py-3 text-sm font-semibold transition",
-                            activeAgendaTab === "reservas"
-                              ? "bg-accent text-ink"
-                              : "border border-white/10 bg-white/5 text-sand/70"
-                          )}
-                        >
-                          Reservas
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setActiveAgendaTab("cita_fijada");
-                            setScheduleMode("cita_fijada");
-                            updateScheduleForBarber(activeBarber.id, { fecha: "", cliente_nombre: "", cliente_whatsapp: "" }, true);
-                          }}
-                          className={cn(
-                            "rounded-2xl px-4 py-3 text-sm font-semibold transition",
-                            activeAgendaTab === "cita_fijada"
-                              ? "bg-sky-500 text-white"
-                              : "border border-white/10 bg-white/5 text-sand/70"
-                          )}
-                        >
-                          Cita fijada
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setActiveAgendaTab("bloqueado");
-                            setScheduleMode("bloqueado");
-                            updateScheduleForBarber(activeBarber.id, { fecha: "", cliente_nombre: "", cliente_whatsapp: "" }, true);
-                          }}
-                          className={cn(
-                            "rounded-2xl px-4 py-3 text-sm font-semibold transition",
-                            activeAgendaTab === "bloqueado"
-                              ? "bg-zinc-600 text-white"
-                              : "border border-white/10 bg-white/5 text-sand/70"
-                          )}
-                        >
-                          Bloqueo
-                        </button>
-                      </div>
-
                       {scheduleForm.barbero_id === activeBarber.id && scheduleForm.fecha ? (
                         <div className="rounded-[1.5rem] border border-white/10 bg-black/10 p-4">
                           <div className="mb-4 flex items-center justify-between gap-3">
                             <div>
                               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sand/60">
-                                {activeAgendaTab === "reservas" ? "Horarios del dia" : "Elige la hora"}
+                                Horarios del dia
                               </p>
                               <p className="mt-1 text-sm font-semibold uppercase text-sand">
                                 {currentWeek.find((day) => day.isoDate === scheduleForm.fecha)?.label.split(" ")[0] ?? "Dia seleccionado"}
@@ -1046,63 +798,7 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                           </div>
                           <div className="grid grid-cols-2 gap-2">
                             {TIME_SLOTS.map((hour) => {
-                              const reservation =
-                                activeAgendaTab === "reservas"
-                                  ? selectedAgendaReservationMap.get(hour)
-                                  : scheduleSlotMap.get(hour);
-
-                              if (activeAgendaTab === "reservas") {
-                                return (
-                                  <button
-                                    key={hour}
-                                    type="button"
-                                    onClick={() => {
-                                      if (reservation) {
-                                        setReleaseTarget(reservation);
-                                      }
-                                    }}
-                                    className={cn(
-                                      "rounded-2xl px-4 py-4 text-center transition",
-                                      reservation
-                                        ? reservation.estado === "confirmada"
-                                          ? "bg-danger text-white"
-                                          : reservation.estado === "cita_fijada"
-                                            ? "bg-sky-500/85 text-white"
-                                            : "bg-zinc-600 text-white"
-                                        : "bg-emerald-500 text-slate-950"
-                                    )}
-                                    disabled={!reservation}
-                                  >
-                                    <span className="block text-sm font-semibold">
-                                      {formatHourDisplay(hour)}
-                                    </span>
-                                    <span className="mt-1 block text-[11px] uppercase tracking-[0.18em]">
-                                      {reservation
-                                        ? reservation.estado === "confirmada"
-                                          ? "Ocupado"
-                                          : reservation.estado === "cita_fijada"
-                                            ? "Fijada"
-                                            : "Bloqueado"
-                                        : "Disponible"}
-                                    </span>
-                                    {reservation ? (
-                                      <>
-                                        <span className="mt-2 block truncate text-xs font-medium">
-                                          {reservation.estado === "bloqueado"
-                                            ? "Horario bloqueado"
-                                            : reservation.cliente_nombre}
-                                        </span>
-                                        {reservation.estado !== "bloqueado" &&
-                                        reservation.cliente_whatsapp ? (
-                                          <span className="mt-1 block truncate text-[11px]">
-                                            {reservation.cliente_whatsapp}
-                                          </span>
-                                        ) : null}
-                                      </>
-                                    ) : null}
-                                  </button>
-                                );
-                              }
+                              const reservation = scheduleSlotMap.get(hour);
 
                               return (
                                 <button
@@ -1120,19 +816,21 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                                     "rounded-2xl px-4 py-3 text-sm font-semibold transition",
                                     selectedHours.includes(hour) &&
                                       scheduleForm.barbero_id === activeBarber.id
-                                      ? activeAgendaTab === "cita_fijada"
+                                      ? selectedAction === "cita_fijada"
                                         ? "bg-sky-500 text-white"
-                                        : "bg-zinc-600 text-white"
+                                        : selectedAction === "bloqueado"
+                                          ? "bg-zinc-600 text-white"
+                                          : "bg-danger text-white"
                                       : reservation
                                         ? reservation.estado === "confirmada"
-                                          ? "border border-danger/40 bg-danger/15 text-white"
+                                          ? "bg-danger text-white"
                                           : reservation.estado === "cita_fijada"
-                                            ? "border border-sky-400/40 bg-sky-500/15 text-sky-100"
-                                            : "border border-zinc-500/40 bg-zinc-600/30 text-zinc-100"
-                                        : "border border-white/10 bg-white/5 text-sand/70"
+                                            ? "bg-sky-500/85 text-white"
+                                            : "bg-zinc-600 text-white"
+                                        : "bg-emerald-500 text-slate-950"
                                   )}
                                 >
-                                  <span className="block">
+                                  <span className="block text-sm font-semibold">
                                     {formatHourDisplay(hour)}
                                   </span>
                                   <span className="mt-1 block text-[11px] uppercase tracking-[0.18em]">
@@ -1192,58 +890,106 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                               </button>
                             ))}
                           </div>
-                          <p className="mt-3 text-xs text-sand/55">
-                            {activeAgendaTab === "reservas"
-                              ? "Selecciona un dia para ver las reservas de la semana dentro del mismo cuadro."
-                              : "La cita fijada o el bloqueo se repetira cada semana hasta que lo liberes manualmente."}
-                          </p>
                         </div>
                       )}
 
-                      {activeAgendaTab === "cita_fijada" ? (
+                      {scheduleForm.barbero_id === activeBarber.id && scheduleForm.fecha ? (
                         <>
-                          <input
-                            value={
-                              scheduleForm.barbero_id === activeBarber.id
-                                ? scheduleForm.cliente_nombre
-                                : ""
-                            }
-                            onChange={(event) =>
-                              updateScheduleForBarber(activeBarber.id, {
-                                cliente_nombre: event.target.value
-                              })
-                            }
-                            placeholder="Nombre cliente"
-                            className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-accent"
-                          />
-                          <input
-                            value={
-                              scheduleForm.barbero_id === activeBarber.id
-                                ? scheduleForm.cliente_whatsapp
-                                : ""
-                            }
-                            onChange={(event) =>
-                              updateScheduleForBarber(activeBarber.id, {
-                                cliente_whatsapp: event.target.value
-                              })
-                            }
-                            placeholder="WhatsApp cliente"
-                            className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-accent"
-                          />
-                        </>
-                      ) : activeAgendaTab === "bloqueado" ? (
-                        <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-sand/80">
-                          <input
-                            type="checkbox"
-                            checked={fullDayBlock}
-                            onChange={(event) => setFullDayBlock(event.target.checked)}
-                          />
-                          Bloquear dia completo
-                        </label>
-                      ) : null}
+                          <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-4">
+                            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-sand/60">
+                              Accion a realizar
+                            </p>
+                            <div className="grid grid-cols-3 gap-3">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedAction("confirmada");
+                                  setScheduleMode("confirmada");
+                                }}
+                                className={cn(
+                                  "rounded-2xl px-4 py-3 text-sm font-semibold transition",
+                                  selectedAction === "confirmada"
+                                    ? "bg-danger text-white"
+                                    : "border border-white/10 bg-white/5 text-sand/70"
+                                )}
+                              >
+                                Reservar
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedAction("cita_fijada");
+                                  setScheduleMode("cita_fijada");
+                                }}
+                                className={cn(
+                                  "rounded-2xl px-4 py-3 text-sm font-semibold transition",
+                                  selectedAction === "cita_fijada"
+                                    ? "bg-sky-500 text-white"
+                                    : "border border-white/10 bg-white/5 text-sand/70"
+                                )}
+                              >
+                                Fijar cita
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedAction("bloqueado");
+                                  setScheduleMode("bloqueado");
+                                }}
+                                className={cn(
+                                  "rounded-2xl px-4 py-3 text-sm font-semibold transition",
+                                  selectedAction === "bloqueado"
+                                    ? "bg-zinc-600 text-white"
+                                    : "border border-white/10 bg-white/5 text-sand/70"
+                                )}
+                              >
+                                Bloquear
+                              </button>
+                            </div>
+                          </div>
 
-                      {activeAgendaTab !== "reservas" ? (
-                        <div className="grid gap-3">
+                          {selectedAction !== "bloqueado" ? (
+                            <>
+                              <input
+                                value={
+                                  scheduleForm.barbero_id === activeBarber.id
+                                    ? scheduleForm.cliente_nombre
+                                    : ""
+                                }
+                                onChange={(event) =>
+                                  updateScheduleForBarber(activeBarber.id, {
+                                    cliente_nombre: event.target.value
+                                  })
+                                }
+                                placeholder="Nombre cliente"
+                                className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-accent"
+                              />
+                              <input
+                                value={
+                                  scheduleForm.barbero_id === activeBarber.id
+                                    ? scheduleForm.cliente_whatsapp
+                                    : ""
+                                }
+                                onChange={(event) =>
+                                  updateScheduleForBarber(activeBarber.id, {
+                                    cliente_whatsapp: event.target.value
+                                  })
+                                }
+                                placeholder="WhatsApp cliente"
+                                className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-accent"
+                              />
+                            </>
+                          ) : (
+                            <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-sand/80">
+                              <input
+                                type="checkbox"
+                                checked={fullDayBlock}
+                                onChange={(event) => setFullDayBlock(event.target.checked)}
+                              />
+                              Bloquear dia completo
+                            </label>
+                          )}
+
                           <button
                             type="button"
                             disabled={saving}
@@ -1255,7 +1001,7 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                           >
                             Guardar accion
                           </button>
-                        </div>
+                        </>
                       ) : null}
                     </div>
                   </div>
