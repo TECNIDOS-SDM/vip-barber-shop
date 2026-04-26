@@ -143,6 +143,7 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
     "confirmada" | "cita_fijada" | "bloqueado"
   >("confirmada");
   const [fullDayBlock, setFullDayBlock] = useState(false);
+  const [showScheduleActionModal, setShowScheduleActionModal] = useState(false);
   const [activeBarberId, setActiveBarberId] = useState<string | null>(
     initialData.barbers[0]?.id ?? null
   );
@@ -418,9 +419,11 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
         ? current.filter((value) => value !== hour)
         : [...current, hour]
     );
+    setShowScheduleActionModal(true);
   }
 
   function closeScheduleActionModal() {
+    setShowScheduleActionModal(false);
     setSelectedHours([]);
     setFullDayBlock(false);
     setSelectedAction("confirmada");
@@ -456,6 +459,7 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
     }));
 
     if (resetHours) {
+      setShowScheduleActionModal(false);
       setSelectedHours([]);
       setFullDayBlock(false);
     }
@@ -518,6 +522,7 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
           ? "Cita fijada creada correctamente."
           : "Horario bloqueado correctamente."
       );
+      setShowScheduleActionModal(false);
       setScheduleForm(emptyScheduleForm);
       setSelectedHours([]);
       setFullDayBlock(false);
@@ -565,6 +570,7 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
   );
 
   const isScheduleActionModalOpen = Boolean(
+    showScheduleActionModal &&
     activeBarber &&
       scheduleForm.barbero_id === activeBarber.id &&
       scheduleForm.fecha &&
@@ -1221,14 +1227,23 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                 </label>
               )}
 
-              <button
-                type="button"
-                disabled={saving}
-                onClick={() => void saveScheduleAction()}
-                className="w-full rounded-2xl bg-accent px-4 py-4 text-sm font-bold uppercase tracking-[0.16em] text-ink disabled:opacity-60"
-              >
-                Guardar accion
-              </button>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => setShowScheduleActionModal(false)}
+                  className="rounded-2xl border border-white/10 px-4 py-4 text-sm font-semibold uppercase tracking-[0.12em] text-sand/80"
+                >
+                  Agregar mas horarios
+                </button>
+                <button
+                  type="button"
+                  disabled={saving}
+                  onClick={() => void saveScheduleAction()}
+                  className="rounded-2xl bg-accent px-4 py-4 text-sm font-bold uppercase tracking-[0.16em] text-ink disabled:opacity-60"
+                >
+                  Guardar accion
+                </button>
+              </div>
             </div>
           </div>
         </div>
