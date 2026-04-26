@@ -420,6 +420,18 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
     );
   }
 
+  function closeScheduleActionModal() {
+    setSelectedHours([]);
+    setFullDayBlock(false);
+    setSelectedAction("confirmada");
+    setScheduleMode("confirmada");
+    setScheduleForm((current) => ({
+      ...current,
+      cliente_nombre: "",
+      cliente_whatsapp: ""
+    }));
+  }
+
   function loadBarberIntoForm(barber: any) {
     setEditingId(barber.id);
     setBarberForm({
@@ -550,6 +562,13 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
     () =>
       reservations.filter((reservation) => reservation.barbero_id === activeBarberId),
     [activeBarberId, reservations]
+  );
+
+  const isScheduleActionModalOpen = Boolean(
+    activeBarber &&
+      scheduleForm.barbero_id === activeBarber.id &&
+      scheduleForm.fecha &&
+      selectedHours.length > 0
   );
 
   return (
@@ -893,116 +912,6 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                         </div>
                       )}
 
-                      {scheduleForm.barbero_id === activeBarber.id && scheduleForm.fecha ? (
-                        <>
-                          <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-4">
-                            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-sand/60">
-                              Accion a realizar
-                            </p>
-                            <div className="grid grid-cols-3 gap-3">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setSelectedAction("confirmada");
-                                  setScheduleMode("confirmada");
-                                }}
-                                className={cn(
-                                  "rounded-2xl px-4 py-3 text-sm font-semibold transition",
-                                  selectedAction === "confirmada"
-                                    ? "bg-danger text-white"
-                                    : "border border-white/10 bg-white/5 text-sand/70"
-                                )}
-                              >
-                                Reservar
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setSelectedAction("cita_fijada");
-                                  setScheduleMode("cita_fijada");
-                                }}
-                                className={cn(
-                                  "rounded-2xl px-4 py-3 text-sm font-semibold transition",
-                                  selectedAction === "cita_fijada"
-                                    ? "bg-sky-500 text-white"
-                                    : "border border-white/10 bg-white/5 text-sand/70"
-                                )}
-                              >
-                                Fijar cita
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setSelectedAction("bloqueado");
-                                  setScheduleMode("bloqueado");
-                                }}
-                                className={cn(
-                                  "rounded-2xl px-4 py-3 text-sm font-semibold transition",
-                                  selectedAction === "bloqueado"
-                                    ? "bg-zinc-600 text-white"
-                                    : "border border-white/10 bg-white/5 text-sand/70"
-                                )}
-                              >
-                                Bloquear
-                              </button>
-                            </div>
-                          </div>
-
-                          {selectedAction !== "bloqueado" ? (
-                            <>
-                              <input
-                                value={
-                                  scheduleForm.barbero_id === activeBarber.id
-                                    ? scheduleForm.cliente_nombre
-                                    : ""
-                                }
-                                onChange={(event) =>
-                                  updateScheduleForBarber(activeBarber.id, {
-                                    cliente_nombre: event.target.value
-                                  })
-                                }
-                                placeholder="Nombre cliente"
-                                className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-accent"
-                              />
-                              <input
-                                value={
-                                  scheduleForm.barbero_id === activeBarber.id
-                                    ? scheduleForm.cliente_whatsapp
-                                    : ""
-                                }
-                                onChange={(event) =>
-                                  updateScheduleForBarber(activeBarber.id, {
-                                    cliente_whatsapp: event.target.value
-                                  })
-                                }
-                                placeholder="WhatsApp cliente"
-                                className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-accent"
-                              />
-                            </>
-                          ) : (
-                            <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-sand/80">
-                              <input
-                                type="checkbox"
-                                checked={fullDayBlock}
-                                onChange={(event) => setFullDayBlock(event.target.checked)}
-                              />
-                              Bloquear dia completo
-                            </label>
-                          )}
-
-                          <button
-                            type="button"
-                            disabled={saving}
-                            onClick={() => {
-                              updateScheduleForBarber(activeBarber.id, {});
-                              void saveScheduleAction();
-                            }}
-                            className="rounded-2xl bg-accent px-4 py-4 text-sm font-bold uppercase tracking-[0.16em] text-ink disabled:opacity-60"
-                          >
-                            Guardar accion
-                          </button>
-                        </>
-                      ) : null}
                     </div>
                   </div>
                 ) : null}
@@ -1181,6 +1090,144 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                 className="flex-1 rounded-2xl bg-danger px-4 py-3 text-sm font-semibold text-white"
               >
                 Liberar
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {isScheduleActionModalOpen && activeBarber ? (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 px-4">
+          <div className="w-full max-w-lg rounded-[2rem] border border-white/10 bg-[#120f0b] p-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent/80">
+                  Accion a realizar
+                </p>
+                <h3 className="mt-2 text-2xl font-semibold text-sand">
+                  {activeBarber.nombre}
+                </h3>
+                <p className="mt-2 text-sm text-sand/70">
+                  {currentWeek
+                    .find((day) => day.isoDate === scheduleForm.fecha)
+                    ?.label.split(" ")[0] ?? "Dia seleccionado"}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={closeScheduleActionModal}
+                className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-sand/80"
+              >
+                Cerrar
+              </button>
+            </div>
+
+            <div className="mt-5 rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sand/60">
+                Horarios seleccionados
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {selectedHours.map((hour) => (
+                  <span
+                    key={hour}
+                    className="rounded-full bg-accent/15 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-accent"
+                  >
+                    {formatHourDisplay(hour)}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-5 grid grid-cols-3 gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedAction("confirmada");
+                  setScheduleMode("confirmada");
+                }}
+                className={cn(
+                  "rounded-2xl px-4 py-3 text-sm font-semibold transition",
+                  selectedAction === "confirmada"
+                    ? "bg-danger text-white"
+                    : "border border-white/10 bg-white/5 text-sand/70"
+                )}
+              >
+                Reservar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedAction("cita_fijada");
+                  setScheduleMode("cita_fijada");
+                }}
+                className={cn(
+                  "rounded-2xl px-4 py-3 text-sm font-semibold transition",
+                  selectedAction === "cita_fijada"
+                    ? "bg-sky-500 text-white"
+                    : "border border-white/10 bg-white/5 text-sand/70"
+                )}
+              >
+                Fijar cita
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedAction("bloqueado");
+                  setScheduleMode("bloqueado");
+                }}
+                className={cn(
+                  "rounded-2xl px-4 py-3 text-sm font-semibold transition",
+                  selectedAction === "bloqueado"
+                    ? "bg-zinc-600 text-white"
+                    : "border border-white/10 bg-white/5 text-sand/70"
+                )}
+              >
+                Bloquear
+              </button>
+            </div>
+
+            <div className="mt-5 space-y-4">
+              {selectedAction !== "bloqueado" ? (
+                <>
+                  <input
+                    value={scheduleForm.cliente_nombre}
+                    onChange={(event) =>
+                      updateScheduleForBarber(activeBarber.id, {
+                        cliente_nombre: event.target.value
+                      })
+                    }
+                    placeholder="Nombre cliente"
+                    className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-accent"
+                  />
+                  <input
+                    value={scheduleForm.cliente_whatsapp}
+                    onChange={(event) =>
+                      updateScheduleForBarber(activeBarber.id, {
+                        cliente_whatsapp: event.target.value
+                      })
+                    }
+                    placeholder="WhatsApp cliente"
+                    className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-accent"
+                  />
+                </>
+              ) : (
+                <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-sand/80">
+                  <input
+                    type="checkbox"
+                    checked={fullDayBlock}
+                    onChange={(event) => setFullDayBlock(event.target.checked)}
+                  />
+                  Bloquear dia completo
+                </label>
+              )}
+
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => void saveScheduleAction()}
+                className="w-full rounded-2xl bg-accent px-4 py-4 text-sm font-bold uppercase tracking-[0.16em] text-ink disabled:opacity-60"
+              >
+                Guardar accion
               </button>
             </div>
           </div>
