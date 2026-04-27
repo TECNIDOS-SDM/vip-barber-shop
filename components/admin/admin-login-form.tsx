@@ -4,7 +4,6 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { adminIdentifierToEmail } from "@/lib/admin-auth";
-import { getCurrentUserRole } from "@/lib/auth";
 import {
   createSessionLockKey,
   setSessionLockCookie
@@ -46,17 +45,6 @@ export function AdminLoginForm({
       } = await supabase.auth.getUser();
 
       if (user) {
-        const { role, profile } = await getCurrentUserRole(supabase as any, user);
-
-        if (nextPath.includes("/gestion-equipo")) {
-          if (role !== "barbero" || !profile?.barbero_id) {
-            await supabase.auth.signOut();
-            throw new Error(
-              "Esta cuenta de barbero esta inactiva o ya no tiene acceso al panel."
-            );
-          }
-        }
-
         const sessionKey = createSessionLockKey();
         const { error: lockError } = await supabase
           .from("user_session_locks")
