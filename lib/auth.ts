@@ -8,39 +8,20 @@ export async function getCurrentUserRole(
   role: UserRole | null;
   profile: ProfileRecord | null;
 }> {
-  const normalizedEmail = user.email?.trim().toLowerCase();
-
   const { data: profile, error: profileError } = await supabase
     .from("perfiles_usuario")
     .select("user_id, rol, barbero_id")
     .eq("user_id", user.id)
     .maybeSingle();
 
-  if (!profileError && profile?.rol === "administrador") {
+  if (
+    !profileError &&
+    (profile?.rol === "barbero" || profile?.rol === "administrador")
+  ) {
     return {
-      role: "administrador",
+      role: profile.rol,
       profile
     };
-  }
-
-  if (!profileError && profile?.rol === "barbero") {
-    const barberId = profile.barbero_id;
-
-    if (barberId) {
-      const { data: activeBarber } = await supabase
-        .from("barberos")
-        .select("id, activo")
-        .eq("id", barberId)
-        .eq("activo", true)
-        .maybeSingle();
-
-      if (activeBarber) {
-        return {
-          role: "barbero",
-          profile
-        };
-      }
-    }
   }
 
   const { data: admin } = await supabase
@@ -55,6 +36,8 @@ export async function getCurrentUserRole(
       profile: null
     };
   }
+
+  const normalizedEmail = user.email?.trim().toLowerCase();
 
   if (normalizedEmail) {
     const { data: barber } = await supabase
