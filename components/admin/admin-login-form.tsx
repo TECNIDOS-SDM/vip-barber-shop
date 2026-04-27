@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { adminIdentifierToEmail } from "@/lib/admin-auth";
 import {
@@ -16,10 +15,8 @@ type AdminLoginFormProps = {
 };
 
 export function AdminLoginForm({
-  nextPath = "/admin-vip",
-  isBarberSwitch = false
+  nextPath = "/admin-vip"
 }: AdminLoginFormProps) {
-  const router = useRouter();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -31,7 +28,7 @@ export function AdminLoginForm({
     try {
       const supabase = getSupabaseBrowserClient();
       const email = adminIdentifierToEmail(identifier);
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
       });
@@ -40,9 +37,7 @@ export function AdminLoginForm({
         throw error;
       }
 
-      const {
-        data: { user }
-      } = await supabase.auth.getUser();
+      const user = data.user;
 
       if (user) {
         const sessionKey = createSessionLockKey();
@@ -63,8 +58,7 @@ export function AdminLoginForm({
         }
       }
 
-      router.replace(nextPath);
-      router.refresh();
+      window.location.assign(nextPath);
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "No fue posible iniciar sesion."

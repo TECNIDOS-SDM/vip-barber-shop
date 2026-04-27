@@ -156,11 +156,6 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
   const [selectedReleaseReservations, setSelectedReleaseReservations] = useState<any[]>([]);
   const [showReleaseActionModal, setShowReleaseActionModal] = useState(false);
   const [isAddingMoreReleaseHours, setIsAddingMoreReleaseHours] = useState(false);
-  const [bootstrapping, setBootstrapping] = useState(
-    initialData.reservations.length === 0 &&
-      initialData.todayReservations.length === 0 &&
-      initialData.profiles.length === 0
-  );
 
   async function refreshData() {
     const response = await fetch("/api/admin-dashboard", {
@@ -176,14 +171,7 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
     setReservations(payload.reservations ?? []);
     setProfiles(payload.profiles ?? []);
     setActiveBarberId((current) => current ?? payload.barbers?.[0]?.id ?? null);
-    setBootstrapping(false);
   }
-
-  useEffect(() => {
-    void refreshData().catch(() => {
-      setBootstrapping(false);
-    });
-  }, []);
 
   useEffect(() => {
     const interval = window.setInterval(() => {
@@ -671,11 +659,6 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
           <div>
             <Logo title="ADMINISTRADOR" />
             <p className="mt-3 text-sm text-sand/70">{adminEmail}</p>
-            {bootstrapping ? (
-              <p className="mt-2 text-sm text-accent/80">
-                Actualizando agenda y reservas...
-              </p>
-            ) : null}
           </div>
           <div className="flex flex-wrap gap-3">
             <SignOutButton redirectTo="/auth/login?next=/admin-vip" />
@@ -924,6 +907,36 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                               className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-sand/80"
                             >
                               Retroceder
+                            </button>
+                          </div>
+                          <div className="mb-4 flex justify-end">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const availableHours = TIME_SLOTS.filter(
+                                  (hour) => !scheduleSlotMap.get(hour)
+                                );
+
+                                if (availableHours.length === 0) {
+                                  toast.error(
+                                    "No hay horarios disponibles para bloquear en este dia."
+                                  );
+                                  return;
+                                }
+
+                                setSelectedAction("bloqueado");
+                                setScheduleMode("bloqueado");
+                                setFullDayBlock(true);
+                                setSelectedHours(availableHours);
+                                setShowReleaseActionModal(false);
+                                setIsAddingMoreReleaseHours(false);
+                                setSelectedReleaseReservations([]);
+                                setShowScheduleActionModal(true);
+                                setIsAddingMoreHours(false);
+                              }}
+                              className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-sand/80 transition hover:border-accent/40 hover:text-accent"
+                            >
+                              Bloquear dia completo
                             </button>
                           </div>
                           {canResumeScheduleAction ? (

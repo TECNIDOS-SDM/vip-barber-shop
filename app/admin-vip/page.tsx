@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { AdminDashboard } from "@/components/admin/admin-dashboard";
 import { getCurrentUserRole } from "@/lib/auth";
-import { getAdminDashboardShellData } from "@/lib/queries";
+import { getAdminDashboardData } from "@/lib/queries";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -27,7 +27,7 @@ export default async function AdminVipPage() {
     redirect(role === "barbero" ? "/gestion-equipo" : "/");
   }
 
-  const data = await getAdminDashboardShellData();
+  const data = await getAdminDashboardData();
 
   return <AdminDashboard initialData={data} adminEmail={user.email ?? ""} />;
 }
