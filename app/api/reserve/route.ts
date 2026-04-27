@@ -11,6 +11,9 @@ const schema = z.object({
   hora: z.string().regex(/^\d{2}:\d{2}$/)
 });
 
+const SLOT_TAKEN_MESSAGE =
+  "Este horario ya no está disponible. Por favor selecciona otro.";
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -40,18 +43,8 @@ export async function POST(request: Request) {
       .maybeSingle();
 
     if (existingSlot?.estado) {
-      const messages: Record<string, string> = {
-        confirmada: "Ese horario ya fue reservado. Elige otro.",
-        cita_fijada: "Ese horario tiene una cita fijada manualmente. Elige otro.",
-        bloqueado: "Ese horario esta bloqueado por el administrador."
-      };
-
       return NextResponse.json(
-        {
-          error:
-            messages[existingSlot.estado] ??
-            "Ese horario no esta disponible en este momento."
-        },
+        { error: SLOT_TAKEN_MESSAGE },
         { status: 409 }
       );
     }
@@ -64,7 +57,7 @@ export async function POST(request: Request) {
     if (error) {
       if (error.code === "23505") {
         return NextResponse.json(
-          { error: "Ese horario ya fue reservado. Elige otro." },
+          { error: SLOT_TAKEN_MESSAGE },
           { status: 409 }
         );
       }

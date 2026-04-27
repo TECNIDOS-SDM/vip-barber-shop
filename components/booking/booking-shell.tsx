@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { formatHourDisplay, formatReservationDate } from "@/lib/date";
 import { TIME_SLOTS } from "@/lib/constants";
 import { buildWhatsAppUrl } from "@/lib/whatsapp";
+import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 import type { Barber, ReservationSlot } from "@/types";
 
 const BARBER_FALLBACK_IMAGE = "/vip-barbertop-logo.jpeg";
@@ -47,6 +48,20 @@ function TikTokIcon() {
   );
 }
 
+function WhatsAppGoldIcon({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 32 32"
+      aria-hidden="true"
+      className={className}
+      fill="currentColor"
+    >
+      <path d="M19.11 17.24c-.27-.14-1.59-.78-1.84-.87-.25-.09-.43-.14-.61.14-.18.27-.7.87-.86 1.05-.16.18-.31.2-.58.07-.27-.14-1.13-.42-2.16-1.34-.8-.71-1.34-1.58-1.5-1.85-.16-.27-.02-.42.12-.56.12-.12.27-.31.41-.47.14-.16.18-.27.27-.45.09-.18.05-.34-.02-.47-.07-.14-.61-1.47-.84-2.02-.22-.53-.44-.46-.61-.47h-.52c-.18 0-.47.07-.72.34-.25.27-.95.93-.95 2.28s.97 2.64 1.11 2.82c.14.18 1.9 2.9 4.61 4.06.64.28 1.14.45 1.53.57.64.2 1.22.17 1.68.1.51-.08 1.59-.65 1.81-1.28.22-.63.22-1.17.16-1.28-.06-.11-.24-.18-.51-.32Z" />
+      <path d="M16.02 3.2c-6.98 0-12.65 5.67-12.65 12.65 0 2.22.58 4.4 1.67 6.31L3.2 28.8l6.8-1.78a12.61 12.61 0 0 0 6.02 1.54h.01c6.97 0 12.65-5.68 12.65-12.65 0-3.38-1.32-6.56-3.72-8.95A12.56 12.56 0 0 0 16.02 3.2Zm0 22.98h-.01a10.45 10.45 0 0 1-5.33-1.46l-.38-.22-4.03 1.06 1.08-3.92-.25-.4a10.47 10.47 0 0 1-1.61-5.62c0-5.78 4.71-10.49 10.52-10.49 2.8 0 5.42 1.09 7.4 3.06a10.4 10.4 0 0 1 3.08 7.42c0 5.79-4.71 10.5-10.47 10.5Z" />
+    </svg>
+  );
+}
+
 export function BookingShell({
   isConfigured,
   barbers,
@@ -66,6 +81,63 @@ export function BookingShell({
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    const supabase = getSupabaseBrowserClient();
+    let refreshTimeout: number | null = null;
+
+    const queueRefresh = () => {
+      if (refreshTimeout) {
+        return;
+      }
+
+      refreshTimeout = window.setTimeout(() => {
+        refreshTimeout = null;
+        router.refresh();
+      }, 250);
+    };
+
+    const channel = supabase
+      .channel("public-booking-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "reservas" },
+        queueRefresh
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "barberos" },
+        queueRefresh
+      )
+      .subscribe();
+
+    return () => {
+      if (refreshTimeout) {
+        window.clearTimeout(refreshTimeout);
+      }
+
+      void supabase.removeChannel(channel);
+    };
+  }, [router]);
+
+  useEffect(() => {
+    let lastSeenDate = new Date().toLocaleDateString("en-CA", {
+      timeZone: "America/Bogota"
+    });
+
+    const interval = window.setInterval(() => {
+      const currentDate = new Date().toLocaleDateString("en-CA", {
+        timeZone: "America/Bogota"
+      });
+
+      if (currentDate !== lastSeenDate) {
+        lastSeenDate = currentDate;
+        router.refresh();
+      }
+    }, 60000);
+
+    return () => window.clearInterval(interval);
+  }, [router]);
+
+  useEffect(() => {
     if (!selectedBarber) {
       setCurrentStep(1);
     }
@@ -80,7 +152,7 @@ export function BookingShell({
             item.fecha === selectedDate &&
             item.estado !== "cancelada"
         )
-        .map((item) => [item.hora, item.estado])
+        .map((item) => [item.hora.slice(0, 5), item.estado])
     );
   }, [reservations, selectedBarber, selectedDate]);
 
@@ -242,7 +314,7 @@ export function BookingShell({
                         onClick={(event) => event.stopPropagation()}
                         className="inline-flex items-center gap-2 rounded-full bg-white/6 px-3 py-1 text-accent underline-offset-4 hover:underline"
                       >
-                        <MessageCircleMore className="h-3.5 w-3.5" />
+                        <WhatsAppGoldIcon className="h-3.5 w-3.5" />
                         <span className="font-semibold normal-case tracking-normal">
                           WhatsApp
                         </span>
@@ -250,7 +322,8 @@ export function BookingShell({
                     ) : null}
                   </div>
                   <div className="mt-4 border-t border-white/10 pt-3">
-                    <p className="text-sm font-black uppercase tracking-[0.12em] text-[#facc15]">
+                    <p className="inline-flex items-center gap-2 text-sm font-black uppercase tracking-[0.12em] text-[#facc15]">
+                      <WhatsAppGoldIcon className="h-4 w-4" />
                       AGENDA TU CITA
                     </p>
                   </div>
@@ -417,7 +490,7 @@ export function BookingShell({
                     <label className="grid gap-2">
                       <div className="relative">
                         <div className="pointer-events-none absolute left-4 top-1/2 flex -translate-y-1/2 items-center gap-2 text-accent">
-                          <MessageCircleMore className="h-4 w-4" />
+                          <WhatsAppGoldIcon className="h-4 w-4" />
                           <span className="text-sm font-semibold normal-case tracking-normal">
                             WhatsApp
                           </span>

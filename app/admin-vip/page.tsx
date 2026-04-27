@@ -4,6 +4,8 @@ import { getCurrentUserRole } from "@/lib/auth";
 import { getAdminDashboardShellData } from "@/lib/queries";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminVipPage() {
   const supabase = await getSupabaseServerClient();
 

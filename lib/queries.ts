@@ -1,4 +1,3 @@
-import { unstable_cache } from "next/cache";
 import { getCurrentWeek } from "@/lib/date";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabasePublicClient } from "@/lib/supabase/public";
@@ -22,50 +21,40 @@ async function fetchAdminBarbers(supabase: any) {
     .order("created_at", { ascending: true });
 }
 
-const getCachedPublicBookingData = unstable_cache(
-  async () => {
-    const supabase = getSupabasePublicClient();
-
-    if (!supabase) {
-      return {
-        isConfigured: false,
-        barbers: [] as Barber[],
-        reservations: [] as ReservationSlot[],
-        week: getCurrentWeek()
-      };
-    }
-
-    const week = getCurrentWeek();
-    const weekDates = week.map((item) => item.isoDate);
-    await cleanupExpiredReservations();
-
-    const [barbersResult, reservationsResult] = await Promise.all([
-      supabase
-        .from("barberos")
-        .select("id, nombre, foto, whatsapp, telefono, activo")
-        .eq("activo", true)
-        .order("nombre"),
-      supabase
-        .from("reservas_publicas")
-        .select("id, barbero_id, fecha, hora, estado")
-        .in("fecha", weekDates)
-    ]);
-
-    return {
-      isConfigured: true,
-      barbers: (barbersResult.data ?? []) as Barber[],
-      reservations: (reservationsResult.data ?? []) as ReservationSlot[],
-      week
-    };
-  },
-  ["public-booking-data"],
-  {
-    revalidate: 60
-  }
-);
-
 export async function getPublicBookingData() {
-  return getCachedPublicBookingData();
+  const supabase = getSupabasePublicClient();
+
+  if (!supabase) {
+    return {
+      isConfigured: false,
+      barbers: [] as Barber[],
+      reservations: [] as ReservationSlot[],
+      week: getCurrentWeek()
+    };
+  }
+
+  const week = getCurrentWeek();
+  const weekDates = week.map((item) => item.isoDate);
+  await cleanupExpiredReservations();
+
+  const [barbersResult, reservationsResult] = await Promise.all([
+    supabase
+      .from("barberos")
+      .select("id, nombre, foto, whatsapp, telefono, activo")
+      .eq("activo", true)
+      .order("nombre"),
+    supabase
+      .from("reservas_publicas")
+      .select("id, barbero_id, fecha, hora, estado")
+      .in("fecha", weekDates)
+  ]);
+
+  return {
+    isConfigured: true,
+    barbers: (barbersResult.data ?? []) as Barber[],
+    reservations: (reservationsResult.data ?? []) as ReservationSlot[],
+    week
+  };
 }
 
 export async function getAdminDashboardData() {

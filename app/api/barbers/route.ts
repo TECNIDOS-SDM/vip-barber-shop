@@ -12,6 +12,7 @@ type BarberPayload = {
   telefono?: string | null;
   auth_email?: string | null;
   access_password?: string | null;
+  activo?: boolean;
 };
 
 function getReadableErrorMessage(error: unknown, fallback: string) {
@@ -222,7 +223,7 @@ export async function POST(request: Request) {
       telefono: payload.telefono?.trim() || null,
       auth_email: authEmail,
       access_password: payload.access_password?.trim() || "12345678",
-      activo: true
+      activo: payload.activo ?? true
     };
 
     let insertResult = await adminCheck.supabase
@@ -303,7 +304,8 @@ export async function PATCH(request: Request) {
       whatsapp: payload.whatsapp?.trim() || null,
       telefono: payload.telefono?.trim() || null,
       auth_email: authEmail,
-      access_password: payload.access_password?.trim() || "12345678"
+      access_password: payload.access_password?.trim() || "12345678",
+      activo: payload.activo ?? true
     };
 
     let updateResult = await adminCheck.supabase

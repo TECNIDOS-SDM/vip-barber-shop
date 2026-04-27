@@ -27,6 +27,8 @@ const releaseSchema = z.object({
 });
 
 const schema = z.union([createSchema, unblockSchema, releaseSchema]);
+const SLOT_TAKEN_MESSAGE =
+  "Este horario ya no está disponible. Por favor selecciona otro.";
 
 export async function POST(request: Request) {
   const supabase = await getSupabaseServerClient();
@@ -103,11 +105,8 @@ export async function POST(request: Request) {
     }>;
 
     if (conflicts.length > 0) {
-      const firstConflict = conflicts[0];
       return NextResponse.json(
-        {
-          error: `La hora ${firstConflict?.hora ?? ""} ya esta ocupada con estado ${firstConflict?.estado ?? "activo"}.`
-        },
+        { error: SLOT_TAKEN_MESSAGE },
         { status: 409 }
       );
     }
@@ -136,6 +135,15 @@ export async function POST(request: Request) {
       .insert(rows);
 
     if (error) {
+      if (
+        typeof error === "object" &&
+        error &&
+        "code" in error &&
+        (error as { code?: string }).code === "23505"
+      ) {
+        return NextResponse.json({ error: SLOT_TAKEN_MESSAGE }, { status: 409 });
+      }
+
       throw error;
     }
 

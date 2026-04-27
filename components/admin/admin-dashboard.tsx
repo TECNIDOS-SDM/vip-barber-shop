@@ -111,7 +111,8 @@ const emptyBarberForm = {
   foto: "",
   whatsapp: "",
   auth_email: "",
-  access_password: "12345678"
+  access_password: "12345678",
+  activo: true
 };
 
 const emptyScheduleForm = {
@@ -151,6 +152,7 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
     "list" | "menu" | "perfil" | "agenda"
   >("list");
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
+  const [showProfileEditModal, setShowProfileEditModal] = useState(false);
   const [selectedReleaseReservations, setSelectedReleaseReservations] = useState<any[]>([]);
   const [showReleaseActionModal, setShowReleaseActionModal] = useState(false);
   const [isAddingMoreReleaseHours, setIsAddingMoreReleaseHours] = useState(false);
@@ -161,7 +163,9 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
   );
 
   async function refreshData() {
-    const response = await fetch("/api/admin-dashboard");
+    const response = await fetch("/api/admin-dashboard", {
+      cache: "no-store"
+    });
     const payload = await response.json();
 
     if (!response.ok) {
@@ -186,9 +190,54 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
       void refreshData().catch(() => {
         // Keep current dashboard data if a background refresh fails.
       });
-    }, 15000);
+    }, 30000);
 
     return () => window.clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const supabase = getSupabaseBrowserClient();
+    let refreshTimeout: number | null = null;
+
+    const queueRefresh = () => {
+      if (refreshTimeout) {
+        return;
+      }
+
+      refreshTimeout = window.setTimeout(() => {
+        refreshTimeout = null;
+        void refreshData().catch(() => {
+          // Keep current dashboard data if a realtime refresh fails.
+        });
+      }, 250);
+    };
+
+    const channel = supabase
+      .channel("admin-dashboard-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "reservas" },
+        queueRefresh
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "barberos" },
+        queueRefresh
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "perfiles_usuario" },
+        queueRefresh
+      )
+      .subscribe();
+
+    return () => {
+      if (refreshTimeout) {
+        window.clearTimeout(refreshTimeout);
+      }
+
+      void supabase.removeChannel(channel);
+    };
   }, []);
 
   useEffect(() => {
@@ -323,6 +372,7 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
       }
 
       setEditingId(null);
+      setShowProfileEditModal(false);
       setBarberForm(emptyBarberForm);
       await refreshData().catch(() => {
         // Keep local optimistic state if dashboard refresh fails momentarily.
@@ -461,16 +511,23 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
     }));
   }
 
-  function loadBarberIntoForm(barber: any) {
+  function openBarberEditor(barber: any) {
     setEditingId(barber.id);
     setBarberForm({
       nombre: barber.nombre ?? "",
       foto: barber.foto ?? "",
       whatsapp: barber.whatsapp ?? "",
       auth_email: barber.auth_email ?? "",
-      access_password: barber.access_password ?? "12345678"
+      access_password: barber.access_password ?? "12345678",
+      activo: barber.activo ?? true
     });
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    setShowProfileEditModal(true);
+  }
+
+  function closeBarberEditorModal() {
+    setShowProfileEditModal(false);
+    setEditingId(null);
+    setBarberForm(emptyBarberForm);
   }
 
   function updateScheduleForBarber(
@@ -629,7 +686,7 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
       <section className="rounded-[2rem] border border-white/10 bg-grain p-6 sm:p-8">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <Logo title="PANEL ADMIN" />
+            <Logo title="ADMINISTRADOR" />
             <p className="mt-3 text-sm text-sand/70">{adminEmail}</p>
             {bootstrapping ? (
               <p className="mt-2 text-sm text-accent/80">
@@ -825,7 +882,7 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                       <div className="flex flex-wrap gap-2">
                         <button
                           type="button"
-                          onClick={() => loadBarberIntoForm(activeBarber)}
+                          onClick={() => openBarberEditor(activeBarber)}
                           className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-sand/80"
                         >
                           Editar perfil
@@ -1145,9 +1202,9 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                 disabled={saving}
                 className="w-full rounded-2xl bg-accent px-4 py-4 font-bold uppercase tracking-[0.2em] text-ink disabled:opacity-60"
               >
-                {editingId ? "Guardar cambios" : "Crear barbero"}
+                {showProfileEditModal && editingId ? "Guardar cambios" : "Crear barbero"}
               </button>
-              {editingId ? (
+              {editingId && !showProfileEditModal ? (
                 <button
                   type="button"
                   onClick={() => {
@@ -1163,6 +1220,118 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
           </CollapsibleSection>
         </div>
       </section>
+
+      {showProfileEditModal && editingId ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
+          <div className="w-full max-w-xl rounded-[2rem] border border-white/10 bg-[#120f0b] p-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent/80">
+                  Editar perfil
+                </p>
+                <h3 className="mt-2 text-2xl font-semibold text-sand">
+                  {barberForm.nombre || "Barbero"}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={closeBarberEditorModal}
+                className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-sand/80"
+              >
+                Cerrar
+              </button>
+            </div>
+
+            <div className="mt-5 space-y-4">
+              <input
+                value={barberForm.nombre}
+                onChange={(event) =>
+                  setBarberForm((current) => ({
+                    ...current,
+                    nombre: event.target.value
+                  }))
+                }
+                placeholder="Nombre completo"
+                className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-accent"
+              />
+              <input
+                value={barberForm.whatsapp}
+                onChange={(event) =>
+                  setBarberForm((current) => ({
+                    ...current,
+                    whatsapp: event.target.value
+                  }))
+                }
+                placeholder="WhatsApp"
+                className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-accent"
+              />
+              <input
+                value={barberForm.foto}
+                onChange={(event) =>
+                  setBarberForm((current) => ({
+                    ...current,
+                    foto: event.target.value
+                  }))
+                }
+                placeholder="URL de foto"
+                className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-accent"
+              />
+              <input
+                value={barberForm.auth_email}
+                onChange={(event) =>
+                  setBarberForm((current) => ({
+                    ...current,
+                    auth_email: event.target.value
+                  }))
+                }
+                placeholder="Usuario o email de acceso"
+                className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-accent"
+              />
+              <input
+                value={barberForm.access_password}
+                onChange={(event) =>
+                  setBarberForm((current) => ({
+                    ...current,
+                    access_password: event.target.value
+                  }))
+                }
+                placeholder="Clave de acceso"
+                className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-accent"
+              />
+              <label className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-sand/80">
+                <span>Barbero activo</span>
+                <input
+                  type="checkbox"
+                  checked={barberForm.activo}
+                  onChange={(event) =>
+                    setBarberForm((current) => ({
+                      ...current,
+                      activo: event.target.checked
+                    }))
+                  }
+                />
+              </label>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={closeBarberEditorModal}
+                  className="rounded-2xl border border-white/10 px-4 py-4 text-sm font-semibold text-sand/80"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void saveBarber()}
+                  disabled={saving}
+                  className="rounded-2xl bg-accent px-4 py-4 text-sm font-bold uppercase tracking-[0.16em] text-ink disabled:opacity-60"
+                >
+                  Guardar cambios
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {deleteTarget ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
