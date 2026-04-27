@@ -79,6 +79,9 @@ export function BookingShell({
   const [clienteWhatsapp, setClienteWhatsapp] = useState("");
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1);
   const [loading, setLoading] = useState(false);
+  const hourColumns = useMemo(() => {
+    return [TIME_SLOTS.slice(0, 10), TIME_SLOTS.slice(10)];
+  }, []);
 
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
@@ -432,34 +435,38 @@ export function BookingShell({
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                    {TIME_SLOTS.map((hour) => {
-                      const slotState = getPublicSlotState(hour);
+                  <div className="grid grid-cols-2 gap-3">
+                    {hourColumns.map((column, columnIndex) => (
+                      <div key={`public-hours-${columnIndex}`} className="space-y-3">
+                        {column.map((hour) => {
+                          const slotState = getPublicSlotState(hour);
 
-                      return (
-                        <button
-                          key={hour}
-                          type="button"
-                          disabled={slotState.busy}
-                          onClick={() => {
-                            if (slotState.busy) return;
-                            setSelectedHour(hour);
-                            setCurrentStep(4);
-                          }}
-                          className={cn(
-                            "rounded-2xl px-4 py-4 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-100",
-                            selectedHour === hour
-                              ? "bg-accent text-ink shadow-glow"
-                              : slotState.className
-                          )}
-                        >
-                          <span className="block">{formatHourDisplay(hour)}</span>
-                          <span className="mt-1 block text-[11px] uppercase tracking-[0.18em]">
-                            {slotState.label}
-                          </span>
-                        </button>
-                      );
-                    })}
+                          return (
+                            <button
+                              key={hour}
+                              type="button"
+                              disabled={slotState.busy}
+                              onClick={() => {
+                                if (slotState.busy) return;
+                                setSelectedHour(hour);
+                                setCurrentStep(4);
+                              }}
+                              className={cn(
+                                "w-full rounded-2xl px-4 py-4 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-100",
+                                selectedHour === hour
+                                  ? "bg-accent text-ink shadow-glow"
+                                  : slotState.className
+                              )}
+                            >
+                              <span className="block">{formatHourDisplay(hour)}</span>
+                              <span className="mt-1 block text-[11px] uppercase tracking-[0.18em]">
+                                {slotState.label}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ))}
                     {TIME_SLOTS.every((hour) => slotMap.has(hour)) ? (
                       <div className="col-span-full rounded-2xl border border-white/10 bg-white/[0.03] p-5 text-center text-sm font-semibold uppercase tracking-[0.18em] text-sand/70">
                         NO HAY HORARIOS DISPONIBLES PARA ESTE DIA

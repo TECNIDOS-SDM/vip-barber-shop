@@ -672,6 +672,9 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
       scheduleForm.fecha &&
       selectedReleaseReservations.length > 0
   );
+  const scheduleHourColumns = useMemo(() => {
+    return [TIME_SLOTS.slice(0, 10), TIME_SLOTS.slice(10)];
+  }, []);
 
   const isScheduleActionModalOpen = Boolean(
     showScheduleActionModal &&
@@ -1011,77 +1014,84 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                             </div>
                           ) : null}
                           <div className="grid grid-cols-2 gap-2">
-                            {TIME_SLOTS.map((hour) => {
-                              const reservation = scheduleSlotMap.get(hour);
+                            {scheduleHourColumns.map((column, columnIndex) => (
+                              <div
+                                key={`admin-hours-${columnIndex}`}
+                                className="space-y-2"
+                              >
+                                {column.map((hour) => {
+                                  const reservation = scheduleSlotMap.get(hour);
 
-                              return (
-                                <button
-                                  key={hour}
-                                  type="button"
-                                  onClick={() => {
-                                    if (reservation) {
-                                      toggleReleaseReservation(reservation);
-                                      return;
-                                    }
-                                    updateScheduleForBarber(activeBarber.id, {});
-                                    toggleHour(hour);
-                                  }}
-                                  className={cn(
-                                    "rounded-2xl px-4 py-3 text-sm font-semibold transition",
-                                    selectedReleaseReservations.some(
-                                      (item) => item.id === reservation?.id
-                                    )
-                                      ? "ring-2 ring-accent ring-offset-0"
-                                      : "",
-                                    selectedHours.includes(hour) &&
-                                      scheduleForm.barbero_id === activeBarber.id
-                                      ? selectedAction === "cita_fijada"
-                                        ? "bg-sky-500 text-white"
-                                        : selectedAction === "bloqueado"
-                                          ? "bg-zinc-600 text-white"
-                                          : "bg-danger text-white"
-                                      : reservation
-                                        ? reservation.estado === "confirmada"
-                                          ? "bg-danger text-white"
-                                          : reservation.estado === "cita_fijada"
-                                            ? "bg-sky-500/85 text-white"
-                                            : "bg-zinc-600 text-white"
-                                        : "bg-emerald-500 text-slate-950"
-                                  )}
-                                >
-                                  <span className="block text-sm font-semibold">
-                                    {formatHourDisplay(hour)}
-                                  </span>
-                                  <span className="mt-1 block text-[11px] uppercase tracking-[0.18em]">
-                                    {selectedHours.includes(hour) &&
-                                    scheduleForm.barbero_id === activeBarber.id
-                                      ? "Seleccionado"
-                                      : reservation
-                                        ? reservation.estado === "confirmada"
-                                          ? "Ocupado"
-                                          : reservation.estado === "cita_fijada"
-                                            ? "Fijada"
-                                            : "Bloqueado"
-                                        : "Disponible"}
-                                  </span>
-                                  {reservation ? (
-                                    <>
-                                      <span className="mt-2 block truncate text-xs font-medium">
-                                        {reservation.estado === "bloqueado"
-                                          ? "Horario bloqueado"
-                                          : reservation.cliente_nombre}
+                                  return (
+                                    <button
+                                      key={hour}
+                                      type="button"
+                                      onClick={() => {
+                                        if (reservation) {
+                                          toggleReleaseReservation(reservation);
+                                          return;
+                                        }
+                                        updateScheduleForBarber(activeBarber.id, {});
+                                        toggleHour(hour);
+                                      }}
+                                      className={cn(
+                                        "w-full rounded-2xl px-4 py-3 text-sm font-semibold transition",
+                                        selectedReleaseReservations.some(
+                                          (item) => item.id === reservation?.id
+                                        )
+                                          ? "ring-2 ring-accent ring-offset-0"
+                                          : "",
+                                        selectedHours.includes(hour) &&
+                                          scheduleForm.barbero_id === activeBarber.id
+                                          ? selectedAction === "cita_fijada"
+                                            ? "bg-sky-500 text-white"
+                                            : selectedAction === "bloqueado"
+                                              ? "bg-zinc-600 text-white"
+                                              : "bg-danger text-white"
+                                          : reservation
+                                            ? reservation.estado === "confirmada"
+                                              ? "bg-danger text-white"
+                                              : reservation.estado === "cita_fijada"
+                                                ? "bg-sky-500/85 text-white"
+                                                : "bg-zinc-600 text-white"
+                                            : "bg-emerald-500 text-slate-950"
+                                      )}
+                                    >
+                                      <span className="block text-sm font-semibold">
+                                        {formatHourDisplay(hour)}
                                       </span>
-                                      {reservation.estado !== "bloqueado" &&
-                                      reservation.cliente_whatsapp ? (
-                                        <span className="mt-1 block truncate text-[11px]">
-                                          {reservation.cliente_whatsapp}
-                                        </span>
+                                      <span className="mt-1 block text-[11px] uppercase tracking-[0.18em]">
+                                        {selectedHours.includes(hour) &&
+                                        scheduleForm.barbero_id === activeBarber.id
+                                          ? "Seleccionado"
+                                          : reservation
+                                            ? reservation.estado === "confirmada"
+                                              ? "Ocupado"
+                                              : reservation.estado === "cita_fijada"
+                                                ? "Fijada"
+                                                : "Bloqueado"
+                                            : "Disponible"}
+                                      </span>
+                                      {reservation ? (
+                                        <>
+                                          <span className="mt-2 block truncate text-xs font-medium">
+                                            {reservation.estado === "bloqueado"
+                                              ? "Horario bloqueado"
+                                              : reservation.cliente_nombre}
+                                          </span>
+                                          {reservation.estado !== "bloqueado" &&
+                                          reservation.cliente_whatsapp ? (
+                                            <span className="mt-1 block truncate text-[11px]">
+                                              {reservation.cliente_whatsapp}
+                                            </span>
+                                          ) : null}
+                                        </>
                                       ) : null}
-                                    </>
-                                  ) : null}
-                                </button>
-                              );
-                            })}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            ))}
                           </div>
                         </div>
                       ) : (
