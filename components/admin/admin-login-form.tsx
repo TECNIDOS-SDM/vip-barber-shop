@@ -78,7 +78,7 @@ export function AdminLoginForm({
             value={identifier}
             onChange={(event) => setIdentifier(event.target.value)}
             className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none transition focus:border-accent"
-            placeholder="CamiloD"
+            placeholder="VIP BARBER TOP"
           />
         </div>
         <div>

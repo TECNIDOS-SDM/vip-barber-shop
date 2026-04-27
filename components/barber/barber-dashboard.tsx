@@ -51,7 +51,9 @@ export function BarberDashboard({
     initialData.currentWeek[0]?.isoDate ??
     "";
   const [selectedDate, setSelectedDate] = useState(defaultDate);
-  const [panelView, setPanelView] = useState<"days" | "hours">("days");
+  const [panelView, setPanelView] = useState<"days" | "hours">(
+    defaultDate ? "hours" : "days"
+  );
 
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
