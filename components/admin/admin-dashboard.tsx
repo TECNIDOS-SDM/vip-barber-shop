@@ -111,7 +111,8 @@ const emptyBarberForm = {
   foto: "",
   whatsapp: "",
   auth_email: "",
-  access_password: "12345678"
+  access_password: "12345678",
+  activo: true
 };
 
 const emptyScheduleForm = {
@@ -383,6 +384,40 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
     }
   }
 
+  async function toggleBarber(id: string, activo: boolean) {
+    try {
+      const barber = barbers.find((item) => item.id === id);
+
+      if (!barber) {
+        throw new Error("No fue posible encontrar el barbero seleccionado.");
+      }
+
+      const response = await fetch("/api/barbers/status", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          id: barber.id,
+          activo: !activo
+        })
+      });
+
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? "No fue posible actualizar.");
+      }
+
+      toast.success(!activo ? "Barbero activado." : "Barbero desactivado.");
+      await refreshData();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "No fue posible actualizar."
+      );
+    }
+  }
+
   async function confirmDeleteBarber() {
     if (!deleteTarget) {
       return;
@@ -497,7 +532,8 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
       foto: barber.foto ?? "",
       whatsapp: barber.whatsapp ?? "",
       auth_email: barber.auth_email ?? "",
-      access_password: barber.access_password ?? "12345678"
+      access_password: barber.access_password ?? "12345678",
+      activo: barber.activo ?? true
     });
     setShowProfileEditModal(true);
   }
@@ -867,6 +903,18 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                           className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-sand/80"
                         >
                           Editar perfil
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => toggleBarber(activeBarber.id, activeBarber.activo)}
+                          className={cn(
+                            "rounded-2xl px-4 py-3 text-sm font-semibold",
+                            activeBarber.activo
+                              ? "bg-emerald-500 text-slate-950"
+                              : "bg-zinc-700 text-sand"
+                          )}
+                        >
+                          {activeBarber.activo ? "Activo" : "Inactivo"}
                         </button>
                         <button
                           type="button"
@@ -1274,6 +1322,19 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                 placeholder="Clave de acceso"
                 className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-accent"
               />
+              <label className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-sand/80">
+                <span>Barbero activo</span>
+                <input
+                  type="checkbox"
+                  checked={barberForm.activo}
+                  onChange={(event) =>
+                    setBarberForm((current) => ({
+                      ...current,
+                      activo: event.target.checked
+                    }))
+                  }
+                />
+              </label>
               <div className="grid gap-3 sm:grid-cols-2">
                 <button
                   type="button"
