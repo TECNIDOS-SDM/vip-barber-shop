@@ -392,13 +392,18 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
         throw new Error("No fue posible encontrar el barbero seleccionado.");
       }
 
-      const response = await fetch("/api/barbers/status", {
+      const response = await fetch("/api/barbers", {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
           id: barber.id,
+          nombre: barber.nombre,
+          foto: barber.foto ?? "",
+          whatsapp: barber.whatsapp ?? "",
+          auth_email: barber.auth_email ?? "",
+          access_password: barber.access_password ?? "12345678",
           activo: !activo
         })
       });
