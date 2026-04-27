@@ -47,10 +47,33 @@ async function resolveRole(supabase: ReturnType<typeof createServerClient>) {
 
   const profile = profileResult.data;
 
-  if (profile?.rol === "barbero" || profile?.rol === "administrador") {
+  if (profile?.rol === "administrador") {
     return {
       user,
-      role: profile.rol
+      role: "administrador"
+    };
+  }
+
+  if (profile?.rol === "barbero") {
+    if (normalizedEmail) {
+      const { data: activeBarberFromEmail } = await supabase
+        .from("barberos")
+        .select("id")
+        .eq("auth_email", normalizedEmail)
+        .eq("activo", true)
+        .maybeSingle();
+
+      if (activeBarberFromEmail) {
+        return {
+          user,
+          role: "barbero"
+        };
+      }
+    }
+
+    return {
+      user,
+      role: null
     };
   }
 
