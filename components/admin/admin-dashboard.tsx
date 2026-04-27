@@ -384,26 +384,6 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
     }
   }
 
-  async function toggleBarber(id: string, activo: boolean) {
-    try {
-      const supabase = getSupabaseBrowserClient();
-      const { error } = await supabase
-        .from("barberos")
-        .update({ activo: !activo })
-        .eq("id", id);
-
-      if (error) {
-        throw error;
-      }
-
-      await refreshData();
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "No fue posible actualizar."
-      );
-    }
-  }
-
   async function confirmDeleteBarber() {
     if (!deleteTarget) {
       return;
@@ -890,9 +870,7 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                         >
                           Editar perfil
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => toggleBarber(activeBarber.id, activeBarber.activo)}
+                        <div
                           className={cn(
                             "rounded-2xl px-4 py-3 text-sm font-semibold",
                             activeBarber.activo
@@ -901,7 +879,7 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                           )}
                         >
                           {activeBarber.activo ? "Activo" : "Inactivo"}
-                        </button>
+                        </div>
                         <button
                           type="button"
                           onClick={() => setDeleteTarget(activeBarber)}
@@ -1308,19 +1286,19 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                 placeholder="Clave de acceso"
                 className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-accent"
               />
-              <label className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-sand/80">
-                <span>Barbero activo</span>
-                <input
-                  type="checkbox"
-                  checked={barberForm.activo}
-                  onChange={(event) =>
-                    setBarberForm((current) => ({
-                      ...current,
-                      activo: event.target.checked
-                    }))
-                  }
-                />
-              </label>
+              <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-sand/80">
+                <span>Estado actual</span>
+                <span
+                  className={cn(
+                    "rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em]",
+                    barberForm.activo
+                      ? "bg-emerald-500 text-slate-950"
+                      : "bg-zinc-700 text-sand"
+                  )}
+                >
+                  {barberForm.activo ? "Activo" : "Inactivo"}
+                </span>
+              </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <button
                   type="button"
