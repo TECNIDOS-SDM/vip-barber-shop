@@ -386,35 +386,16 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
 
   async function toggleBarber(id: string, activo: boolean) {
     try {
-      const barber = barbers.find((item) => item.id === id);
+      const supabase = getSupabaseBrowserClient();
+      const { error } = await supabase
+        .from("barberos")
+        .update({ activo: !activo })
+        .eq("id", id);
 
-      if (!barber) {
-        throw new Error("No fue posible encontrar el barbero seleccionado.");
+      if (error) {
+        throw error;
       }
 
-      const response = await fetch("/api/barbers", {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          id: barber.id,
-          nombre: barber.nombre,
-          foto: barber.foto ?? "",
-          whatsapp: barber.whatsapp ?? "",
-          auth_email: barber.auth_email ?? "",
-          access_password: barber.access_password ?? "12345678",
-          activo: !activo
-        })
-      });
-
-      const payload = await response.json();
-
-      if (!response.ok) {
-        throw new Error(payload.error ?? "No fue posible actualizar.");
-      }
-
-      toast.success(!activo ? "Barbero activado." : "Barbero desactivado.");
       await refreshData();
     } catch (error) {
       toast.error(
