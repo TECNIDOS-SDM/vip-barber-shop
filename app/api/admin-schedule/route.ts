@@ -91,9 +91,9 @@ export async function POST(request: Request) {
     }
 
     if (payload.action === "unblock") {
-      const { error } = await adminSupabase
+      const { count, error } = await adminSupabase
         .from("reservas")
-        .delete()
+        .delete({ count: "exact" })
         .eq("barbero_id", payload.barbero_id)
         .eq("fecha", payload.fecha)
         .eq("estado", "bloqueado")
@@ -103,7 +103,7 @@ export async function POST(request: Request) {
         throw error;
       }
 
-      return NextResponse.json({ success: true });
+      return NextResponse.json({ success: true, releasedCount: count ?? 0 });
     }
 
     const existingResult = await adminSupabase

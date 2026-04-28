@@ -446,10 +446,16 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
         throw new Error(payload.error ?? "No fue posible desbloquear el dia.");
       }
 
+      if (!payload.releasedCount) {
+        toast.error("No habia horarios bloqueados para liberar en este dia.");
+        await refreshData();
+        return;
+      }
+
       toast.success(
-        horas.length === 1
+        payload.releasedCount === 1
           ? "Horario bloqueado liberado."
-          : "Horarios bloqueados liberados."
+          : `${payload.releasedCount} horarios bloqueados liberados.`
       );
       await refreshData();
     } catch (error) {
@@ -1030,6 +1036,14 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                                   toast.error(
                                     "No hay horarios bloqueados para liberar en este dia."
                                   );
+                                  return;
+                                }
+
+                                const confirmed = window.confirm(
+                                  `Se liberaran ${blockedHours.length} horario${blockedHours.length === 1 ? "" : "s"} bloqueado${blockedHours.length === 1 ? "" : "s"} del dia seleccionado.`
+                                );
+
+                                if (!confirmed) {
                                   return;
                                 }
 
