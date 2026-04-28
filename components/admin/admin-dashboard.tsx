@@ -434,6 +434,52 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
     closeReleaseActionModal();
   }
 
+  async function updateReservationStatus(
+    ids: string[],
+    estado: "confirmada" | "cita_fijada" | "bloqueado"
+  ) {
+    try {
+      const response = await fetch("/api/admin-schedule", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          action: "update_status",
+          reservation_ids: ids,
+          estado
+        })
+      });
+
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? "No fue posible actualizar el estado.");
+      }
+
+      toast.success(
+        estado === "cita_fijada"
+          ? ids.length === 1
+            ? "Reserva convertida en cita fijada."
+            : "Reservas convertidas en cita fijada."
+          : estado === "bloqueado"
+            ? ids.length === 1
+              ? "Reserva convertida en horario bloqueado."
+              : "Reservas convertidas en horario bloqueado."
+            : ids.length === 1
+              ? "Reserva restaurada a ocupado."
+              : "Reservas restauradas a ocupado."
+      );
+
+      await refreshData();
+      closeReleaseActionModal();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "No fue posible actualizar el estado."
+      );
+    }
+  }
+
   function toggleReleaseReservation(reservation: any) {
     setSelectedReleaseReservations((current) => {
       const exists = current.some((item) => item.id === reservation.id);
@@ -1370,10 +1416,10 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
           <div className="w-full max-w-lg rounded-[2rem] border border-white/10 bg-[#120f0b] p-6">
             <h3 className="text-2xl font-semibold text-sand">
-              Liberar espacios
+              Gestionar reserva
             </h3>
             <p className="mt-3 text-sm text-sand/70">
-              Puedes liberar uno o varios horarios reservados, fijados o bloqueados.
+              Desde este mismo recuadro puedes escribir al cliente y cambiar el estado sin perder sus datos.
             </p>
             <div className="mt-4 rounded-2xl border border-white/10 bg-black/10 p-4 text-sm text-sand/80">
               <div className="space-y-3">
@@ -1392,11 +1438,57 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                     </p>
                     {reservation.estado !== "bloqueado" &&
                     reservation.cliente_whatsapp ? (
-                      <p className="mt-1">{reservation.cliente_whatsapp}</p>
+                      <a
+                        href={buildWhatsAppUrl(reservation.cliente_whatsapp)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-1 inline-flex items-center gap-2 text-accent underline-offset-4 hover:underline"
+                      >
+                        <WhatsAppGoldIcon className="h-4 w-4" />
+                        <span>{reservation.cliente_whatsapp}</span>
+                      </a>
                     ) : null}
                   </div>
                 ))}
               </div>
+            </div>
+            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <button
+                type="button"
+                onClick={() =>
+                  void updateReservationStatus(
+                    selectedReleaseReservations.map((reservation) => reservation.id),
+                    "confirmada"
+                  )
+                }
+                className="rounded-2xl bg-danger px-4 py-3 text-sm font-semibold text-white"
+              >
+                Ocupado
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  void updateReservationStatus(
+                    selectedReleaseReservations.map((reservation) => reservation.id),
+                    "cita_fijada"
+                  )
+                }
+                className="rounded-2xl bg-sky-500 px-4 py-3 text-sm font-semibold text-white"
+              >
+                Fijar cita
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  void updateReservationStatus(
+                    selectedReleaseReservations.map((reservation) => reservation.id),
+                    "bloqueado"
+                  )
+                }
+                className="rounded-2xl bg-zinc-600 px-4 py-3 text-sm font-semibold text-white"
+              >
+                Bloquear
+              </button>
             </div>
             <div className="mt-6 flex gap-3">
               <button
@@ -1421,7 +1513,7 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                 onClick={() => void confirmReleaseReservation()}
                 className="flex-1 rounded-2xl bg-danger px-4 py-3 text-sm font-semibold text-white"
               >
-                Liberar
+                Liberar espacio
               </button>
             </div>
           </div>

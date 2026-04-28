@@ -26,7 +26,13 @@ const releaseSchema = z.object({
   reservation_ids: z.array(z.string().uuid()).min(1)
 });
 
-const schema = z.union([createSchema, unblockSchema, releaseSchema]);
+const updateStatusSchema = z.object({
+  action: z.literal("update_status"),
+  reservation_ids: z.array(z.string().uuid()).min(1),
+  estado: z.enum(["confirmada", "cita_fijada", "bloqueado"])
+});
+
+const schema = z.union([createSchema, unblockSchema, releaseSchema, updateStatusSchema]);
 const SLOT_TAKEN_MESSAGE =
   "Este horario ya no está disponible. Por favor selecciona otro.";
 
@@ -62,6 +68,19 @@ export async function POST(request: Request) {
       const { error } = await adminSupabase
         .from("reservas")
         .delete()
+        .in("id", payload.reservation_ids);
+
+      if (error) {
+        throw error;
+      }
+
+      return NextResponse.json({ success: true });
+    }
+
+    if (payload.action === "update_status") {
+      const { error } = await (adminSupabase
+        .from("reservas") as any)
+        .update({ estado: payload.estado })
         .in("id", payload.reservation_ids);
 
       if (error) {

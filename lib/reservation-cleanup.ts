@@ -1,6 +1,7 @@
-import { addDays, format, isBefore, parseISO } from "date-fns";
+import { addDays, format, isBefore, parseISO, startOfWeek } from "date-fns";
 import { APP_TIMEZONE } from "@/lib/constants";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
+import { toZonedTime } from "date-fns-tz";
 
 let lastCleanupDate: string | null = null;
 
@@ -21,8 +22,14 @@ export function getTodayIsoInAppTimezone() {
   });
 }
 
+function getCurrentWeekStartIso() {
+  const zoned = toZonedTime(new Date(), APP_TIMEZONE);
+  return format(startOfWeek(zoned, { weekStartsOn: 1 }), "yyyy-MM-dd");
+}
+
 export async function cleanupExpiredReservations() {
   const todayIso = getTodayIsoInAppTimezone();
+  const weekStartIso = getCurrentWeekStartIso();
 
   if (lastCleanupDate === todayIso) {
     return {
@@ -46,12 +53,12 @@ export async function cleanupExpiredReservations() {
     supabase
       .from("reservas")
       .delete({ count: "exact" })
-      .lt("fecha", todayIso)
+      .lt("fecha", weekStartIso)
       .in("estado", ["confirmada", "cancelada"]),
     supabase
       .from("reservas")
       .select("id, barbero_id, fecha, hora, estado")
-      .lt("fecha", todayIso)
+      .lt("fecha", weekStartIso)
       .in("estado", ["cita_fijada", "bloqueado"])
   ]);
 
@@ -62,7 +69,7 @@ export async function cleanupExpiredReservations() {
 
   if (!recurringResult.error && recurringReservations.length) {
     for (const reservation of recurringReservations) {
-      const nextDate = getNextRecurringDate(reservation.fecha, todayIso);
+      const nextDate = getNextRecurringDate(reservation.fecha, weekStartIso);
 
       if (nextDate === reservation.fecha) {
         continue;
