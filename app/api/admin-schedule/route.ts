@@ -96,7 +96,7 @@ export async function POST(request: Request) {
         .delete()
         .eq("barbero_id", payload.barbero_id)
         .eq("fecha", payload.fecha)
-        .in("estado", ["bloqueado", "cita_fijada"])
+        .eq("estado", "bloqueado")
         .in("hora", payload.horas);
 
       if (error) {

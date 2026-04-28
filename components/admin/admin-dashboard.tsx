@@ -425,6 +425,40 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
     }
   }
 
+  async function unblockDayForBarber(barberoId: string, fecha: string, horas: string[]) {
+    try {
+      const response = await fetch("/api/admin-schedule", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          action: "unblock",
+          barbero_id: barberoId,
+          fecha,
+          horas
+        })
+      });
+
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? "No fue posible desbloquear el dia.");
+      }
+
+      toast.success(
+        horas.length === 1
+          ? "Horario bloqueado liberado."
+          : "Horarios bloqueados liberados."
+      );
+      await refreshData();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "No fue posible desbloquear el dia."
+      );
+    }
+  }
+
   async function confirmReleaseReservation() {
     if (!selectedReleaseReservations.length) {
       return;
@@ -955,7 +989,7 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                               Retroceder
                             </button>
                           </div>
-                          <div className="mb-4 flex justify-end">
+                          <div className="mb-4 flex flex-wrap justify-end gap-3">
                             <button
                               type="button"
                               onClick={() => {
@@ -983,6 +1017,31 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                               className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-sand/80 transition hover:border-accent/40 hover:text-accent"
                             >
                               Bloquear dia completo
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const blockedHours = TIME_SLOTS.filter(
+                                  (hour) =>
+                                    scheduleSlotMap.get(hour)?.estado === "bloqueado"
+                                );
+
+                                if (blockedHours.length === 0) {
+                                  toast.error(
+                                    "No hay horarios bloqueados para liberar en este dia."
+                                  );
+                                  return;
+                                }
+
+                                void unblockDayForBarber(
+                                  activeBarber.id,
+                                  scheduleForm.fecha,
+                                  blockedHours
+                                );
+                              }}
+                              className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-sand/80 transition hover:border-accent/40 hover:text-accent"
+                            >
+                              Desbloquear dia completo
                             </button>
                           </div>
                           {canResumeScheduleAction ? (
