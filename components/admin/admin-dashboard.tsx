@@ -156,6 +156,8 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
   const [selectedReleaseReservations, setSelectedReleaseReservations] = useState<any[]>([]);
   const [showReleaseActionModal, setShowReleaseActionModal] = useState(false);
   const [isAddingMoreReleaseHours, setIsAddingMoreReleaseHours] = useState(false);
+  const [originalBarberPhotoUrl, setOriginalBarberPhotoUrl] = useState("");
+  const [uploadedPhotoPath, setUploadedPhotoPath] = useState<string | null>(null);
 
   async function refreshData() {
     const response = await fetch("/api/admin-dashboard", {
@@ -234,6 +236,32 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
     }
   }, [fullDayBlock]);
 
+  function getStoragePathFromPublicUrl(publicUrl?: string | null) {
+    if (!publicUrl) {
+      return null;
+    }
+
+    const marker = "/storage/v1/object/public/barber-photos/";
+    const markerIndex = publicUrl.indexOf(marker);
+
+    if (markerIndex === -1) {
+      return null;
+    }
+
+    return publicUrl.slice(markerIndex + marker.length);
+  }
+
+  async function deleteBarberPhotoFromStorage(publicUrl?: string | null) {
+    const path = getStoragePathFromPublicUrl(publicUrl);
+
+    if (!path) {
+      return;
+    }
+
+    const supabase = getSupabaseBrowserClient();
+    await supabase.storage.from("barber-photos").remove([path]);
+  }
+
   async function handlePhotoUpload(file: File) {
     setSaving(true);
 
@@ -254,6 +282,7 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
 
       const { data } = supabase.storage.from("barber-photos").getPublicUrl(path);
       setBarberForm((current) => ({ ...current, foto: data.publicUrl }));
+      setUploadedPhotoPath(path);
       toast.success("Foto subida correctamente.");
     } catch (error) {
       toast.error(
@@ -358,6 +387,18 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
           return next;
         });
       }
+
+      if (
+        editingId &&
+        originalBarberPhotoUrl &&
+        barberForm.foto &&
+        barberForm.foto !== originalBarberPhotoUrl
+      ) {
+        await deleteBarberPhotoFromStorage(originalBarberPhotoUrl);
+      }
+
+      setOriginalBarberPhotoUrl("");
+      setUploadedPhotoPath(null);
 
       setEditingId(null);
       setShowProfileEditModal(false);
@@ -567,6 +608,8 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
 
   function openBarberEditor(barber: any) {
     setEditingId(barber.id);
+    setOriginalBarberPhotoUrl(barber.foto ?? "");
+    setUploadedPhotoPath(null);
     setBarberForm({
       nombre: barber.nombre ?? "",
       foto: barber.foto ?? "",
@@ -579,8 +622,14 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
   }
 
   function closeBarberEditorModal() {
+    if (uploadedPhotoPath && barberForm.foto !== originalBarberPhotoUrl) {
+      void deleteBarberPhotoFromStorage(barberForm.foto);
+    }
+
     setShowProfileEditModal(false);
     setEditingId(null);
+    setOriginalBarberPhotoUrl("");
+    setUploadedPhotoPath(null);
     setBarberForm(emptyBarberForm);
   }
 
@@ -1396,6 +1445,21 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                 placeholder="URL de foto"
                 className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-accent"
               />
+              <label className="flex cursor-pointer items-center justify-center gap-2 rounded-2xl border border-dashed border-white/15 px-4 py-4 text-sm text-sand/70 transition hover:border-accent">
+                <Upload className="h-4 w-4" />
+                Subir o cambiar foto
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (file) {
+                      void handlePhotoUpload(file);
+                    }
+                  }}
+                />
+              </label>
               <input
                 value={barberForm.auth_email}
                 onChange={(event) =>
