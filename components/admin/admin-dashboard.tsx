@@ -927,7 +927,7 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                       }}
                       className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-sand/80"
                     >
-                      Retroceder
+                      Inicio
                     </button>
                   </div>
                 </div>
