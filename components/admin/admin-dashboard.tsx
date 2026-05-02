@@ -895,39 +895,41 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                       {activeBarber.nombre}
                     </h3>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (activeBarberView === "agenda") {
-                        setActiveBarberView("list");
-                        setSelectedAction("confirmada");
-                        setScheduleMode("confirmada");
-                        updateScheduleForBarber(
-                          activeBarber.id,
-                          { fecha: "", cliente_nombre: "", cliente_whatsapp: "" },
-                          true
-                        );
-                        return;
-                      }
-
-                      if (activeBarberView === "perfil") {
-                        setActiveBarberView("agenda");
-                        return;
-                      }
-                    }}
-                    className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-sand/80"
-                  >
-                    Retroceder
-                  </button>
-                  {activeBarberView !== "perfil" ? (
+                  <div className="flex flex-col gap-4 sm:flex-row">
+                    {activeBarberView !== "perfil" ? (
+                      <button
+                        type="button"
+                        onClick={() => setActiveBarberView("perfil")}
+                        className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-sand/80"
+                      >
+                        Perfil
+                      </button>
+                    ) : null}
                     <button
                       type="button"
-                      onClick={() => setActiveBarberView("perfil")}
+                      onClick={() => {
+                        if (activeBarberView === "agenda") {
+                          setActiveBarberView("list");
+                          setSelectedAction("confirmada");
+                          setScheduleMode("confirmada");
+                          updateScheduleForBarber(
+                            activeBarber.id,
+                            { fecha: "", cliente_nombre: "", cliente_whatsapp: "" },
+                            true
+                          );
+                          return;
+                        }
+
+                        if (activeBarberView === "perfil") {
+                          setActiveBarberView("agenda");
+                          return;
+                        }
+                      }}
                       className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-sand/80"
                     >
-                      Perfil
+                      Retroceder
                     </button>
-                  ) : null}
+                  </div>
                 </div>
 
                 {activeBarberView === "perfil" ? (
