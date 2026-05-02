@@ -997,44 +997,7 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
 
                 {activeBarberView === "agenda" ? (
                   <div className="mt-6 rounded-[1.5rem] border border-white/10 bg-white/5 p-4">
-                    <div className="flex items-center gap-2">
-                      <Clock3 className="h-4 w-4 text-accent" />
-                      <h4 className="text-lg font-semibold text-sand">
-                        Agenda del barbero
-                      </h4>
-                    </div>
-                    <div className="mt-4 space-y-4">
-                      <div>
-                        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-sand/60">
-                          Elige el dia de la semana
-                        </p>
-                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-7">
-                          {currentWeek.map((day) => (
-                            <button
-                              key={day.key}
-                              type="button"
-                              onClick={() =>
-                                updateScheduleForBarber(
-                                  activeBarber.id,
-                                  { fecha: day.isoDate },
-                                  true
-                                )
-                              }
-                              className={cn(
-                                "rounded-2xl border px-4 py-4 text-left text-sand/75 transition",
-                                scheduleForm.barbero_id === activeBarber.id &&
-                                  scheduleForm.fecha === day.isoDate
-                                  ? "border-accent bg-accent/10 text-sand"
-                                  : "border-white/10 bg-white/5 hover:border-accent/40"
-                              )}
-                            >
-                              <p className="text-sm font-semibold uppercase">
-                                {day.label.split(" ")[0]}
-                              </p>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
+                    <div className="space-y-4">
                       {scheduleForm.barbero_id === activeBarber.id && scheduleForm.fecha ? (
                         <div className="rounded-[1.5rem] border border-white/10 bg-black/10 p-4">
                           <div className="mb-4 flex items-center justify-between gap-3">
@@ -1046,6 +1009,19 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                                 {currentWeek.find((day) => day.isoDate === scheduleForm.fecha)?.label.split(" ")[0] ?? "Dia seleccionado"}
                               </p>
                             </div>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateScheduleForBarber(
+                                  activeBarber.id,
+                                  { fecha: "", cliente_nombre: "", cliente_whatsapp: "" },
+                                  true
+                                )
+                              }
+                              className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-sand/80"
+                            >
+                              Retroceder
+                            </button>
                           </div>
                           <div className="mb-4 flex flex-wrap justify-end gap-3">
                             <button
@@ -1256,8 +1232,39 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                             ))}
                           </div>
                         </div>
-                      ) : null}
-
+                      ) : (
+                        <div>
+                          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-sand/60">
+                            Elige el dia de la semana
+                          </p>
+                          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-7">
+                            {currentWeek.map((day) => (
+                              <button
+                                key={day.key}
+                                type="button"
+                                onClick={() =>
+                                  updateScheduleForBarber(
+                                    activeBarber.id,
+                                    { fecha: day.isoDate },
+                                    true
+                                  )
+                                }
+                                className={cn(
+                                  "rounded-2xl border px-4 py-4 text-left text-sand/75 transition",
+                                  scheduleForm.barbero_id === activeBarber.id &&
+                                    scheduleForm.fecha === day.isoDate
+                                    ? "border-accent bg-accent/10 text-sand"
+                                    : "border-white/10 bg-white/5 hover:border-accent/40"
+                                )}
+                              >
+                                <p className="text-sm font-semibold uppercase">
+                                  {day.label.split(" ")[0]}
+                                </p>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ) : null}
