@@ -40,9 +40,9 @@ export async function getPublicBookingData() {
   const [barbersResult, reservationsResult] = await Promise.all([
     supabase
       .from("barberos")
-      .select("id, nombre, foto, whatsapp, telefono, activo")
+      .select("id, nombre, foto, whatsapp, telefono, activo, created_at")
       .eq("activo", true)
-      .order("nombre"),
+      .order("created_at", { ascending: true }),
     supabase
       .from("reservas_publicas")
       .select("id, barbero_id, fecha, hora, estado")

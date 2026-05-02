@@ -128,6 +128,8 @@ function normalizeHourKey(hour?: string | null) {
 
 export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
   const currentWeek = initialData.currentWeek;
+  const currentDayIsoDate =
+    currentWeek.find((item) => item.isToday)?.isoDate ?? currentWeek[0]?.isoDate ?? "";
   const [barbers, setBarbers] = useState(initialData.barbers);
   const [reservations, setReservations] = useState(initialData.reservations);
   const [profiles, setProfiles] = useState(initialData.profiles);
@@ -779,6 +781,22 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
     return [TIME_SLOTS.slice(0, 10), TIME_SLOTS.slice(10)];
   }, []);
 
+  function openCurrentDayAgenda(barberId: string) {
+    setActiveBarberId(barberId);
+    setActiveBarberView("agenda");
+    setSelectedAction("confirmada");
+    setScheduleMode("confirmada");
+    updateScheduleForBarber(
+      barberId,
+      {
+        fecha: currentDayIsoDate,
+        cliente_nombre: "",
+        cliente_whatsapp: ""
+      },
+      true
+    );
+  }
+
   const isScheduleActionModalOpen = Boolean(
     showScheduleActionModal &&
     activeBarber &&
@@ -811,13 +829,7 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                     <button
                       key={barber.id}
                       type="button"
-                      onClick={() => {
-                        setActiveBarberId(barber.id);
-                        setActiveBarberView("menu");
-                        setSelectedAction("confirmada");
-                        setScheduleMode("confirmada");
-                        updateScheduleForBarber(barber.id, { fecha: "", cliente_nombre: "", cliente_whatsapp: "" }, true);
-                      }}
+                      onClick={() => openCurrentDayAgenda(barber.id)}
                       className={cn(
                         "rounded-[1.5rem] border bg-white/5 p-4 text-left transition",
                         activeBarberId === barber.id
