@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import {
@@ -79,23 +79,23 @@ export function BookingShell({
   const [clienteWhatsapp, setClienteWhatsapp] = useState("");
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1);
   const [loading, setLoading] = useState(false);
+  const refreshTimeoutRef = useRef<number | null>(null);
   const hourColumns = useMemo(() => {
     return [TIME_SLOTS.slice(0, 10), TIME_SLOTS.slice(10)];
   }, []);
 
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
-    let refreshTimeout: number | null = null;
 
     const queueRefresh = () => {
-      if (refreshTimeout) {
+      if (refreshTimeoutRef.current) {
         return;
       }
 
-      refreshTimeout = window.setTimeout(() => {
-        refreshTimeout = null;
+      refreshTimeoutRef.current = window.setTimeout(() => {
+        refreshTimeoutRef.current = null;
         router.refresh();
-      }, 250);
+      }, 75);
     };
 
     const channel = supabase
@@ -112,9 +112,20 @@ export function BookingShell({
       )
       .subscribe();
 
+    const handleVisibilityRefresh = () => {
+      if (document.visibilityState === "visible") {
+        queueRefresh();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityRefresh);
+
     return () => {
-      if (refreshTimeout) {
-        window.clearTimeout(refreshTimeout);
+      document.removeEventListener("visibilitychange", handleVisibilityRefresh);
+
+      if (refreshTimeoutRef.current) {
+        window.clearTimeout(refreshTimeoutRef.current);
+        refreshTimeoutRef.current = null;
       }
 
       void supabase.removeChannel(channel);

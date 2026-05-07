@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CalendarClock, Scissors } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { TIME_SLOTS } from "@/lib/constants";
@@ -54,20 +54,20 @@ export function BarberDashboard({
   const [panelView, setPanelView] = useState<"days" | "hours">(
     defaultDate ? "hours" : "days"
   );
+  const refreshTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
-    let refreshTimeout: number | null = null;
 
     const queueRefresh = () => {
-      if (refreshTimeout) {
+      if (refreshTimeoutRef.current) {
         return;
       }
 
-      refreshTimeout = window.setTimeout(() => {
-        refreshTimeout = null;
+      refreshTimeoutRef.current = window.setTimeout(() => {
+        refreshTimeoutRef.current = null;
         router.refresh();
-      }, 250);
+      }, 75);
     };
 
     const channel = supabase
@@ -84,9 +84,20 @@ export function BarberDashboard({
       )
       .subscribe();
 
+    const handleVisibilityRefresh = () => {
+      if (document.visibilityState === "visible") {
+        queueRefresh();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityRefresh);
+
     return () => {
-      if (refreshTimeout) {
-        window.clearTimeout(refreshTimeout);
+      document.removeEventListener("visibilitychange", handleVisibilityRefresh);
+
+      if (refreshTimeoutRef.current) {
+        window.clearTimeout(refreshTimeoutRef.current);
+        refreshTimeoutRef.current = null;
       }
 
       void supabase.removeChannel(channel);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Image from "next/image";
 import { Clock3, Plus, Trash2, Upload, UserRoundCheck } from "lucide-react";
 import { toast } from "sonner";
@@ -160,21 +160,39 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
   const [isAddingMoreReleaseHours, setIsAddingMoreReleaseHours] = useState(false);
   const [originalBarberPhotoUrl, setOriginalBarberPhotoUrl] = useState("");
   const [uploadedPhotoPath, setUploadedPhotoPath] = useState<string | null>(null);
+  const isRefreshingRef = useRef(false);
+  const shouldRefreshAgainRef = useRef(false);
+  const refreshTimeoutRef = useRef<number | null>(null);
 
   async function refreshData() {
-    const response = await fetch("/api/admin-dashboard", {
-      cache: "no-store"
-    });
-    const payload = await response.json();
-
-    if (!response.ok) {
-      throw new Error(payload.error ?? "No fue posible actualizar el panel.");
+    if (isRefreshingRef.current) {
+      shouldRefreshAgainRef.current = true;
+      return;
     }
 
-    setBarbers(payload.barbers ?? []);
-    setReservations(payload.reservations ?? []);
-    setProfiles(payload.profiles ?? []);
-    setActiveBarberId((current) => current ?? payload.barbers?.[0]?.id ?? null);
+    isRefreshingRef.current = true;
+    try {
+      const response = await fetch("/api/admin-dashboard", {
+        cache: "no-store"
+      });
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? "No fue posible actualizar el panel.");
+      }
+
+      setBarbers(payload.barbers ?? []);
+      setReservations(payload.reservations ?? []);
+      setProfiles(payload.profiles ?? []);
+      setActiveBarberId((current) => current ?? payload.barbers?.[0]?.id ?? null);
+    } finally {
+      isRefreshingRef.current = false;
+
+      if (shouldRefreshAgainRef.current) {
+        shouldRefreshAgainRef.current = false;
+        void refreshData();
+      }
+    }
   }
 
   useEffect(() => {
@@ -182,26 +200,46 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
       void refreshData().catch(() => {
         // Keep current dashboard data if a background refresh fails.
       });
-    }, 30000);
+    }, 120000);
+
+    return () => window.clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    let lastSeenDate = new Date().toLocaleDateString("en-CA", {
+      timeZone: "America/Bogota"
+    });
+
+    const interval = window.setInterval(() => {
+      const currentDate = new Date().toLocaleDateString("en-CA", {
+        timeZone: "America/Bogota"
+      });
+
+      if (currentDate !== lastSeenDate) {
+        lastSeenDate = currentDate;
+        void refreshData().catch(() => {
+          // Keep current dashboard data if a day rollover refresh fails.
+        });
+      }
+    }, 60000);
 
     return () => window.clearInterval(interval);
   }, []);
 
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
-    let refreshTimeout: number | null = null;
 
     const queueRefresh = () => {
-      if (refreshTimeout) {
+      if (refreshTimeoutRef.current) {
         return;
       }
 
-      refreshTimeout = window.setTimeout(() => {
-        refreshTimeout = null;
+      refreshTimeoutRef.current = window.setTimeout(() => {
+        refreshTimeoutRef.current = null;
         void refreshData().catch(() => {
           // Keep current dashboard data if a realtime refresh fails.
         });
-      }, 250);
+      }, 75);
     };
 
     const channel = supabase
@@ -223,9 +261,20 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
       )
       .subscribe();
 
+    const handleVisibilityRefresh = () => {
+      if (document.visibilityState === "visible") {
+        queueRefresh();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityRefresh);
+
     return () => {
-      if (refreshTimeout) {
-        window.clearTimeout(refreshTimeout);
+      document.removeEventListener("visibilitychange", handleVisibilityRefresh);
+
+      if (refreshTimeoutRef.current) {
+        window.clearTimeout(refreshTimeoutRef.current);
+        refreshTimeoutRef.current = null;
       }
 
       void supabase.removeChannel(channel);
