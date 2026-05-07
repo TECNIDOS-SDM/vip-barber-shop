@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CalendarClock, Scissors } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { TIME_SLOTS } from "@/lib/constants";
 import { formatHourDisplay } from "@/lib/date";
 import { cn } from "@/lib/utils";
@@ -45,16 +44,64 @@ export function BarberDashboard({
   barberEmail,
   initialData
 }: BarberDashboardProps) {
-  const router = useRouter();
+  const [dashboardData, setDashboardData] = useState(initialData);
   const defaultDate =
-    initialData.currentWeek.find((day) => day.isToday)?.isoDate ??
-    initialData.currentWeek[0]?.isoDate ??
+    dashboardData.currentWeek.find((day) => day.isToday)?.isoDate ??
+    dashboardData.currentWeek[0]?.isoDate ??
     "";
   const [selectedDate, setSelectedDate] = useState(defaultDate);
   const [panelView, setPanelView] = useState<"days" | "hours">(
     defaultDate ? "hours" : "days"
   );
+  const isRefreshingRef = useRef(false);
+  const shouldRefreshAgainRef = useRef(false);
   const refreshTimeoutRef = useRef<number | null>(null);
+
+  async function refreshData() {
+    if (isRefreshingRef.current) {
+      shouldRefreshAgainRef.current = true;
+      return;
+    }
+
+    isRefreshingRef.current = true;
+
+    try {
+      const response = await fetch("/api/barber-dashboard", {
+        cache: "no-store"
+      });
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? "No fue posible actualizar la agenda.");
+      }
+
+      setDashboardData(payload);
+      setSelectedDate((current) => {
+        if (payload.currentWeek?.some((day: { isoDate: string }) => day.isoDate === current)) {
+          return current;
+        }
+
+        return (
+          payload.currentWeek?.find((day: { isToday: boolean; isoDate: string }) => day.isToday)
+            ?.isoDate ??
+          payload.currentWeek?.[0]?.isoDate ??
+          ""
+        );
+      });
+      setPanelView((current) => (current === "hours" ? "hours" : payload.currentWeek?.length ? "days" : current));
+    } finally {
+      isRefreshingRef.current = false;
+
+      if (shouldRefreshAgainRef.current) {
+        shouldRefreshAgainRef.current = false;
+        void refreshData();
+      }
+    }
+  }
+
+  useEffect(() => {
+    setDashboardData(initialData);
+  }, [initialData]);
 
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
@@ -66,7 +113,9 @@ export function BarberDashboard({
 
       refreshTimeoutRef.current = window.setTimeout(() => {
         refreshTimeoutRef.current = null;
-        router.refresh();
+        void refreshData().catch(() => {
+          // Keep current barber data if a realtime refresh fails.
+        });
       }, 75);
     };
 
@@ -102,7 +151,7 @@ export function BarberDashboard({
 
       void supabase.removeChannel(channel);
     };
-  }, [router]);
+  }, []);
 
   useEffect(() => {
     let lastSeenDate = new Date().toLocaleDateString("en-CA", {
@@ -116,18 +165,20 @@ export function BarberDashboard({
 
       if (currentDate !== lastSeenDate) {
         lastSeenDate = currentDate;
-        router.refresh();
+        void refreshData().catch(() => {
+          // Keep current barber data if a day rollover refresh fails.
+        });
       }
     }, 60000);
 
     return () => window.clearInterval(interval);
-  }, [router]);
+  }, []);
 
   const selectedDayReservations = useMemo(() => {
-    return initialData.reservations.filter(
+    return dashboardData.reservations.filter(
       (reservation) => reservation.fecha === selectedDate
     );
-  }, [initialData.reservations, selectedDate]);
+  }, [dashboardData.reservations, selectedDate]);
 
   const reservationMap = useMemo(() => {
     return new Map(
@@ -172,7 +223,7 @@ export function BarberDashboard({
                 {panelView === "hours" ? (
                   <p className="mt-1 text-sm text-sand/65">
                     {
-                      initialData.currentWeek
+                      dashboardData.currentWeek
                         .find((day) => day.isoDate === selectedDate)
                         ?.label.split(" ")[0]
                     }
@@ -193,7 +244,7 @@ export function BarberDashboard({
 
           {panelView === "days" ? (
             <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-              {initialData.currentWeek.map((day) => (
+              {dashboardData.currentWeek.map((day) => (
                 <button
                   key={day.key}
                   type="button"

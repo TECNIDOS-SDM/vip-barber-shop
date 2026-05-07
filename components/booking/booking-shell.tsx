@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import Image from "next/image";
 import {
   CalendarDays,
@@ -68,10 +67,12 @@ export function BookingShell({
   reservations,
   week
 }: BookingShellProps) {
-  const router = useRouter();
   const todayIso = new Date().toLocaleDateString("en-CA", {
     timeZone: "America/Bogota"
   });
+  const [liveBarbers, setLiveBarbers] = useState(barbers);
+  const [liveReservations, setLiveReservations] = useState(reservations);
+  const [liveWeek, setLiveWeek] = useState(week);
   const [selectedBarber, setSelectedBarber] = useState<Barber | null>(null);
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedHour, setSelectedHour] = useState("");
@@ -79,10 +80,66 @@ export function BookingShell({
   const [clienteWhatsapp, setClienteWhatsapp] = useState("");
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1);
   const [loading, setLoading] = useState(false);
+  const isRefreshingRef = useRef(false);
+  const shouldRefreshAgainRef = useRef(false);
   const refreshTimeoutRef = useRef<number | null>(null);
   const hourColumns = useMemo(() => {
     return [TIME_SLOTS.slice(0, 10), TIME_SLOTS.slice(10)];
   }, []);
+
+  async function refreshData() {
+    if (isRefreshingRef.current) {
+      shouldRefreshAgainRef.current = true;
+      return;
+    }
+
+    isRefreshingRef.current = true;
+
+    try {
+      const response = await fetch("/api/public-booking", {
+        cache: "no-store"
+      });
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? "No fue posible actualizar la agenda.");
+      }
+
+      setLiveBarbers(payload.barbers ?? []);
+      setLiveReservations(payload.reservations ?? []);
+      setLiveWeek(payload.week ?? []);
+    } finally {
+      isRefreshingRef.current = false;
+
+      if (shouldRefreshAgainRef.current) {
+        shouldRefreshAgainRef.current = false;
+        void refreshData();
+      }
+    }
+  }
+
+  useEffect(() => {
+    setLiveBarbers(barbers);
+    setLiveReservations(reservations);
+    setLiveWeek(week);
+  }, [barbers, reservations, week]);
+
+  useEffect(() => {
+    if (!selectedBarber) {
+      return;
+    }
+
+    const updatedBarber = liveBarbers.find((barber) => barber.id === selectedBarber.id);
+
+    if (!updatedBarber) {
+      resetBookingFlow();
+      return;
+    }
+
+    if (updatedBarber !== selectedBarber) {
+      setSelectedBarber(updatedBarber);
+    }
+  }, [liveBarbers, selectedBarber]);
 
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
@@ -94,7 +151,9 @@ export function BookingShell({
 
       refreshTimeoutRef.current = window.setTimeout(() => {
         refreshTimeoutRef.current = null;
-        router.refresh();
+        void refreshData().catch(() => {
+          // Keep current booking data if a realtime refresh fails.
+        });
       }, 75);
     };
 
@@ -130,7 +189,7 @@ export function BookingShell({
 
       void supabase.removeChannel(channel);
     };
-  }, [router]);
+  }, []);
 
   useEffect(() => {
     let lastSeenDate = new Date().toLocaleDateString("en-CA", {
@@ -144,12 +203,14 @@ export function BookingShell({
 
       if (currentDate !== lastSeenDate) {
         lastSeenDate = currentDate;
-        router.refresh();
+        void refreshData().catch(() => {
+          // Keep current booking data if a day rollover refresh fails.
+        });
       }
     }, 60000);
 
     return () => window.clearInterval(interval);
-  }, [router]);
+  }, []);
 
   useEffect(() => {
     if (!selectedBarber) {
@@ -159,7 +220,7 @@ export function BookingShell({
 
   const slotMap = useMemo(() => {
     return new Map(
-      reservations
+      liveReservations
         .filter(
           (item) =>
             item.barbero_id === selectedBarber?.id &&
@@ -168,7 +229,7 @@ export function BookingShell({
         )
         .map((item) => [item.hora.slice(0, 5), item.estado])
     );
-  }, [reservations, selectedBarber, selectedDate]);
+  }, [liveReservations, selectedBarber, selectedDate]);
 
   function getPublicSlotState(hour: string) {
     const status = slotMap.get(hour);
@@ -273,7 +334,7 @@ export function BookingShell({
       );
 
       resetBookingFlow();
-      router.refresh();
+      await refreshData();
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Ocurrio un error inesperado."
@@ -298,7 +359,7 @@ export function BookingShell({
         {!selectedBarber ? (
           <>
             <div className="grid gap-4 sm:grid-cols-2">
-              {barbers.map((barber) => (
+              {liveBarbers.map((barber) => (
                 <div
                   key={barber.id}
                   className="glass animate-rise overflow-hidden rounded-[1.75rem] border p-3 text-left transition duration-300 hover:-translate-y-1 hover:border-accent/60"
@@ -390,7 +451,7 @@ export function BookingShell({
                     </h4>
                   </div>
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-7">
-                    {week.map((day) => {
+                    {liveWeek.map((day) => {
                       const isPastDay = day.isoDate < todayIso;
 
                       return (
