@@ -1,3 +1,4 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { getCurrentWeek } from "@/lib/date";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabasePublicClient } from "@/lib/supabase/public";
@@ -57,8 +58,8 @@ export async function getPublicBookingData() {
   };
 }
 
-export async function getAdminDashboardData() {
-  const supabase = await getSupabaseServerClient();
+export async function getAdminDashboardData(existingSupabase?: SupabaseClient) {
+  const supabase = existingSupabase ?? (await getSupabaseServerClient());
 
   if (!supabase) {
     return {

@@ -27,7 +27,7 @@ export default async function AdminVipPage() {
     redirect(role === "barbero" ? "/gestion-equipo" : "/");
   }
 
-  const data = await getAdminDashboardData();
+  const data = await getAdminDashboardData(supabase);
 
   return <AdminDashboard initialData={data} adminEmail={user.email ?? ""} />;
 }
