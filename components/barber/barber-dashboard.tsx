@@ -213,9 +213,14 @@ export function BarberDashboard({
     <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
       <section className="rounded-[2rem] border border-white/10 bg-grain p-6 sm:p-8">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <Logo title="BARBEROS" />
-            <p className="mt-3 text-sm text-sand/70">{barberEmail}</p>
+          <div className="flex items-start gap-3">
+            <div>
+              <Logo title="BARBEROS" />
+              <p className="mt-3 text-sm text-sand/70">{barberEmail}</p>
+            </div>
+            <div className="min-w-[3rem] rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-center text-lg font-semibold text-sand">
+              {weeklyCount}
+            </div>
           </div>
           <div className="flex flex-wrap gap-3">
             <SignOutButton redirectTo="/auth/login?next=/gestion-equipo" />
@@ -248,9 +253,6 @@ export function BarberDashboard({
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-3">
-              <div className="min-w-[3rem] rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-center text-lg font-semibold text-sand">
-                {weeklyCount}
-              </div>
               {panelView === "hours" ? (
                 <button
                   type="button"
