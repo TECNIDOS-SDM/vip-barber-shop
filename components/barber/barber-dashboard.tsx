@@ -40,6 +40,14 @@ function normalizeHourKey(hour?: string | null) {
   return (hour ?? "").slice(0, 5);
 }
 
+function countsForDashboard(reservations: Array<{ estado: string }>) {
+  return reservations.filter(
+    (reservation) =>
+      reservation.estado === "confirmada" ||
+      reservation.estado === "cita_fijada"
+  ).length;
+}
+
 export function BarberDashboard({
   barberEmail,
   initialData
@@ -179,6 +187,14 @@ export function BarberDashboard({
       (reservation) => reservation.fecha === selectedDate
     );
   }, [dashboardData.reservations, selectedDate]);
+  const weeklyCount = useMemo(
+    () => countsForDashboard(dashboardData.reservations),
+    [dashboardData.reservations]
+  );
+  const selectedDayCount = useMemo(
+    () => countsForDashboard(selectedDayReservations),
+    [selectedDayReservations]
+  );
 
   const reservationMap = useMemo(() => {
     return new Map(
@@ -231,15 +247,20 @@ export function BarberDashboard({
                 ) : null}
               </div>
             </div>
-            {panelView === "hours" ? (
-              <button
-                type="button"
-                onClick={() => setPanelView("days")}
-                className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-sand/80"
-              >
-                Retroceder
-              </button>
-            ) : null}
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="min-w-[3rem] rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-center text-lg font-semibold text-sand">
+                {weeklyCount}
+              </div>
+              {panelView === "hours" ? (
+                <button
+                  type="button"
+                  onClick={() => setPanelView("days")}
+                  className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-sand/80"
+                >
+                  Retroceder
+                </button>
+              ) : null}
+            </div>
           </div>
 
           {panelView === "days" ? (
@@ -266,61 +287,68 @@ export function BarberDashboard({
               ))}
             </div>
           ) : (
-            <div className="mt-5 grid grid-cols-2 gap-3">
-              {hourColumns.map((column, columnIndex) => (
-                <div key={`column-${columnIndex}`} className="space-y-3">
-                  {column.map((hour) => {
-                    const reservation = reservationMap.get(hour);
-                    const status = reservation?.estado;
+            <>
+              <div className="mt-5 grid grid-cols-2 gap-3">
+                {hourColumns.map((column, columnIndex) => (
+                  <div key={`column-${columnIndex}`} className="space-y-3">
+                    {column.map((hour) => {
+                      const reservation = reservationMap.get(hour);
+                      const status = reservation?.estado;
 
-                    return (
-                      <div
-                        key={hour}
-                        className={cn(
-                          "rounded-2xl px-4 py-4 text-center transition",
-                          status === "confirmada"
-                            ? "bg-danger text-white"
-                            : status === "cita_fijada"
-                              ? "bg-sky-500 text-white"
-                              : status === "bloqueado"
-                                ? "bg-zinc-600 text-white"
-                                : "bg-emerald-500 text-slate-950"
-                        )}
-                      >
-                        <span className="block text-base font-semibold">
-                          {formatHourDisplay(hour)}
-                        </span>
-                        <span className="mt-2 block text-[11px] font-semibold uppercase tracking-[0.24em]">
-                          {status
-                            ? status === "cita_fijada"
-                              ? "FIJADA"
-                              : status === "bloqueado"
-                                ? "BLOQUEADA"
-                                : "OCUPADO"
-                            : "DISPONIBLE"}
-                        </span>
-                        {reservation ? (
-                          <>
-                            <span className="mt-2 block truncate text-xs font-medium">
-                              {reservation.estado === "bloqueado"
-                                ? "HORARIO BLOQUEADO"
-                                : reservation.cliente_nombre || "CITA FIJADA"}
-                            </span>
-                            <span className="mt-1 block truncate text-[11px]">
-                              {reservation.estado === "bloqueado"
-                                ? "BLOQUEADO"
-                                : reservation.estado === "cita_fijada"
-                                  ? "CITA FIJADA"
-                                  : "RESERVA CONFIRMADA"}
-                            </span>
-                          </>
-                        ) : null}
-                      </div>
-                    );
-                  })}
+                      return (
+                        <div
+                          key={hour}
+                          className={cn(
+                            "rounded-2xl px-4 py-4 text-center transition",
+                            status === "confirmada"
+                              ? "bg-danger text-white"
+                              : status === "cita_fijada"
+                                ? "bg-sky-500 text-white"
+                                : status === "bloqueado"
+                                  ? "bg-zinc-600 text-white"
+                                  : "bg-emerald-500 text-slate-950"
+                          )}
+                        >
+                          <span className="block text-base font-semibold">
+                            {formatHourDisplay(hour)}
+                          </span>
+                          <span className="mt-2 block text-[11px] font-semibold uppercase tracking-[0.24em]">
+                            {status
+                              ? status === "cita_fijada"
+                                ? "FIJADA"
+                                : status === "bloqueado"
+                                  ? "BLOQUEADA"
+                                  : "OCUPADO"
+                              : "DISPONIBLE"}
+                          </span>
+                          {reservation ? (
+                            <>
+                              <span className="mt-2 block truncate text-xs font-medium">
+                                {reservation.estado === "bloqueado"
+                                  ? "HORARIO BLOQUEADO"
+                                  : reservation.cliente_nombre || "CITA FIJADA"}
+                              </span>
+                              <span className="mt-1 block truncate text-[11px]">
+                                {reservation.estado === "bloqueado"
+                                  ? "BLOQUEADO"
+                                  : reservation.estado === "cita_fijada"
+                                    ? "CITA FIJADA"
+                                    : "RESERVA CONFIRMADA"}
+                              </span>
+                            </>
+                          ) : null}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 flex justify-end">
+                <div className="min-w-[3rem] rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-center text-lg font-semibold text-sand">
+                  {selectedDayCount}
                 </div>
-              ))}
-            </div>
+              </div>
+            </>
           )}
         </div>
       </section>

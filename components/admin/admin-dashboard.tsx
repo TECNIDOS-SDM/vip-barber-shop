@@ -126,6 +126,14 @@ function normalizeHourKey(hour?: string | null) {
   return (hour ?? "").slice(0, 5);
 }
 
+function countsForDashboard(reservations: Array<{ estado: string }>) {
+  return reservations.filter(
+    (reservation) =>
+      reservation.estado === "confirmada" ||
+      reservation.estado === "cita_fijada"
+  ).length;
+}
+
 export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
   const currentWeek = initialData.currentWeek;
   const currentDayIsoDate =
@@ -810,6 +818,34 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
       reservations.filter((reservation) => reservation.barbero_id === activeBarberId),
     [activeBarberId, reservations]
   );
+  const weeklyCountByBarber = useMemo(() => {
+    const counts = new Map<string, number>();
+
+    reservations.forEach((reservation) => {
+      if (
+        reservation.estado !== "confirmada" &&
+        reservation.estado !== "cita_fijada"
+      ) {
+        return;
+      }
+
+      counts.set(
+        reservation.barbero_id,
+        (counts.get(reservation.barbero_id) ?? 0) + 1
+      );
+    });
+
+    return counts;
+  }, [reservations]);
+  const selectedDayCount = useMemo(
+    () =>
+      countsForDashboard(
+        activeBarberReservations.filter(
+          (reservation) => reservation.fecha === scheduleForm.fecha
+        )
+      ),
+    [activeBarberReservations, scheduleForm.fecha]
+  );
 
   const canResumeScheduleAction = Boolean(
     isAddingMoreHours &&
@@ -899,7 +935,12 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                           />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="font-semibold">{barber.nombre}</p>
+                          <div className="mb-2 flex items-start justify-between gap-3">
+                            <p className="font-semibold">{barber.nombre}</p>
+                            <div className="min-w-[3rem] rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-center text-lg font-semibold text-sand">
+                              {weeklyCountByBarber.get(barber.id) ?? 0}
+                            </div>
+                          </div>
                           {barber.whatsapp ? (
                             <a
                               href={buildWhatsAppUrl(barber.whatsapp)}
@@ -1279,6 +1320,11 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                                 })}
                               </div>
                             ))}
+                          </div>
+                          <div className="mt-4 flex justify-end">
+                            <div className="min-w-[3rem] rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-center text-lg font-semibold text-sand">
+                              {selectedDayCount}
+                            </div>
                           </div>
                         </div>
                       ) : (
