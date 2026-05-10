@@ -134,6 +134,20 @@ function countsForDashboard(reservations: Array<{ estado: string }>) {
   ).length;
 }
 
+function sortReservationsByDateAndHour<
+  T extends { fecha?: string | null; hora?: string | null }
+>(reservations: T[]) {
+  return [...reservations].sort((a, b) => {
+    const dateCompare = (a.fecha ?? "").localeCompare(b.fecha ?? "");
+
+    if (dateCompare !== 0) {
+      return dateCompare;
+    }
+
+    return (a.hora ?? "").localeCompare(b.hora ?? "");
+  });
+}
+
 export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
   const currentWeek = initialData.currentWeek;
   const currentDayIsoDate =
@@ -517,7 +531,11 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
       toast.success(
         ids.length === 1 ? "Horario liberado." : "Horarios liberados."
       );
-      await refreshData();
+      setReservations((current) =>
+        current.filter(
+          (reservation) => !(payload.releasedIds ?? ids).includes(reservation.id)
+        )
+      );
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "No fue posible liberar el horario."
@@ -548,7 +566,6 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
 
       if (!payload.releasedCount) {
         toast.error("No habia horarios bloqueados para liberar en este dia.");
-        await refreshData();
         return;
       }
 
@@ -557,7 +574,12 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
           ? "Horario bloqueado liberado."
           : `${payload.releasedCount} horarios bloqueados liberados.`
       );
-      await refreshData();
+      setReservations((current) =>
+        current.filter(
+          (reservation) =>
+            !(payload.releasedIds ?? []).includes(reservation.id)
+        )
+      );
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "No fue posible desbloquear el dia."
@@ -608,10 +630,25 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
               : "Reservas convertidas en horario bloqueado."
             : ids.length === 1
               ? "Reserva restaurada a ocupado."
-              : "Reservas restauradas a ocupado."
+            : "Reservas restauradas a ocupado."
       );
 
-      await refreshData();
+      if (payload.updatedReservations?.length) {
+        setReservations((current) => {
+          const updatedMap = new Map(
+            payload.updatedReservations.map((reservation: any) => [
+              reservation.id,
+              reservation
+            ])
+          );
+
+          return sortReservationsByDateAndHour(
+            current.map((reservation) =>
+              updatedMap.get(reservation.id) ?? reservation
+            )
+          );
+        });
+      }
       closeReleaseActionModal();
     } catch (error) {
       toast.error(
@@ -771,12 +808,19 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
           ? "Cita fijada creada correctamente."
           : "Horario bloqueado correctamente."
       );
+      if (payload.createdReservations?.length) {
+        setReservations((current) =>
+          sortReservationsByDateAndHour([
+            ...current,
+            ...payload.createdReservations
+          ])
+        );
+      }
       setShowScheduleActionModal(false);
       setIsAddingMoreHours(false);
       setScheduleForm(emptyScheduleForm);
       setSelectedHours([]);
       setFullDayBlock(false);
-      await refreshData();
     } catch (error) {
       toast.error(
         error instanceof Error

@@ -65,6 +65,16 @@ export async function POST(request: Request) {
     const payload = schema.parse(await request.json());
 
     if (payload.action === "release") {
+      const { data: existingReservations, error: existingReservationsError } =
+        await adminSupabase
+          .from("reservas")
+          .select("id")
+          .in("id", payload.reservation_ids);
+
+      if (existingReservationsError) {
+        throw existingReservationsError;
+      }
+
       const { error } = await adminSupabase
         .from("reservas")
         .delete()
@@ -74,23 +84,51 @@ export async function POST(request: Request) {
         throw error;
       }
 
-      return NextResponse.json({ success: true });
+      return NextResponse.json({
+        success: true,
+        releasedIds: ((existingReservations ?? []) as Array<{ id: string }>).map(
+          (reservation) => reservation.id
+        )
+      });
     }
 
     if (payload.action === "update_status") {
-      const { error } = await (adminSupabase
+      const { data: updatedReservations, error } = await (adminSupabase
         .from("reservas") as any)
         .update({ estado: payload.estado })
-        .in("id", payload.reservation_ids);
+        .in("id", payload.reservation_ids)
+        .select(
+          "id, barbero_id, cliente_nombre, cliente_whatsapp, fecha, hora, estado, created_at, barberos(nombre)"
+        );
 
       if (error) {
         throw error;
       }
 
-      return NextResponse.json({ success: true });
+      return NextResponse.json({
+        success: true,
+        updatedReservations: updatedReservations ?? []
+      });
     }
 
     if (payload.action === "unblock") {
+      const { data: blockedReservations, error: blockedReservationsError } =
+        await adminSupabase
+          .from("reservas")
+          .select("id")
+          .eq("barbero_id", payload.barbero_id)
+          .eq("fecha", payload.fecha)
+          .eq("estado", "bloqueado")
+          .in("hora", payload.horas);
+
+      if (blockedReservationsError) {
+        throw blockedReservationsError;
+      }
+
+      const releasedIds = ((blockedReservations ?? []) as Array<{ id: string }>).map(
+        (reservation) => reservation.id
+      );
+
       const { count, error } = await adminSupabase
         .from("reservas")
         .delete({ count: "exact" })
@@ -103,7 +141,11 @@ export async function POST(request: Request) {
         throw error;
       }
 
-      return NextResponse.json({ success: true, releasedCount: count ?? 0 });
+      return NextResponse.json({
+        success: true,
+        releasedCount: count ?? 0,
+        releasedIds
+      });
     }
 
     const existingResult = await adminSupabase
@@ -149,9 +191,12 @@ export async function POST(request: Request) {
           : payload.cliente_whatsapp?.trim() || "N/A"
     }));
 
-    const { error } = await (adminSupabase
+    const { data: createdReservations, error } = await (adminSupabase
       .from("reservas") as any)
-      .insert(rows);
+      .insert(rows)
+      .select(
+        "id, barbero_id, cliente_nombre, cliente_whatsapp, fecha, hora, estado, created_at, barberos(nombre)"
+      );
 
     if (error) {
       if (
@@ -166,7 +211,10 @@ export async function POST(request: Request) {
       throw error;
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({
+      success: true,
+      createdReservations: createdReservations ?? []
+    });
   } catch (error) {
     return NextResponse.json(
       {
