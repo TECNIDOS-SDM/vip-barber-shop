@@ -40,14 +40,6 @@ function normalizeHourKey(hour?: string | null) {
   return (hour ?? "").slice(0, 5);
 }
 
-function countsForDashboard(reservations: Array<{ estado: string }>) {
-  return reservations.filter(
-    (reservation) =>
-      reservation.estado === "confirmada" ||
-      reservation.estado === "cita_fijada"
-  ).length;
-}
-
 export function BarberDashboard({
   barberEmail,
   initialData
@@ -187,15 +179,6 @@ export function BarberDashboard({
       (reservation) => reservation.fecha === selectedDate
     );
   }, [dashboardData.reservations, selectedDate]);
-  const weeklyCount = useMemo(
-    () => countsForDashboard(dashboardData.reservations),
-    [dashboardData.reservations]
-  );
-  const selectedDayCount = useMemo(
-    () => countsForDashboard(selectedDayReservations),
-    [selectedDayReservations]
-  );
-
   const reservationMap = useMemo(() => {
     return new Map(
       selectedDayReservations.map((reservation) => [
@@ -213,14 +196,9 @@ export function BarberDashboard({
     <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
       <section className="rounded-[2rem] border border-white/10 bg-grain p-6 sm:p-8">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-          <div className="flex items-start gap-3">
-            <div>
-              <Logo title="BARBEROS" />
-              <p className="mt-3 text-sm text-sand/70">{barberEmail}</p>
-            </div>
-            <div className="min-w-[3rem] rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-center text-lg font-semibold text-sand">
-              {weeklyCount}
-            </div>
+          <div>
+            <Logo title="BARBEROS" />
+            <p className="mt-3 text-sm text-sand/70">{barberEmail}</p>
           </div>
           <div className="flex flex-wrap gap-3">
             <SignOutButton redirectTo="/auth/login?next=/gestion-equipo" />
@@ -344,11 +322,6 @@ export function BarberDashboard({
                     })}
                   </div>
                 ))}
-              </div>
-              <div className="mt-4 flex justify-end">
-                <div className="min-w-[3rem] rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-center text-lg font-semibold text-sand">
-                  {selectedDayCount}
-                </div>
               </div>
             </>
           )}

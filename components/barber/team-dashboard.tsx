@@ -48,10 +48,6 @@ export function TeamDashboard({ data }: TeamDashboardProps) {
               solo muestra datos basicos de agenda.
             </p>
           </div>
-          <div className="glass rounded-2xl px-4 py-3">
-            <p className="text-xs uppercase text-sand/60">Citas de hoy</p>
-            <p className="text-2xl font-bold">{data.todayTotal}</p>
-          </div>
         </div>
       </section>
 
