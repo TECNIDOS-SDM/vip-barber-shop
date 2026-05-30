@@ -40,15 +40,27 @@ function normalizeHourKey(hour?: string | null) {
   return (hour ?? "").slice(0, 5);
 }
 
+function getCurrentIsoDateForDashboard(
+  week: Array<{ isoDate: string; isToday: boolean }>
+) {
+  const todayIso = new Date().toLocaleDateString("en-CA", {
+    timeZone: "America/Bogota"
+  });
+
+  return (
+    week.find((item) => item.isoDate === todayIso)?.isoDate ??
+    week.find((item) => item.isToday)?.isoDate ??
+    week[0]?.isoDate ??
+    ""
+  );
+}
+
 export function BarberDashboard({
   barberEmail,
   initialData
 }: BarberDashboardProps) {
   const [dashboardData, setDashboardData] = useState(initialData);
-  const defaultDate =
-    dashboardData.currentWeek.find((day) => day.isToday)?.isoDate ??
-    dashboardData.currentWeek[0]?.isoDate ??
-    "";
+  const defaultDate = getCurrentIsoDateForDashboard(dashboardData.currentWeek);
   const [selectedDate, setSelectedDate] = useState(defaultDate);
   const [panelView, setPanelView] = useState<"days" | "hours">(
     defaultDate ? "hours" : "days"
@@ -102,6 +114,22 @@ export function BarberDashboard({
   useEffect(() => {
     setDashboardData(initialData);
   }, [initialData]);
+
+  useEffect(() => {
+    if (panelView !== "hours") {
+      return;
+    }
+
+    const selectedDateIsValid = dashboardData.currentWeek.some(
+      (day) => day.isoDate === selectedDate
+    );
+
+    if (selectedDate && selectedDateIsValid) {
+      return;
+    }
+
+    setSelectedDate(getCurrentIsoDateForDashboard(dashboardData.currentWeek));
+  }, [dashboardData.currentWeek, panelView, selectedDate]);
 
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
