@@ -1,12 +1,16 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CalendarClock, Scissors } from "lucide-react";
 import { TIME_SLOTS } from "@/lib/constants";
 import { formatHourDisplay } from "@/lib/date";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/shared/logo";
 import { SignOutButton } from "@/components/shared/sign-out-button";
+import {
+  BARBER_DASHBOARD_VIEW_COOKIE,
+  type BarberDashboardViewState
+} from "@/lib/dashboard-view-state";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 
 type BarberDashboardProps = {
@@ -34,6 +38,7 @@ type BarberDashboardProps = {
     }[];
     todayTotal: number;
   };
+  initialViewState?: BarberDashboardViewState | null;
 };
 
 function normalizeHourKey(hour?: string | null) {
@@ -55,63 +60,29 @@ function getCurrentIsoDateForDashboard(
   );
 }
 
-function getBarberViewStorageKey(barberId?: string | null) {
-  return barberId
-    ? `vip-barber-top:barber-dashboard-view:${barberId}`
-    : "vip-barber-top:barber-dashboard-view";
-}
-
 export function BarberDashboard({
   barberEmail,
-  initialData
+  initialData,
+  initialViewState
 }: BarberDashboardProps) {
   const [dashboardData, setDashboardData] = useState(initialData);
   const defaultDate = getCurrentIsoDateForDashboard(dashboardData.currentWeek);
-  const [selectedDate, setSelectedDate] = useState(defaultDate);
+  const initialSelectedDate =
+    initialViewState?.selectedDate &&
+    initialData.currentWeek.some((day) => day.isoDate === initialViewState.selectedDate)
+      ? initialViewState.selectedDate
+      : defaultDate;
+  const [selectedDate, setSelectedDate] = useState(initialSelectedDate);
   const [panelView, setPanelView] = useState<"days" | "hours">(
-    defaultDate ? "hours" : "days"
+    initialViewState?.panelView === "days"
+      ? "days"
+      : initialSelectedDate
+        ? "hours"
+        : "days"
   );
   const isRefreshingRef = useRef(false);
   const shouldRefreshAgainRef = useRef(false);
   const refreshTimeoutRef = useRef<number | null>(null);
-
-  useLayoutEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    const savedState = window.sessionStorage.getItem(
-      getBarberViewStorageKey(dashboardData.barber?.id)
-    );
-
-    if (!savedState) {
-      return;
-    }
-
-    try {
-      const parsed = JSON.parse(savedState) as {
-        panelView?: "days" | "hours";
-        selectedDate?: string;
-      };
-      const savedDateIsValid = dashboardData.currentWeek.some(
-        (day) => day.isoDate === parsed.selectedDate
-      );
-
-      if (parsed.panelView === "days") {
-        setPanelView("days");
-      }
-
-      if (parsed.selectedDate && savedDateIsValid) {
-        setSelectedDate(parsed.selectedDate);
-
-        if (parsed.panelView === "hours") {
-          setPanelView("hours");
-        }
-      }
-    } catch {
-      // Ignore invalid session state and keep current defaults.
-    }
-  }, [dashboardData.barber?.id, dashboardData.currentWeek]);
 
   async function refreshData() {
     if (isRefreshingRef.current) {
@@ -164,14 +135,13 @@ export function BarberDashboard({
       return;
     }
 
-    window.sessionStorage.setItem(
-      getBarberViewStorageKey(dashboardData.barber?.id),
+    document.cookie = `${BARBER_DASHBOARD_VIEW_COOKIE}=${encodeURIComponent(
       JSON.stringify({
         panelView,
         selectedDate
       })
-    );
-  }, [dashboardData.barber?.id, panelView, selectedDate]);
+    )}; path=/; max-age=86400; samesite=lax`;
+  }, [panelView, selectedDate]);
 
   useEffect(() => {
     if (panelView !== "hours") {

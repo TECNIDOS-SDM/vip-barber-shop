@@ -1,11 +1,15 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Image from "next/image";
 import { Clock3, Plus, Trash2, Upload, UserRoundCheck } from "lucide-react";
 import { toast } from "sonner";
 import { TIME_SLOTS } from "@/lib/constants";
 import { adminIdentifierToEmail } from "@/lib/admin-auth";
+import {
+  ADMIN_DASHBOARD_VIEW_COOKIE,
+  type AdminDashboardViewState
+} from "@/lib/dashboard-view-state";
 import { formatHourDisplay } from "@/lib/date";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { SignOutButton } from "@/components/shared/sign-out-button";
@@ -33,6 +37,7 @@ type DashboardProps = {
       fixedAppointments: number;
     };
   };
+  initialViewState?: AdminDashboardViewState | null;
 };
 
 type CollapsibleSectionProps = {
@@ -141,10 +146,6 @@ function getCurrentIsoDateForDashboard(
   );
 }
 
-function getAdminViewStorageKey() {
-  return "vip-barber-top:admin-dashboard-view";
-}
-
 function sortReservationsByDateAndHour<
   T extends { fecha?: string | null; hora?: string | null }
 >(reservations: T[]) {
@@ -159,19 +160,40 @@ function sortReservationsByDateAndHour<
   });
 }
 
-export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
+export function AdminDashboard({
+  adminEmail,
+  initialData,
+  initialViewState
+}: DashboardProps) {
   const [dashboardWeek, setDashboardWeek] = useState(initialData.currentWeek);
   const currentDayIsoDate = useMemo(
     () => getCurrentIsoDateForDashboard(dashboardWeek),
     [dashboardWeek]
   );
+  const initialActiveBarberId =
+    initialViewState?.activeBarberId &&
+    initialData.barbers.some((barber) => barber.id === initialViewState.activeBarberId)
+      ? initialViewState.activeBarberId
+      : initialData.barbers[0]?.id ?? null;
   const [barbers, setBarbers] = useState(initialData.barbers);
   const [reservations, setReservations] = useState(initialData.reservations);
   const [profiles, setProfiles] = useState(initialData.profiles);
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [barberForm, setBarberForm] = useState(emptyBarberForm);
-  const [scheduleForm, setScheduleForm] = useState(emptyScheduleForm);
+  const [scheduleForm, setScheduleForm] = useState(() => ({
+    ...emptyScheduleForm,
+    barbero_id:
+      initialViewState?.activeBarberView === "agenda" && initialActiveBarberId
+        ? initialActiveBarberId
+        : "",
+    fecha:
+      initialViewState?.activeBarberView === "agenda" &&
+      initialViewState?.scheduleDate &&
+      initialData.currentWeek.some((day) => day.isoDate === initialViewState.scheduleDate)
+        ? initialViewState.scheduleDate
+        : ""
+  }));
   const [selectedHours, setSelectedHours] = useState<string[]>([]);
   const [scheduleMode, setScheduleMode] = useState<
     "confirmada" | "cita_fijada" | "bloqueado"
@@ -182,12 +204,15 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
   const [fullDayBlock, setFullDayBlock] = useState(false);
   const [showScheduleActionModal, setShowScheduleActionModal] = useState(false);
   const [isAddingMoreHours, setIsAddingMoreHours] = useState(false);
-  const [activeBarberId, setActiveBarberId] = useState<string | null>(
-    initialData.barbers[0]?.id ?? null
-  );
+  const [activeBarberId, setActiveBarberId] = useState<string | null>(initialActiveBarberId);
   const [activeBarberView, setActiveBarberView] = useState<
     "list" | "perfil" | "agenda"
-  >("list");
+  >(
+    initialViewState?.activeBarberView === "perfil" ||
+      initialViewState?.activeBarberView === "agenda"
+      ? initialViewState.activeBarberView
+      : "list"
+  );
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
   const [showProfileEditModal, setShowProfileEditModal] = useState(false);
   const [selectedReleaseReservations, setSelectedReleaseReservations] = useState<any[]>([]);
@@ -198,58 +223,6 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
   const isRefreshingRef = useRef(false);
   const shouldRefreshAgainRef = useRef(false);
   const refreshTimeoutRef = useRef<number | null>(null);
-  const hasHydratedAdminViewRef = useRef(false);
-
-  useLayoutEffect(() => {
-    if (typeof window === "undefined" || hasHydratedAdminViewRef.current || !barbers.length) {
-      return;
-    }
-
-    hasHydratedAdminViewRef.current = true;
-
-    const savedState = window.sessionStorage.getItem(getAdminViewStorageKey());
-
-    if (!savedState) {
-      return;
-    }
-
-    try {
-      const parsed = JSON.parse(savedState) as {
-        activeBarberId?: string | null;
-        activeBarberView?: "list" | "perfil" | "agenda";
-        scheduleDate?: string;
-      };
-      const savedBarber = barbers.find((barber) => barber.id === parsed.activeBarberId);
-
-      if (!savedBarber) {
-        return;
-      }
-
-      setActiveBarberId(savedBarber.id);
-
-      if (parsed.activeBarberView === "perfil") {
-        setActiveBarberView("perfil");
-        return;
-      }
-
-      if (parsed.activeBarberView === "agenda") {
-        setActiveBarberView("agenda");
-        updateScheduleForBarber(
-          savedBarber.id,
-          {
-            fecha: dashboardWeek.some((day) => day.isoDate === parsed.scheduleDate)
-              ? parsed.scheduleDate ?? ""
-              : "",
-            cliente_nombre: "",
-            cliente_whatsapp: ""
-          },
-          true
-        );
-      }
-    } catch {
-      // Ignore invalid session state and keep current defaults.
-    }
-  }, [barbers, dashboardWeek]);
 
   async function refreshData() {
     if (isRefreshingRef.current) {
@@ -386,14 +359,13 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
       return;
     }
 
-    window.sessionStorage.setItem(
-      getAdminViewStorageKey(),
+    document.cookie = `${ADMIN_DASHBOARD_VIEW_COOKIE}=${encodeURIComponent(
       JSON.stringify({
         activeBarberId,
         activeBarberView,
         scheduleDate: scheduleForm.fecha
       })
-    );
+    )}; path=/; max-age=86400; samesite=lax`;
   }, [activeBarberId, activeBarberView, scheduleForm.fecha]);
 
   function getStoragePathFromPublicUrl(publicUrl?: string | null) {
