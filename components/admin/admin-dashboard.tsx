@@ -876,8 +876,7 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
 
     if (
       scheduleForm.barbero_id === activeBarber.id &&
-      scheduleForm.fecha &&
-      selectedDateIsValid
+      (!scheduleForm.fecha || selectedDateIsValid)
     ) {
       return;
     }
