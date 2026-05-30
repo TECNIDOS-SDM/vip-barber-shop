@@ -216,7 +216,13 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
       setReservations(payload.reservations ?? []);
       setProfiles(payload.profiles ?? []);
       setDashboardWeek(payload.currentWeek ?? []);
-      setActiveBarberId((current) => current ?? payload.barbers?.[0]?.id ?? null);
+      setActiveBarberId((current) => {
+        if (current && (payload.barbers ?? []).some((barber: any) => barber.id === current)) {
+          return current;
+        }
+
+        return payload.barbers?.[0]?.id ?? null;
+      });
     } finally {
       isRefreshingRef.current = false;
 
@@ -864,7 +870,15 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
       return;
     }
 
-    if (scheduleForm.barbero_id === activeBarber.id && scheduleForm.fecha) {
+    const selectedDateIsValid = dashboardWeek.some(
+      (day) => day.isoDate === scheduleForm.fecha
+    );
+
+    if (
+      scheduleForm.barbero_id === activeBarber.id &&
+      scheduleForm.fecha &&
+      selectedDateIsValid
+    ) {
       return;
     }
 
