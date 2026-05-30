@@ -126,6 +126,21 @@ function normalizeHourKey(hour?: string | null) {
   return (hour ?? "").slice(0, 5);
 }
 
+function getCurrentIsoDateForDashboard(
+  week: Array<{ isoDate: string; isToday: boolean }>
+) {
+  const todayIso = new Date().toLocaleDateString("en-CA", {
+    timeZone: "America/Bogota"
+  });
+
+  return (
+    week.find((item) => item.isoDate === todayIso)?.isoDate ??
+    week.find((item) => item.isToday)?.isoDate ??
+    week[0]?.isoDate ??
+    ""
+  );
+}
+
 function sortReservationsByDateAndHour<
   T extends { fecha?: string | null; hora?: string | null }
 >(reservations: T[]) {
@@ -141,9 +156,11 @@ function sortReservationsByDateAndHour<
 }
 
 export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
-  const currentWeek = initialData.currentWeek;
-  const currentDayIsoDate =
-    currentWeek.find((item) => item.isToday)?.isoDate ?? currentWeek[0]?.isoDate ?? "";
+  const [dashboardWeek, setDashboardWeek] = useState(initialData.currentWeek);
+  const currentDayIsoDate = useMemo(
+    () => getCurrentIsoDateForDashboard(dashboardWeek),
+    [dashboardWeek]
+  );
   const [barbers, setBarbers] = useState(initialData.barbers);
   const [reservations, setReservations] = useState(initialData.reservations);
   const [profiles, setProfiles] = useState(initialData.profiles);
@@ -198,6 +215,7 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
       setBarbers(payload.barbers ?? []);
       setReservations(payload.reservations ?? []);
       setProfiles(payload.profiles ?? []);
+      setDashboardWeek(payload.currentWeek ?? []);
       setActiveBarberId((current) => current ?? payload.barbers?.[0]?.id ?? null);
     } finally {
       isRefreshingRef.current = false;
@@ -841,6 +859,32 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
     [activeBarberId, barbers]
   );
 
+  useEffect(() => {
+    if (activeBarberView !== "agenda" || !activeBarber) {
+      return;
+    }
+
+    if (scheduleForm.barbero_id === activeBarber.id && scheduleForm.fecha) {
+      return;
+    }
+
+    updateScheduleForBarber(
+      activeBarber.id,
+      {
+        fecha: currentDayIsoDate,
+        cliente_nombre: "",
+        cliente_whatsapp: ""
+      },
+      true
+    );
+  }, [
+    activeBarber,
+    activeBarberView,
+    currentDayIsoDate,
+    scheduleForm.barbero_id,
+    scheduleForm.fecha
+  ]);
+
   const activeProfile = useMemo(
     () =>
       profiles.find(
@@ -1100,7 +1144,7 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                                 Horarios del dia
                               </p>
                               <p className="mt-1 text-sm font-semibold uppercase text-sand">
-                                {currentWeek.find((day) => day.isoDate === scheduleForm.fecha)?.label.split(" ")[0] ?? "Dia seleccionado"}
+                                {dashboardWeek.find((day) => day.isoDate === scheduleForm.fecha)?.label.split(" ")[0] ?? "Dia seleccionado"}
                               </p>
                             </div>
                             <button
@@ -1332,7 +1376,7 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                             Elige el dia de la semana
                           </p>
                           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-7">
-                            {currentWeek.map((day) => (
+                            {dashboardWeek.map((day) => (
                               <button
                                 key={day.key}
                                 type="button"
@@ -1747,7 +1791,7 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
                   {activeBarber.nombre}
                 </h3>
                 <p className="mt-2 text-sm text-sand/70">
-                  {currentWeek
+                  {dashboardWeek
                     .find((day) => day.isoDate === scheduleForm.fecha)
                     ?.label.split(" ")[0] ?? "Dia seleccionado"}
                 </p>
