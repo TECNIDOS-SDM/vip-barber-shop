@@ -36,6 +36,34 @@ const schema = z.union([createSchema, unblockSchema, releaseSchema, updateStatus
 const SLOT_TAKEN_MESSAGE =
   "Este horario ya no está disponible. Por favor selecciona otro.";
 
+async function getAdminRoleFallback(
+  adminSupabase: NonNullable<ReturnType<typeof getSupabaseAdminClient>>,
+  user: { id: string }
+): Promise<"administrador" | "barbero" | null> {
+  const { data: rawProfile } = await adminSupabase
+    .from("perfiles_usuario")
+    .select("rol")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  const profile = rawProfile as { rol?: "administrador" | "barbero" | null } | null;
+
+  if (profile?.rol === "administrador" || profile?.rol === "barbero") {
+    return profile.rol;
+  }
+
+  const { data: admin } = await adminSupabase
+    .from("administradores")
+    .select("id")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (admin) {
+    return "administrador";
+  }
+
+  return null;
+}
+
 export async function POST(request: Request) {
   const supabase = await getSupabaseServerClient();
   const adminSupabase = getSupabaseAdminClient();
@@ -47,15 +75,29 @@ export async function POST(request: Request) {
     );
   }
 
+  const authorizationHeader = request.headers.get("authorization");
+  const bearerToken = authorizationHeader?.startsWith("Bearer ")
+    ? authorizationHeader.slice("Bearer ".length).trim()
+    : null;
   const {
-    data: { user }
+    data: { user: cookieUser }
   } = await supabase.auth.getUser();
+  let user = cookieUser;
+
+  if (!user && bearerToken) {
+    const {
+      data: { user: bearerUser }
+    } = await adminSupabase.auth.getUser(bearerToken);
+
+    user = bearerUser;
+  }
 
   if (!user) {
     return NextResponse.json({ error: "No autorizado." }, { status: 401 });
   }
 
-  const { role } = await getCurrentUserRole(supabase, user);
+  const { role: sessionRole } = await getCurrentUserRole(supabase, user);
+  const role = sessionRole ?? (await getAdminRoleFallback(adminSupabase, user));
 
   if (role !== "administrador") {
     return NextResponse.json({ error: "No autorizado." }, { status: 403 });

@@ -568,13 +568,24 @@ export function AdminDashboard({
     }
   }
 
+  async function getAdminScheduleRequestHeaders() {
+    const {
+      data: { session }
+    } = await getSupabaseBrowserClient().auth.getSession();
+
+    return {
+      "Content-Type": "application/json",
+      ...(session?.access_token
+        ? { Authorization: `Bearer ${session.access_token}` }
+        : {})
+    };
+  }
+
   async function releaseReservation(ids: string[]) {
     try {
       const response = await fetch("/api/admin-schedule", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
+        headers: await getAdminScheduleRequestHeaders(),
         body: JSON.stringify({
           action: "release",
           reservation_ids: ids
@@ -606,9 +617,7 @@ export function AdminDashboard({
     try {
       const response = await fetch("/api/admin-schedule", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
+        headers: await getAdminScheduleRequestHeaders(),
         body: JSON.stringify({
           action: "unblock",
           barbero_id: barberoId,
@@ -662,9 +671,7 @@ export function AdminDashboard({
     try {
       const response = await fetch("/api/admin-schedule", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
+        headers: await getAdminScheduleRequestHeaders(),
         body: JSON.stringify({
           action: "update_status",
           reservation_ids: ids,
@@ -837,9 +844,7 @@ export function AdminDashboard({
     try {
       const response = await fetch("/api/admin-schedule", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
+        headers: await getAdminScheduleRequestHeaders(),
         body: JSON.stringify({
           action: "create",
           barbero_id: scheduleForm.barbero_id,
