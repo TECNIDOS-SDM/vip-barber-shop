@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Image from "next/image";
 import { Clock3, Plus, Trash2, Upload, UserRoundCheck } from "lucide-react";
 import { toast } from "sonner";
@@ -141,6 +141,10 @@ function getCurrentIsoDateForDashboard(
   );
 }
 
+function getAdminViewStorageKey() {
+  return "vip-barber-top:admin-dashboard-view";
+}
+
 function sortReservationsByDateAndHour<
   T extends { fecha?: string | null; hora?: string | null }
 >(reservations: T[]) {
@@ -194,6 +198,58 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
   const isRefreshingRef = useRef(false);
   const shouldRefreshAgainRef = useRef(false);
   const refreshTimeoutRef = useRef<number | null>(null);
+  const hasHydratedAdminViewRef = useRef(false);
+
+  useLayoutEffect(() => {
+    if (typeof window === "undefined" || hasHydratedAdminViewRef.current || !barbers.length) {
+      return;
+    }
+
+    hasHydratedAdminViewRef.current = true;
+
+    const savedState = window.sessionStorage.getItem(getAdminViewStorageKey());
+
+    if (!savedState) {
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(savedState) as {
+        activeBarberId?: string | null;
+        activeBarberView?: "list" | "perfil" | "agenda";
+        scheduleDate?: string;
+      };
+      const savedBarber = barbers.find((barber) => barber.id === parsed.activeBarberId);
+
+      if (!savedBarber) {
+        return;
+      }
+
+      setActiveBarberId(savedBarber.id);
+
+      if (parsed.activeBarberView === "perfil") {
+        setActiveBarberView("perfil");
+        return;
+      }
+
+      if (parsed.activeBarberView === "agenda") {
+        setActiveBarberView("agenda");
+        updateScheduleForBarber(
+          savedBarber.id,
+          {
+            fecha: dashboardWeek.some((day) => day.isoDate === parsed.scheduleDate)
+              ? parsed.scheduleDate ?? ""
+              : "",
+            cliente_nombre: "",
+            cliente_whatsapp: ""
+          },
+          true
+        );
+      }
+    } catch {
+      // Ignore invalid session state and keep current defaults.
+    }
+  }, [barbers, dashboardWeek]);
 
   async function refreshData() {
     if (isRefreshingRef.current) {
@@ -324,6 +380,21 @@ export function AdminDashboard({ adminEmail, initialData }: DashboardProps) {
       setSelectedHours([...TIME_SLOTS]);
     }
   }, [fullDayBlock]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    window.sessionStorage.setItem(
+      getAdminViewStorageKey(),
+      JSON.stringify({
+        activeBarberId,
+        activeBarberView,
+        scheduleDate: scheduleForm.fecha
+      })
+    );
+  }, [activeBarberId, activeBarberView, scheduleForm.fecha]);
 
   function getStoragePathFromPublicUrl(publicUrl?: string | null) {
     if (!publicUrl) {
