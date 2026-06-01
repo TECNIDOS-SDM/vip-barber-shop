@@ -349,12 +349,6 @@ export function AdminDashboard({
   }, []);
 
   useEffect(() => {
-    if (fullDayBlock) {
-      setSelectedHours([...TIME_SLOTS]);
-    }
-  }, [fullDayBlock]);
-
-  useEffect(() => {
     if (typeof window === "undefined") {
       return;
     }
@@ -818,7 +812,12 @@ export function AdminDashboard({
   }
 
   async function saveScheduleAction() {
-    if (!scheduleForm.barbero_id || !scheduleForm.fecha || selectedHours.length === 0) {
+    const hoursToSave =
+      scheduleMode === "bloqueado" && fullDayBlock
+        ? selectedHours.filter((hour) => !scheduleSlotMap.get(hour))
+        : selectedHours;
+
+    if (!scheduleForm.barbero_id || !scheduleForm.fecha || hoursToSave.length === 0) {
       toast.error("Selecciona barbero, fecha y al menos una hora.");
       return;
     }
@@ -849,7 +848,7 @@ export function AdminDashboard({
           action: "create",
           barbero_id: scheduleForm.barbero_id,
           fecha: scheduleForm.fecha,
-          horas: selectedHours,
+          horas: hoursToSave,
           estado: scheduleMode,
           cliente_nombre: scheduleForm.cliente_nombre,
           cliente_whatsapp: scheduleForm.cliente_whatsapp
@@ -907,6 +906,10 @@ export function AdminDashboard({
         .map((reservation) => [normalizeHourKey(reservation.hora), reservation])
     );
   }, [reservations, scheduleForm.barbero_id, scheduleForm.fecha]);
+  const availableScheduleHours = useMemo(
+    () => TIME_SLOTS.filter((hour) => !scheduleSlotMap.get(hour)),
+    [scheduleSlotMap]
+  );
 
   const activeBarber = useMemo(
     () => barbers.find((barber) => barber.id === activeBarberId) ?? null,
@@ -1226,11 +1229,7 @@ export function AdminDashboard({
                             <button
                               type="button"
                               onClick={() => {
-                                const availableHours = TIME_SLOTS.filter(
-                                  (hour) => !scheduleSlotMap.get(hour)
-                                );
-
-                                if (availableHours.length === 0) {
+                                if (availableScheduleHours.length === 0) {
                                   toast.error(
                                     "No hay horarios disponibles para bloquear en este dia."
                                   );
@@ -1240,7 +1239,7 @@ export function AdminDashboard({
                                 setSelectedAction("bloqueado");
                                 setScheduleMode("bloqueado");
                                 setFullDayBlock(true);
-                                setSelectedHours(availableHours);
+                                setSelectedHours(availableScheduleHours);
                                 setShowReleaseActionModal(false);
                                 setIsAddingMoreReleaseHours(false);
                                 setSelectedReleaseReservations([]);
@@ -1959,7 +1958,22 @@ export function AdminDashboard({
                   <input
                     type="checkbox"
                     checked={fullDayBlock}
-                    onChange={(event) => setFullDayBlock(event.target.checked)}
+                    onChange={(event) => {
+                      if (!event.target.checked) {
+                        setFullDayBlock(false);
+                        return;
+                      }
+
+                      if (availableScheduleHours.length === 0) {
+                        toast.error(
+                          "No hay horarios disponibles para bloquear en este dia."
+                        );
+                        return;
+                      }
+
+                      setFullDayBlock(true);
+                      setSelectedHours(availableScheduleHours);
+                    }}
                   />
                   Bloquear dia completo
                 </label>

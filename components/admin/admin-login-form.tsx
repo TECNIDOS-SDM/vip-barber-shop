@@ -4,6 +4,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { adminIdentifierToEmail } from "@/lib/admin-auth";
+import { ADMIN_DASHBOARD_VIEW_COOKIE } from "@/lib/dashboard-view-state";
 import {
   createSessionLockKey,
   setSessionLockCookie
@@ -63,6 +64,14 @@ export function AdminLoginForm({
           setSessionLockCookie(sessionKey);
         }
       }
+
+      document.cookie = `${ADMIN_DASHBOARD_VIEW_COOKIE}=${encodeURIComponent(
+        JSON.stringify({
+          activeBarberId: null,
+          activeBarberView: "list",
+          scheduleDate: ""
+        })
+      )}; path=/; max-age=86400; samesite=lax`;
 
       window.location.assign(nextPath);
     } catch (error) {
