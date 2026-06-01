@@ -11,7 +11,8 @@ const createSchema = z.object({
   horas: z.array(z.string().regex(/^\d{2}:\d{2}$/)).min(1),
   estado: z.enum(["confirmada", "cita_fijada", "bloqueado"]),
   cliente_nombre: z.string().optional(),
-  cliente_whatsapp: z.string().optional()
+  cliente_whatsapp: z.string().optional(),
+  bloqueo_origen: z.enum(["manual", "dia_completo"]).optional()
 });
 
 const unblockSchema = z.object({
@@ -35,6 +36,8 @@ const updateStatusSchema = z.object({
 const schema = z.union([createSchema, unblockSchema, releaseSchema, updateStatusSchema]);
 const SLOT_TAKEN_MESSAGE =
   "Este horario ya no está disponible. Por favor selecciona otro.";
+
+const DAY_FULL_BLOCK_MARKER = "__vip_barber_top_day_full_block__";
 
 async function getAdminRoleFallback(
   adminSupabase: NonNullable<ReturnType<typeof getSupabaseAdminClient>>,
@@ -161,6 +164,7 @@ export async function POST(request: Request) {
           .eq("barbero_id", payload.barbero_id)
           .eq("fecha", payload.fecha)
           .eq("estado", "bloqueado")
+          .eq("cliente_whatsapp", DAY_FULL_BLOCK_MARKER)
           .in("hora", payload.horas);
 
       if (blockedReservationsError) {
@@ -177,6 +181,7 @@ export async function POST(request: Request) {
         .eq("barbero_id", payload.barbero_id)
         .eq("fecha", payload.fecha)
         .eq("estado", "bloqueado")
+        .eq("cliente_whatsapp", DAY_FULL_BLOCK_MARKER)
         .in("hora", payload.horas);
 
       if (error) {
@@ -227,7 +232,9 @@ export async function POST(request: Request) {
           : payload.cliente_nombre?.trim() || "Reserva manual",
       cliente_whatsapp:
         payload.estado === "bloqueado"
-          ? "N/A"
+          ? payload.bloqueo_origen === "dia_completo"
+            ? DAY_FULL_BLOCK_MARKER
+            : "N/A"
           : payload.estado === "cita_fijada"
           ? payload.cliente_whatsapp?.trim() || "N/A"
           : payload.cliente_whatsapp?.trim() || "N/A"

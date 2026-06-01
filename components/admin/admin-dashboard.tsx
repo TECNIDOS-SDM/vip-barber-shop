@@ -40,6 +40,8 @@ type DashboardProps = {
   initialViewState?: AdminDashboardViewState | null;
 };
 
+const DAY_FULL_BLOCK_MARKER = "__vip_barber_top_day_full_block__";
+
 type CollapsibleSectionProps = {
   title: string;
   icon: ReactNode;
@@ -851,7 +853,13 @@ export function AdminDashboard({
           horas: hoursToSave,
           estado: scheduleMode,
           cliente_nombre: scheduleForm.cliente_nombre,
-          cliente_whatsapp: scheduleForm.cliente_whatsapp
+          cliente_whatsapp: scheduleForm.cliente_whatsapp,
+          bloqueo_origen:
+            scheduleMode === "bloqueado"
+              ? fullDayBlock
+                ? "dia_completo"
+                : "manual"
+              : undefined
         })
       });
 
@@ -1255,12 +1263,14 @@ export function AdminDashboard({
                               onClick={() => {
                                 const blockedHours = TIME_SLOTS.filter(
                                   (hour) =>
-                                    scheduleSlotMap.get(hour)?.estado === "bloqueado"
+                                    scheduleSlotMap.get(hour)?.estado === "bloqueado" &&
+                                    scheduleSlotMap.get(hour)?.cliente_whatsapp ===
+                                      DAY_FULL_BLOCK_MARKER
                                 );
 
                                 if (blockedHours.length === 0) {
                                   toast.error(
-                                    "No hay horarios bloqueados para liberar en este dia."
+                                    "No hay bloqueos de dia completo para liberar en este dia."
                                   );
                                   return;
                                 }
