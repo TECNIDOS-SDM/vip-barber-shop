@@ -887,11 +887,7 @@ export function AdminDashboard({
           ])
         );
       }
-      setShowScheduleActionModal(false);
-      setIsAddingMoreHours(false);
-      setScheduleForm(emptyScheduleForm);
-      setSelectedHours([]);
-      setFullDayBlock(false);
+      closeScheduleActionModal();
     } catch (error) {
       toast.error(
         error instanceof Error
