@@ -15,6 +15,10 @@ type BarberPayload = {
   activo?: boolean;
 };
 
+type DeleteBarberPayload = {
+  id?: string;
+};
+
 function getReadableErrorMessage(error: unknown, fallback: string) {
   if (
     error &&
@@ -186,11 +190,51 @@ async function syncBarberAccess(
     throw profileError;
   }
 
+  await (adminSupabase as any)
+    .from("perfiles_usuario")
+    .delete()
+    .eq("rol", "barbero")
+    .eq("barbero_id", barberoId)
+    .neq("user_id", authUserId);
+
   return {
     accessCreated: true,
     accessReady: true,
     message: `Acceso Barberos listo para ${authEmail}.`
   };
+}
+
+async function findAuthUserIdByEmail(
+  adminSupabase: NonNullable<ReturnType<typeof getSupabaseAdminClient>>,
+  authEmail: string
+) {
+  let page = 1;
+  const perPage = 200;
+
+  while (true) {
+    const { data, error } = await adminSupabase.auth.admin.listUsers({
+      page,
+      perPage
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    const existingUser = data.users.find(
+      (item) => item.email?.toLowerCase() === authEmail.toLowerCase()
+    );
+
+    if (existingUser) {
+      return existingUser.id;
+    }
+
+    if (data.users.length < perPage) {
+      return null;
+    }
+
+    page += 1;
+  }
 }
 
 export async function POST(request: Request) {
@@ -347,6 +391,97 @@ export async function PATCH(request: Request) {
         error: getReadableErrorMessage(
           error,
           "No fue posible actualizar el barbero."
+        )
+      },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(request: Request) {
+  const adminCheck = await requireAdmin();
+
+  if ("error" in adminCheck) {
+    return adminCheck.error;
+  }
+
+  try {
+    const payload = (await request.json()) as DeleteBarberPayload;
+
+    if (!payload.id) {
+      return NextResponse.json(
+        { error: "Falta el identificador del barbero." },
+        { status: 400 }
+      );
+    }
+
+    const { data: barber, error: barberError } = await adminCheck.supabase
+      .from("barberos")
+      .select("id, nombre, auth_email")
+      .eq("id", payload.id)
+      .maybeSingle();
+
+    if (barberError) {
+      throw barberError;
+    }
+
+    if (!barber) {
+      return NextResponse.json(
+        { error: "El barbero ya no existe." },
+        { status: 404 }
+      );
+    }
+
+    const adminSupabase = getSupabaseAdminClient();
+    let deletedAccessUserId: string | null = null;
+
+    if (adminSupabase && barber.auth_email) {
+      deletedAccessUserId = await findAuthUserIdByEmail(
+        adminSupabase,
+        barber.auth_email
+      );
+
+      if (deletedAccessUserId) {
+        await adminSupabase
+          .from("user_session_locks")
+          .delete()
+          .eq("user_id", deletedAccessUserId);
+
+        const { error: deleteAuthError } =
+          await adminSupabase.auth.admin.deleteUser(deletedAccessUserId);
+
+        if (deleteAuthError) {
+          throw deleteAuthError;
+        }
+      }
+    } else if (adminSupabase) {
+      await adminSupabase
+        .from("perfiles_usuario")
+        .delete()
+        .eq("rol", "barbero")
+        .eq("barbero_id", barber.id);
+    }
+
+    const { error: deleteError } = await adminCheck.supabase
+      .from("barberos")
+      .delete()
+      .eq("id", payload.id);
+
+    if (deleteError) {
+      throw deleteError;
+    }
+
+    return NextResponse.json({
+      success: true,
+      deletedBarberId: barber.id,
+      deletedAccessUserId
+    });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error: getReadableErrorMessage(
+          error,
+          "No fue posible eliminar el barbero."
         )
       },
       { status: 500 }

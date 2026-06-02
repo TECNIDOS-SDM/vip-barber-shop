@@ -547,11 +547,18 @@ export function AdminDashboard({
     }
 
     try {
-      const supabase = getSupabaseBrowserClient();
-      const { error } = await supabase.from("barberos").delete().eq("id", deleteTarget.id);
+      const response = await fetch("/api/barbers", {
+        method: "DELETE",
+        headers: await getAdminScheduleRequestHeaders(),
+        body: JSON.stringify({
+          id: deleteTarget.id
+        })
+      });
 
-      if (error) {
-        throw error;
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? "No fue posible eliminar.");
       }
 
       toast.success("Barbero eliminado.");
