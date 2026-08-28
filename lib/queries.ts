@@ -4,7 +4,6 @@ import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabasePublicClient } from "@/lib/supabase/public";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { cleanupExpiredReservations } from "@/lib/reservation-cleanup";
-import { getCurrentLaborDay } from "@/lib/labor/week";
 import type { Barber, ReservationSlot } from "@/types";
 
 async function fetchAdminBarbers(supabase: any) {
@@ -21,30 +20,6 @@ async function fetchAdminBarbers(supabase: any) {
     .from("barberos")
     .select("id, nombre, foto, whatsapp, telefono, auth_email, activo, created_at")
     .order("created_at", { ascending: true });
-}
-
-async function fetchCurrentWeekObservationCounts() {
-  const supabase = getSupabaseAdminClient();
-
-  if (!supabase) {
-    return {} as Record<string, number>;
-  }
-
-  const { data, error } = await (supabase.from("observaciones_laborales") as any)
-    .select("barbero_id")
-    .eq("semana_inicio", getCurrentLaborDay().weekStart);
-
-  if (error) {
-    return {} as Record<string, number>;
-  }
-
-  return (data ?? []).reduce((counts: Record<string, number>, observation: any) => {
-    if (observation.barbero_id) {
-      counts[observation.barbero_id] = Math.min(5, (counts[observation.barbero_id] ?? 0) + 1);
-    }
-
-    return counts;
-  }, {});
 }
 
 export async function getPublicBookingData() {
@@ -92,7 +67,6 @@ export async function getAdminDashboardData(existingSupabase?: SupabaseClient) {
       reservations: [] as any[],
       todayReservations: [] as any[],
       profiles: [] as any[],
-      observationCounts: {} as Record<string, number>,
       currentWeek: getCurrentWeek(),
       weeklyStats: {
         totalReservations: 0,
@@ -108,7 +82,7 @@ export async function getAdminDashboardData(existingSupabase?: SupabaseClient) {
   const today = week.find((item) => item.isToday)?.isoDate ?? week[0].isoDate;
   await cleanupExpiredReservations();
 
-  const [barbersResult, reservationsResult, profilesResult, observationCounts] =
+  const [barbersResult, reservationsResult, profilesResult] =
     await Promise.all([
       fetchAdminBarbers(supabase),
       supabase
@@ -122,8 +96,7 @@ export async function getAdminDashboardData(existingSupabase?: SupabaseClient) {
       supabase
         .from("perfiles_usuario")
         .select("user_id, rol, barbero_id, barberos(nombre)")
-        .order("created_at", { ascending: true }),
-      fetchCurrentWeekObservationCounts()
+        .order("created_at", { ascending: true })
     ]);
 
   const reservations = reservationsResult.data ?? [];
@@ -136,7 +109,6 @@ export async function getAdminDashboardData(existingSupabase?: SupabaseClient) {
     reservations,
     todayReservations,
     profiles: profilesResult.error ? [] : profilesResult.data ?? [],
-    observationCounts,
     currentWeek: week,
     weeklyStats: {
       totalReservations: reservations.length,
@@ -162,7 +134,6 @@ export async function getAdminDashboardShellData() {
       reservations: [] as any[],
       todayReservations: [] as any[],
       profiles: [] as any[],
-      observationCounts: {} as Record<string, number>,
       currentWeek: getCurrentWeek(),
       weeklyStats: {
         totalReservations: 0,
@@ -184,7 +155,6 @@ export async function getAdminDashboardShellData() {
     reservations: [] as any[],
     todayReservations: [] as any[],
     profiles: [] as any[],
-    observationCounts: await fetchCurrentWeekObservationCounts(),
     currentWeek: getCurrentWeek(),
     weeklyStats: {
       totalReservations: 0,

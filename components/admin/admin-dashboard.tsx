@@ -33,7 +33,6 @@ type DashboardProps = {
     reservations: any[];
     todayReservations: any[];
     profiles: any[];
-    observationCounts: Record<string, number>;
     currentWeek: {
       key: string;
       label: string;
@@ -191,7 +190,7 @@ export function AdminDashboard({
   const [barbers, setBarbers] = useState(initialData.barbers);
   const [reservations, setReservations] = useState(initialData.reservations);
   const [profiles, setProfiles] = useState(initialData.profiles);
-  const [observationCounts, setObservationCounts] = useState(initialData.observationCounts);
+  const [observationCounts, setObservationCounts] = useState<Record<string, number>>({});
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [barberForm, setBarberForm] = useState(emptyBarberForm);
@@ -241,6 +240,8 @@ export function AdminDashboard({
   const isRefreshingRef = useRef(false);
   const shouldRefreshAgainRef = useRef(false);
   const refreshTimeoutRef = useRef<number | null>(null);
+  const observationCountWeekStartRef = useRef(initialData.currentWeek[0]?.isoDate ?? "");
+  const loadedObservationCountsRef = useRef(new Set<string>());
 
   async function refreshData() {
     if (isRefreshingRef.current) {
@@ -262,7 +263,13 @@ export function AdminDashboard({
       setBarbers(payload.barbers ?? []);
       setReservations(payload.reservations ?? []);
       setProfiles(payload.profiles ?? []);
-      setObservationCounts(payload.observationCounts ?? {});
+      const nextWeekStart = payload.currentWeek?.[0]?.isoDate ?? "";
+      if (nextWeekStart && nextWeekStart !== observationCountWeekStartRef.current) {
+        observationCountWeekStartRef.current = nextWeekStart;
+        loadedObservationCountsRef.current.clear();
+        setObservationCounts({});
+      }
+
       setDashboardWeek(payload.currentWeek ?? []);
       setActiveBarberId((current) => {
         if (current && (payload.barbers ?? []).some((barber: any) => barber.id === current)) {
@@ -947,6 +954,48 @@ export function AdminDashboard({
   );
 
   useEffect(() => {
+    if (!activeBarber || activeBarberView === "list") {
+      return;
+    }
+
+    if (loadedObservationCountsRef.current.has(activeBarber.id)) {
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadObservationCount() {
+      try {
+        const response = await fetch(
+          `/api/admin/labor-observations?barbero_id=${encodeURIComponent(activeBarber.id)}`,
+          { cache: "no-store" }
+        );
+        const payload = await response.json();
+
+        if (!response.ok) {
+          throw new Error(payload.error ?? "No fue posible consultar las observaciones.");
+        }
+
+        if (!cancelled) {
+          setObservationCounts((current) => ({
+            ...current,
+            [activeBarber.id]: Math.min(5, payload.observationsCount ?? 0)
+          }));
+          loadedObservationCountsRef.current.add(activeBarber.id);
+        }
+      } catch {
+        // Preserve an already loaded value if this small secondary request fails.
+      }
+    }
+
+    void loadObservationCount();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeBarber, activeBarberView]);
+
+  useEffect(() => {
     if (activeBarberView !== "agenda" || !activeBarber) {
       return;
     }
@@ -1150,12 +1199,7 @@ export function AdminDashboard({
                           />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <div className="mb-2 flex items-start justify-between gap-3">
-                            <p className="font-semibold">{barber.nombre}</p>
-                            <span className="shrink-0 text-xs font-semibold text-sand/60">
-                              Observaciones {observationCounts[barber.id] ?? 0}
-                            </span>
-                          </div>
+                          <p className="mb-2 font-semibold">{barber.nombre}</p>
                           {barber.whatsapp ? (
                             <a
                               href={buildWhatsAppUrl(barber.whatsapp)}
@@ -1200,6 +1244,9 @@ export function AdminDashboard({
                     <h3 className="mt-2 text-2xl font-semibold text-sand">
                       {activeBarber.nombre}
                     </h3>
+                    <p className="mt-2 text-sm font-semibold text-sand/60">
+                      Observaciones {activeBarberObservationCount}
+                    </p>
                   </div>
                   <div className="flex flex-col gap-4 sm:flex-row">
                     {activeBarberView !== "perfil" ? (
