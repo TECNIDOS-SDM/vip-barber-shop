@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Clock3 } from "lucide-react";
+import { ChevronDown, Clock3 } from "lucide-react";
 import { toast } from "sonner";
 import { formatHourDisplay, getCurrentWeek } from "@/lib/date";
 import { formatLaborPenalty, formatLaborTimestamp } from "@/lib/labor/week";
@@ -17,36 +17,47 @@ export function BarberTodaySchedule() {
   const [notifications, setNotifications] = useState<LaborNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [isLaborOpen, setIsLaborOpen] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [marking, setMarking] = useState<"check_in" | "check_out" | null>(null);
 
   useEffect(() => {
     let active = true;
 
+    async function loadNotificationsSummary() {
+      const response = await fetch("/api/barber/labor-notifications?summary=count", {
+        cache: "no-store"
+      });
+      if (!response.ok || !active) {
+        return;
+      }
+
+      const payload = (await response.json()) as { unreadCount: number };
+      setUnreadCount(payload.unreadCount ?? 0);
+    }
+
+    void loadNotificationsSummary();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isLaborOpen || loaded) {
+      return;
+    }
+
+    let active = true;
+
     async function loadSchedule() {
       try {
-        const [response, notificationsResponse] = await Promise.all([
-          fetch("/api/barber/labor-schedule", { cache: "no-store" }),
-          fetch("/api/barber/labor-notifications?summary=count", { cache: "no-store" })
-        ]);
-
-        if (!response.ok) {
+        const response = await fetch("/api/barber/labor-schedule", { cache: "no-store" });
+        if (!response.ok || !active) {
           return;
         }
 
-        const payload = (await response.json()) as LaborTodayResponse;
-        const notificationsPayload = notificationsResponse.ok
-          ? ((await notificationsResponse.json()) as {
-              notifications: LaborNotification[];
-              unreadCount: number;
-            })
-          : null;
-
-        if (active) {
-          setData(payload);
-          setNotifications([]);
-          setUnreadCount(notificationsPayload?.unreadCount ?? 0);
-        }
+        setData((await response.json()) as LaborTodayResponse);
       } finally {
         if (active) {
           setLoaded(true);
@@ -59,7 +70,7 @@ export function BarberTodaySchedule() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [isLaborOpen, loaded]);
 
   const schedule = data?.schedule;
   const attendance = data?.attendance;
@@ -172,20 +183,38 @@ export function BarberTodaySchedule() {
   }
 
   return (
-    <section className="mt-8 glass rounded-[2rem] p-6">
-      <div className="flex items-center gap-2">
-        <Clock3 className="h-5 w-5 text-accent" />
-        <h2 className="text-xl font-semibold">Horario de hoy</h2>
-      </div>
-      {!loaded ? <div className="mt-4 h-5 w-48 rounded bg-white/5" /> : null}
-      {loaded && !schedule ? (
-        <p className="mt-4 text-sm text-sand/65">No tienes horario configurado para hoy.</p>
-      ) : null}
-      {loaded && schedule && !schedule.trabaja ? (
-        <p className="mt-4 text-sm text-sand/65">Hoy no tienes jornada programada.</p>
-      ) : null}
-      {loaded && schedule?.trabaja ? (
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+    <>
+      <section className="mt-8 glass rounded-[2rem] p-4 sm:p-6">
+        <button
+          type="button"
+          onClick={() => setIsLaborOpen((current) => !current)}
+          aria-expanded={isLaborOpen}
+          aria-controls="barber-labor-details"
+          className="flex w-full items-center justify-between gap-4 rounded-2xl px-2 py-2 text-left transition hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        >
+          <span className="flex items-center gap-2">
+            <Clock3 className="h-5 w-5 shrink-0 text-accent" />
+            <span className="text-xl font-semibold">Horario laboral</span>
+          </span>
+          <ChevronDown
+            className={`h-5 w-5 shrink-0 text-accent transition-transform ${
+              isLaborOpen ? "rotate-180" : ""
+            }`}
+            aria-hidden="true"
+          />
+        </button>
+
+        {isLaborOpen ? (
+          <div id="barber-labor-details" className="pt-4">
+            {!loaded ? <div className="h-5 w-48 rounded bg-white/5" /> : null}
+            {loaded && !schedule ? (
+              <p className="text-sm text-sand/65">No tienes horario configurado para hoy.</p>
+            ) : null}
+            {loaded && schedule && !schedule.trabaja ? (
+              <p className="text-sm text-sand/65">Hoy no tienes jornada programada.</p>
+            ) : null}
+            {loaded && schedule?.trabaja ? (
+              <div className="grid gap-3 sm:grid-cols-2">
           <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sand/55">Entrada programada</p>
             <p className="mt-1 font-semibold text-sand">
@@ -233,79 +262,85 @@ export function BarberTodaySchedule() {
               {marking === "check_out" ? "Registrando..." : "Marcar salida"}
             </button>
           ) : null}
-        </div>
-      ) : null}
-      {loaded && data ? (
-        <div className="mt-4 space-y-3">
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-sand">
-              Observaciones {data.observationsCount}
-            </div>
-            <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-sand">
-              Debe: {formatLaborPenalty(data.weeklyPenaltyTotal)}
-            </div>
-            <button
-              type="button"
-              onClick={() => void openNotifications()}
-              className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-left text-sm font-semibold text-sand transition hover:border-accent/40"
-            >
-              Notificaciones {unreadCount}
-            </button>
-          </div>
-          {data.observationsPenalty ? (
-            <div className="rounded-2xl border border-amber-300/30 bg-amber-300/10 px-4 py-3 text-sm font-semibold text-sand">
-              Penalidad por 5 observaciones: {formatLaborPenalty(data.observationsPenalty.valor)}
-            </div>
-          ) : null}
-          {showNotifications ? (
-            <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sand/55">
-                Notificaciones de la semana
-              </p>
-              <div className="mt-3 space-y-3">
-                {notifications.length ? (
-                  notifications.map((notification) => (
-                    <div
-                      key={notification.id}
-                      className="rounded-xl border border-white/10 bg-black/15 px-3 py-3 text-sm text-sand/75"
-                    >
-                      <p className="font-semibold text-sand">{notification.titulo}</p>
-                      <p className="mt-1">{notification.mensaje}</p>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-sm text-sand/65">No tienes notificaciones esta semana.</p>
-                )}
               </div>
-            </div>
-          ) : null}
-        </div>
-      ) : null}
-      {loaded && data ? (
-        <div className="mt-6">
-          <h3 className="text-lg font-semibold text-sand">Asistencia de la semana</h3>
-          <div className="mt-3 grid gap-2 sm:grid-cols-2">
-            {weeklyDays.map((day) => {
-              const dayAttendance = weeklyAttendanceByDate.get(day.isoDate);
-
-              return (
-                <div
-                  key={day.isoDate}
-                  className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm"
-                >
-                  <p className="font-semibold text-sand">{day.label}</p>
-                  <p className="mt-1 text-sand/70">
-                    Entrada: {dayAttendance?.hora_entrada_real ? formatLaborTimestamp(dayAttendance.hora_entrada_real) : "—"}
-                  </p>
-                  <p className="text-sand/70">
-                    Salida: {dayAttendance?.hora_salida_real ? formatLaborTimestamp(dayAttendance.hora_salida_real) : "—"}
-                  </p>
+            ) : null}
+            {loaded && data ? (
+              <div className="mt-4 space-y-3">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-sand">
+                    Observaciones {data.observationsCount}
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-sand">
+                    Debe: {formatLaborPenalty(data.weeklyPenaltyTotal)}
+                  </div>
                 </div>
-              );
-            })}
+                {data.observationsPenalty ? (
+                  <div className="rounded-2xl border border-amber-300/30 bg-amber-300/10 px-4 py-3 text-sm font-semibold text-sand">
+                    Penalidad por 5 observaciones: {formatLaborPenalty(data.observationsPenalty.valor)}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+            {loaded && data ? (
+              <div className="mt-6">
+                <h3 className="text-lg font-semibold text-sand">Asistencia de la semana</h3>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  {weeklyDays.map((day) => {
+                    const dayAttendance = weeklyAttendanceByDate.get(day.isoDate);
+
+                    return (
+                      <div
+                        key={day.isoDate}
+                        className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm"
+                      >
+                        <p className="font-semibold text-sand">{day.label}</p>
+                        <p className="mt-1 text-sand/70">
+                          Entrada: {dayAttendance?.hora_entrada_real ? formatLaborTimestamp(dayAttendance.hora_entrada_real) : "—"}
+                        </p>
+                        <p className="text-sand/70">
+                          Salida: {dayAttendance?.hora_salida_real ? formatLaborTimestamp(dayAttendance.hora_salida_real) : "—"}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
           </div>
-        </div>
-      ) : null}
-    </section>
+        ) : null}
+      </section>
+
+      <section className="mt-4 glass rounded-[2rem] p-4 sm:p-6">
+        <button
+          type="button"
+          onClick={() => void openNotifications()}
+          className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-left text-sm font-semibold text-sand transition hover:border-accent/40"
+        >
+          Notificaciones {unreadCount}
+        </button>
+        {showNotifications ? (
+          <div className="mt-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sand/55">
+              Notificaciones de la semana
+            </p>
+            <div className="mt-3 space-y-3">
+              {notifications.length ? (
+                notifications.map((notification) => (
+                  <div
+                    key={notification.id}
+                    className="rounded-xl border border-white/10 bg-black/15 px-3 py-3 text-sm text-sand/75"
+                  >
+                    <p className="font-semibold text-sand">{notification.titulo}</p>
+                    <p className="mt-1">{notification.mensaje}</p>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-sand/65">No tienes notificaciones esta semana.</p>
+              )}
+            </div>
+          </div>
+        ) : null}
+      </section>
+    </>
   );
 }
