@@ -33,6 +33,7 @@ type DashboardProps = {
     reservations: any[];
     todayReservations: any[];
     profiles: any[];
+    observationCounts: Record<string, number>;
     currentWeek: {
       key: string;
       label: string;
@@ -190,6 +191,7 @@ export function AdminDashboard({
   const [barbers, setBarbers] = useState(initialData.barbers);
   const [reservations, setReservations] = useState(initialData.reservations);
   const [profiles, setProfiles] = useState(initialData.profiles);
+  const [observationCounts, setObservationCounts] = useState(initialData.observationCounts);
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [barberForm, setBarberForm] = useState(emptyBarberForm);
@@ -233,6 +235,9 @@ export function AdminDashboard({
   const [isAddingMoreReleaseHours, setIsAddingMoreReleaseHours] = useState(false);
   const [originalBarberPhotoUrl, setOriginalBarberPhotoUrl] = useState("");
   const [uploadedPhotoPath, setUploadedPhotoPath] = useState<string | null>(null);
+  const [showAgendaObservationModal, setShowAgendaObservationModal] = useState(false);
+  const [agendaObservationJustification, setAgendaObservationJustification] = useState("");
+  const [savingAgendaObservation, setSavingAgendaObservation] = useState(false);
   const isRefreshingRef = useRef(false);
   const shouldRefreshAgainRef = useRef(false);
   const refreshTimeoutRef = useRef<number | null>(null);
@@ -257,6 +262,7 @@ export function AdminDashboard({
       setBarbers(payload.barbers ?? []);
       setReservations(payload.reservations ?? []);
       setProfiles(payload.profiles ?? []);
+      setObservationCounts(payload.observationCounts ?? {});
       setDashboardWeek(payload.currentWeek ?? []);
       setActiveBarberId((current) => {
         if (current && (payload.barbers ?? []).some((barber: any) => barber.id === current)) {
@@ -828,6 +834,8 @@ export function AdminDashboard({
       setSelectedReleaseReservations([]);
       setSelectedHours([]);
       setFullDayBlock(false);
+      setShowAgendaObservationModal(false);
+      setAgendaObservationJustification("");
     }
   }
 
@@ -1019,6 +1027,62 @@ export function AdminDashboard({
     );
   }
 
+  const activeBarberObservationCount = activeBarber
+    ? observationCounts[activeBarber.id] ?? 0
+    : 0;
+
+  function closeAgendaObservationModal() {
+    setShowAgendaObservationModal(false);
+    setAgendaObservationJustification("");
+  }
+
+  async function saveAgendaObservation() {
+    if (!activeBarber || !scheduleForm.fecha) {
+      return;
+    }
+
+    const justificacion = agendaObservationJustification.trim();
+
+    if (justificacion.length < 3) {
+      toast.error("La justificacion debe tener al menos 3 caracteres.");
+      return;
+    }
+
+    if (!window.confirm(`¿Agregar este punto negativo a ${activeBarber.nombre}?\n\n${justificacion}`)) {
+      return;
+    }
+
+    setSavingAgendaObservation(true);
+
+    try {
+      const response = await fetch("/api/admin/labor-observations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          barbero_id: activeBarber.id,
+          fecha: scheduleForm.fecha,
+          justificacion
+        })
+      });
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? "No fue posible agregar el punto negativo.");
+      }
+
+      setObservationCounts((current) => ({
+        ...current,
+        [activeBarber.id]: Math.min(5, payload.observationsCount ?? activeBarberObservationCount)
+      }));
+      closeAgendaObservationModal();
+      toast.success("Punto negativo agregado.");
+    } catch (error) {
+      toast.error(getUiErrorMessage(error, "No fue posible agregar el punto negativo."));
+    } finally {
+      setSavingAgendaObservation(false);
+    }
+  }
+
   const isScheduleActionModalOpen = Boolean(
     showScheduleActionModal &&
     activeBarber &&
@@ -1088,6 +1152,9 @@ export function AdminDashboard({
                         <div className="min-w-0 flex-1">
                           <div className="mb-2 flex items-start justify-between gap-3">
                             <p className="font-semibold">{barber.nombre}</p>
+                            <span className="shrink-0 text-xs font-semibold text-sand/60">
+                              Observaciones {observationCounts[barber.id] ?? 0}
+                            </span>
                           </div>
                           {barber.whatsapp ? (
                             <a
@@ -1467,6 +1534,21 @@ export function AdminDashboard({
                                 })}
                               </div>
                             ))}
+                          </div>
+                          <div className="mt-4">
+                            {activeBarberObservationCount < 5 ? (
+                              <button
+                                type="button"
+                                onClick={() => setShowAgendaObservationModal(true)}
+                                className="w-full rounded-2xl border border-accent/40 px-4 py-3 text-sm font-semibold text-accent transition hover:bg-accent/10"
+                              >
+                                Punto negativo
+                              </button>
+                            ) : (
+                              <p className="rounded-2xl border border-amber-300/30 bg-amber-300/10 px-4 py-3 text-sm font-semibold text-amber-200">
+                                Limite semanal alcanzado
+                              </p>
+                            )}
                           </div>
                         </div>
                       ) : (
@@ -2036,6 +2118,60 @@ export function AdminDashboard({
                   className="rounded-2xl bg-accent px-4 py-4 text-sm font-bold uppercase tracking-[0.16em] text-ink disabled:opacity-60"
                 >
                   Guardar accion
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {showAgendaObservationModal && activeBarber && scheduleForm.fecha ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
+          <div className="w-full max-w-lg rounded-[2rem] border border-white/10 bg-[#120f0b] p-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent/80">
+                  Punto negativo
+                </p>
+                <h3 className="mt-2 text-2xl font-semibold text-sand">{activeBarber.nombre}</h3>
+                <p className="mt-2 text-sm text-sand/70">
+                  {dashboardWeek.find((day) => day.isoDate === scheduleForm.fecha)?.label ?? "Dia seleccionado"}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={closeAgendaObservationModal}
+                className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-sand/80"
+              >
+                Cerrar
+              </button>
+            </div>
+            <div className="mt-5 space-y-3">
+              <label className="block space-y-2 text-sm text-sand/70">
+                <span>Justificacion</span>
+                <textarea
+                  value={agendaObservationJustification}
+                  maxLength={500}
+                  rows={3}
+                  onChange={(event) => setAgendaObservationJustification(event.target.value)}
+                  className="w-full resize-y rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sand outline-none"
+                />
+              </label>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={closeAgendaObservationModal}
+                  className="flex-1 rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-sand/80"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  disabled={savingAgendaObservation}
+                  onClick={() => void saveAgendaObservation()}
+                  className="flex-1 rounded-2xl bg-accent px-4 py-3 text-sm font-bold text-ink disabled:opacity-60"
+                >
+                  {savingAgendaObservation ? "Guardando..." : "Confirmar punto negativo"}
                 </button>
               </div>
             </div>

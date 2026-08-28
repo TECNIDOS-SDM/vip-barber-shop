@@ -64,16 +64,12 @@ export function AdminLaborSchedules({
   const [form, setForm] = useState<ScheduleForm>(emptyScheduleForm);
   const [attendance, setAttendance] = useState<LaborAttendance | null>(null);
   const [penalty, setPenalty] = useState<LaborPenalty | null>(null);
-  const [selectedDate, setSelectedDate] = useState("");
   const [observations, setObservations] = useState<LaborObservation[]>([]);
   const [observationsCount, setObservationsCount] = useState(0);
   const [observationsPenalty, setObservationsPenalty] = useState<LaborPenalty | null>(null);
   const [configuration, setConfiguration] = useState<LaborConfiguration | null>(null);
   const [penaltyValue, setPenaltyValue] = useState("10000");
   const [showPenaltyEditor, setShowPenaltyEditor] = useState(false);
-  const [showObservationForm, setShowObservationForm] = useState(false);
-  const [justification, setJustification] = useState("");
-  const [savingObservation, setSavingObservation] = useState(false);
   const [savingConfiguration, setSavingConfiguration] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -146,7 +142,6 @@ export function AdminLaborSchedules({
       setForm(toScheduleForm(payload.schedule ?? null));
       setAttendance(payload.attendance ?? null);
       setPenalty(payload.penalty ?? null);
-      setSelectedDate(payload.date ?? "");
       await loadObservations(selectedBarber.id, payload.date);
       setView("editor");
     } catch (error) {
@@ -167,57 +162,6 @@ export function AdminLaborSchedules({
       await loadObservations(barber.id);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "No fue posible cargar las observaciones.");
-    }
-  }
-
-  async function addObservation() {
-    if (!selectedBarber || !selectedDate) {
-      return;
-    }
-
-    const cleanJustification = justification.trim();
-
-    if (cleanJustification.length < 3) {
-      toast.error("La justificacion debe tener al menos 3 caracteres.");
-      return;
-    }
-
-    if (!window.confirm(`¿Agregar este punto negativo a ${selectedBarber.nombre}?\n\n${cleanJustification}`)) {
-      return;
-    }
-
-    setSavingObservation(true);
-
-    try {
-      const response = await fetch("/api/admin/labor-observations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          barbero_id: selectedBarber.id,
-          fecha: selectedDate,
-          justificacion: cleanJustification
-        })
-      });
-      const payload = await response.json();
-
-      if (!response.ok) {
-        throw new Error(payload.error ?? "No fue posible agregar el punto negativo.");
-      }
-
-      setObservations((current) => [...current, payload.observation as LaborObservation]);
-      setObservationsCount(payload.observationsCount ?? 0);
-      setObservationsPenalty(
-        (payload.observationsPenalty as LaborPenalty | null | undefined) ?? observationsPenalty
-      );
-      setJustification("");
-      setShowObservationForm(false);
-      toast.success("Punto negativo agregado.");
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "No fue posible agregar el punto negativo."
-      );
-    } finally {
-      setSavingObservation(false);
     }
   }
 
@@ -394,17 +338,11 @@ export function AdminLaborSchedules({
     return (
       <div className="rounded-[1.75rem] border border-accent/20 bg-black/10 p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <div>
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent/80">
               Horarios de
             </p>
-            <h2 className="text-xl font-semibold text-sand">{selectedBarber.nombre}</h2>
-            <p className="text-sm font-semibold text-sand/75">
-              Observaciones {observationsCount}
-            </p>
-            {observationsCount >= 5 ? (
-              <p className="mt-1 text-sm font-semibold text-amber-200">Limite semanal alcanzado</p>
-            ) : null}
+            <h2 className="mt-2 text-xl font-semibold text-sand">{selectedBarber.nombre}</h2>
           </div>
           <button
             type="button"
@@ -557,7 +495,6 @@ export function AdminLaborSchedules({
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sand/55">
                 Observaciones
               </p>
-              <p className="mt-2 font-semibold text-sand">Observaciones {observationsCount}</p>
             </div>
             {observationsCount >= 5 ? (
               <p className="text-sm font-semibold text-amber-200">Limite semanal alcanzado</p>
@@ -581,40 +518,6 @@ export function AdminLaborSchedules({
             </p>
           ) : null}
         </div>
-
-        {observationsCount < 5 ? (
-          <div className="space-y-3">
-            <button
-              type="button"
-              onClick={() => setShowObservationForm((current) => !current)}
-              className="w-full rounded-xl border border-accent/40 px-3 py-3 text-sm font-semibold text-accent"
-            >
-              Punto negativo
-            </button>
-            {showObservationForm ? (
-              <div className="space-y-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-                <label className="block space-y-2 text-sm text-sand/70">
-                  <span>Justificacion</span>
-                  <textarea
-                    value={justification}
-                    maxLength={500}
-                    rows={3}
-                    onChange={(event) => setJustification(event.target.value)}
-                    className="w-full resize-y rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sand outline-none"
-                  />
-                </label>
-                <button
-                  type="button"
-                  onClick={() => void addObservation()}
-                  disabled={savingObservation}
-                  className="rounded-xl bg-accent px-4 py-2 text-sm font-bold text-ink disabled:opacity-60"
-                >
-                  {savingObservation ? "Guardando..." : "Confirmar punto negativo"}
-                </button>
-              </div>
-            ) : null}
-          </div>
-        ) : null}
 
         <button
           type="button"
