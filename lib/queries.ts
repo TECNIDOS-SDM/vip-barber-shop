@@ -1,7 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getCurrentWeek } from "@/lib/date";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
-import { getSupabasePublicClient } from "@/lib/supabase/public";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { cleanupExpiredReservations } from "@/lib/reservation-cleanup";
 import type { Barber, ReservationSlot } from "@/types";
@@ -23,7 +22,9 @@ async function fetchAdminBarbers(supabase: any) {
 }
 
 export async function getPublicBookingData() {
-  const supabase = getSupabasePublicClient();
+  // Public data is assembled on the server so anonymous clients never need
+  // direct access to barber account fields protected by RLS.
+  const supabase = getSupabaseAdminClient();
 
   if (!supabase) {
     return {
