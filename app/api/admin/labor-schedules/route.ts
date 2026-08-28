@@ -48,13 +48,10 @@ const scheduleSchema = z
     }
   });
 
-async function hasAdministratorRole(userId: string) {
-  const adminSupabase = getSupabaseAdminClient();
-
-  if (!adminSupabase) {
-    return false;
-  }
-
+async function hasAdministratorRole(
+  adminSupabase: NonNullable<ReturnType<typeof getSupabaseAdminClient>>,
+  userId: string
+) {
   const [profileResult, administratorResult] = await Promise.all([
     adminSupabase
       .from("perfiles_usuario")
@@ -90,11 +87,17 @@ async function requireAdmin() {
     return { error: NextResponse.json({ error: "No autorizado." }, { status: 401 }) };
   }
 
-  if (!(await hasAdministratorRole(user.id))) {
+  const adminSupabase = getSupabaseAdminClient();
+
+  if (!adminSupabase) {
+    return { error: NextResponse.json({ error: "Supabase no configurado." }, { status: 500 }) };
+  }
+
+  if (!(await hasAdministratorRole(adminSupabase, user.id))) {
     return { error: NextResponse.json({ error: "No autorizado." }, { status: 403 }) };
   }
 
-  return { supabase };
+  return { supabase: adminSupabase as any };
 }
 
 export async function GET(request: Request) {

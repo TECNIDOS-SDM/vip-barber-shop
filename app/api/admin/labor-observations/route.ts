@@ -19,13 +19,10 @@ const configurationSchema = z.object({
   valor_penalidad: z.coerce.number().int().min(0).max(1000000)
 });
 
-async function hasAdministratorRole(userId: string) {
-  const adminSupabase = getSupabaseAdminClient();
-
-  if (!adminSupabase) {
-    return false;
-  }
-
+async function hasAdministratorRole(
+  adminSupabase: NonNullable<ReturnType<typeof getSupabaseAdminClient>>,
+  userId: string
+) {
   const [profileResult, administratorResult] = await Promise.all([
     adminSupabase
       .from("perfiles_usuario")
@@ -61,11 +58,17 @@ async function requireAdmin() {
     return { error: NextResponse.json({ error: "No autorizado." }, { status: 401 }) };
   }
 
-  if (!(await hasAdministratorRole(user.id))) {
+  const adminSupabase = getSupabaseAdminClient();
+
+  if (!adminSupabase) {
+    return { error: NextResponse.json({ error: "Supabase no configurado." }, { status: 500 }) };
+  }
+
+  if (!(await hasAdministratorRole(adminSupabase, user.id))) {
     return { error: NextResponse.json({ error: "No autorizado." }, { status: 403 }) };
   }
 
-  return { supabase, userId: user.id };
+  return { supabase: adminSupabase as any, userId: user.id };
 }
 
 function isDateInCurrentWeek(date: string) {
