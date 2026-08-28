@@ -5,8 +5,9 @@ import { ArrowLeft, Clock3, Save } from "lucide-react";
 import { toast } from "sonner";
 import { WEEK_DAYS } from "@/lib/constants";
 import { formatHourDisplay } from "@/lib/date";
+import { formatLaborTimestamp } from "@/lib/labor/week";
 import { cn } from "@/lib/utils";
-import type { LaborDayOfWeek, LaborSchedule } from "@/types/labor";
+import type { LaborAttendance, LaborDayOfWeek, LaborSchedule } from "@/types/labor";
 
 type LaborBarber = {
   id: string;
@@ -50,6 +51,7 @@ export function AdminLaborSchedules({
   const [selectedBarber, setSelectedBarber] = useState<LaborBarber | null>(null);
   const [selectedDay, setSelectedDay] = useState<LaborDayOfWeek | null>(null);
   const [form, setForm] = useState<ScheduleForm>(emptyScheduleForm);
+  const [attendance, setAttendance] = useState<LaborAttendance | null>(null);
   const [saving, setSaving] = useState(false);
 
   async function openDay(day: LaborDayOfWeek) {
@@ -70,6 +72,7 @@ export function AdminLaborSchedules({
 
       setSelectedDay(day);
       setForm(toScheduleForm(payload.schedule ?? null));
+      setAttendance(payload.attendance ?? null);
       setView("editor");
     } catch (error) {
       toast.error(
@@ -282,6 +285,30 @@ export function AdminLaborSchedules({
         ) : (
           <p className="text-sm text-sand/65">No tiene jornada programada este dia.</p>
         )}
+
+        <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sand/55">
+            Asistencia real
+          </p>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <div>
+              <p className="text-sm text-sand/60">Llegada</p>
+              <p className="mt-1 font-semibold text-sand">
+                {attendance?.hora_entrada_real
+                  ? formatLaborTimestamp(attendance.hora_entrada_real)
+                  : "—"}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-sand/60">Salida</p>
+              <p className="mt-1 font-semibold text-sand">
+                {attendance?.hora_salida_real
+                  ? formatLaborTimestamp(attendance.hora_salida_real)
+                  : "—"}
+              </p>
+            </div>
+          </div>
+        </div>
 
         <button
           type="button"

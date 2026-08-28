@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getCurrentUserRole } from "@/lib/auth";
+import {
+  cleanupPreviousLaborAttendance,
+  laborAttendanceColumns
+} from "@/lib/labor/attendance";
+import { getLaborDateForDay } from "@/lib/labor/week";
+import type { LaborDayOfWeek } from "@/types/labor";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
 const timeSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
@@ -85,6 +91,15 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Dia invalido." }, { status: 400 });
   }
 
+  try {
+    await cleanupPreviousLaborAttendance();
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "No fue posible actualizar la asistencia." },
+      { status: 500 }
+    );
+  }
+
   const { data, error } = await access.supabase
     .from("horarios_laborales_barberos")
     .select("id, barbero_id, dia_semana, hora_entrada, hora_salida, trabaja, created_at, updated_at")
@@ -96,7 +111,19 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
-  return NextResponse.json({ schedule: data ?? null });
+  const date = getLaborDateForDay(parsedDay.data as LaborDayOfWeek);
+  const { data: attendance, error: attendanceError } = await access.supabase
+    .from("asistencias_laborales")
+    .select(laborAttendanceColumns)
+    .eq("barbero_id", parsedBarberId.data)
+    .eq("fecha", date)
+    .maybeSingle();
+
+  if (attendanceError) {
+    return NextResponse.json({ error: attendanceError.message }, { status: 400 });
+  }
+
+  return NextResponse.json({ schedule: data ?? null, attendance: attendance ?? null, date });
 }
 
 export async function POST(request: Request) {

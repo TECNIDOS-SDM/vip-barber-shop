@@ -19,8 +19,20 @@ export type LaborScheduleInput = {
   trabaja: boolean;
 };
 
+export type LaborAttendance = {
+  id: string;
+  barbero_id: string;
+  fecha: string;
+  semana_inicio: string;
+  hora_entrada_real: string | null;
+  hora_salida_real: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type LaborTodayResponse = {
   dayOfWeek: LaborDayOfWeek;
   date: string;
   schedule: LaborSchedule | null;
+  attendance: LaborAttendance | null;
 };
