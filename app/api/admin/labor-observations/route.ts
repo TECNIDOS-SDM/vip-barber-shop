@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getCurrentUserRole } from "@/lib/auth";
 import {
   cleanupPreviousLaborAttendance,
   laborObservationColumns,
@@ -20,34 +19,31 @@ const configurationSchema = z.object({
   valor_penalidad: z.coerce.number().int().min(0).max(1000000)
 });
 
-async function hasAdministratorRole(userId: string, role: string | null) {
-  if (role === "administrador") {
-    return true;
-  }
-
+async function hasAdministratorRole(userId: string) {
   const adminSupabase = getSupabaseAdminClient();
 
   if (!adminSupabase) {
     return false;
   }
 
-  const { data: profile } = await adminSupabase
-    .from("perfiles_usuario")
-    .select("rol")
-    .eq("user_id", userId)
-    .maybeSingle();
+  const [profileResult, administratorResult] = await Promise.all([
+    adminSupabase
+      .from("perfiles_usuario")
+      .select("rol")
+      .eq("user_id", userId)
+      .maybeSingle(),
+    adminSupabase
+      .from("administradores")
+      .select("id")
+      .eq("id", userId)
+      .maybeSingle()
+  ]);
 
-  if ((profile as { rol?: string } | null)?.rol === "administrador") {
+  if ((profileResult.data as { rol?: string } | null)?.rol === "administrador") {
     return true;
   }
 
-  const { data: administrator } = await adminSupabase
-    .from("administradores")
-    .select("id")
-    .eq("id", userId)
-    .maybeSingle();
-
-  return Boolean(administrator);
+  return Boolean(administratorResult.data);
 }
 
 async function requireAdmin() {
@@ -65,9 +61,7 @@ async function requireAdmin() {
     return { error: NextResponse.json({ error: "No autorizado." }, { status: 401 }) };
   }
 
-  const { role } = await getCurrentUserRole(supabase, user);
-
-  if (!(await hasAdministratorRole(user.id, role))) {
+  if (!(await hasAdministratorRole(user.id))) {
     return { error: NextResponse.json({ error: "No autorizado." }, { status: 403 }) };
   }
 
