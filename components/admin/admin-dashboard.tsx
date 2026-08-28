@@ -14,6 +14,7 @@ import { formatHourDisplay } from "@/lib/date";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { SignOutButton } from "@/components/shared/sign-out-button";
 import { Logo } from "@/components/shared/logo";
+import { AdminLaborSchedules } from "@/components/labor/admin-labor-schedules";
 import { cn } from "@/lib/utils";
 import { buildWhatsAppUrl } from "@/lib/whatsapp";
 type DashboardProps = {
@@ -215,6 +216,7 @@ export function AdminDashboard({
       ? initialViewState.activeBarberView
       : "list"
   );
+  const [showLaborSchedules, setShowLaborSchedules] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
   const [showProfileEditModal, setShowProfileEditModal] = useState(false);
   const [selectedReleaseReservations, setSelectedReleaseReservations] = useState<any[]>([]);
@@ -1034,7 +1036,21 @@ export function AdminDashboard({
         <div className="space-y-8">
           <section className="glass rounded-[2rem] p-6">
             {activeBarberView === "list" || !activeBarber ? (
+              showLaborSchedules ? (
+                <AdminLaborSchedules
+                  barbers={barbers}
+                  onClose={() => setShowLaborSchedules(false)}
+                />
+              ) : (
               <>
+                <button
+                  type="button"
+                  onClick={() => setShowLaborSchedules(true)}
+                  className="mb-5 inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-sand/80 transition hover:border-accent/40 hover:text-accent"
+                >
+                  <Clock3 className="h-4 w-4 text-accent" />
+                  Horarios
+                </button>
                 <div className="grid gap-4 md:grid-cols-2">
                   {barbers.map((barber) => (
                     <button
@@ -1097,6 +1113,7 @@ export function AdminDashboard({
                   </div>
                 ) : null}
               </>
+              )
             ) : (
               <div className="mt-5 rounded-[1.75rem] border border-accent/20 bg-black/10 p-5">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

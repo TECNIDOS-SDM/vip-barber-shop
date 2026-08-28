@@ -7,6 +7,7 @@ import { formatHourDisplay } from "@/lib/date";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/shared/logo";
 import { SignOutButton } from "@/components/shared/sign-out-button";
+import { BarberTodaySchedule } from "@/components/labor/barber-today-schedule";
 import {
   BARBER_DASHBOARD_VIEW_COOKIE,
   type BarberDashboardViewState
@@ -261,6 +262,8 @@ export function BarberDashboard({
           </div>
         </div>
       </section>
+
+      <BarberTodaySchedule />
 
       <section className="mt-8">
         <div className="glass rounded-[2rem] p-6">
