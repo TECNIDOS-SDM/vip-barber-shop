@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getCurrentWeek } from "@/lib/date";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getSupabasePublicClient } from "@/lib/supabase/public";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { cleanupExpiredReservations } from "@/lib/reservation-cleanup";
 import type { Barber, ReservationSlot } from "@/types";
