@@ -4,11 +4,7 @@ import { useEffect, useState } from "react";
 import { Clock3 } from "lucide-react";
 import { toast } from "sonner";
 import { formatHourDisplay } from "@/lib/date";
-import {
-  formatLaborDate,
-  formatLaborPenalty,
-  formatLaborTimestamp
-} from "@/lib/labor/week";
+import { formatLaborPenalty, formatLaborTimestamp } from "@/lib/labor/week";
 import type {
   LaborAttendance,
   LaborNotification,
@@ -21,7 +17,6 @@ export function BarberTodaySchedule() {
   const [notifications, setNotifications] = useState<LaborNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [markingNotificationId, setMarkingNotificationId] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [marking, setMarking] = useState<"check_in" | "check_out" | null>(null);
 
@@ -142,42 +137,6 @@ export function BarberTodaySchedule() {
     }
   }
 
-  async function markNotificationAsRead(notificationId: string) {
-    setMarkingNotificationId(notificationId);
-
-    try {
-      const response = await fetch("/api/barber/labor-notifications", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: notificationId })
-      });
-      const payload = await response.json();
-
-      if (!response.ok) {
-        throw new Error(payload.error ?? "No fue posible actualizar la notificacion.");
-      }
-
-      setNotifications((current) =>
-        current.map((notification) =>
-          notification.id === notificationId
-            ? (payload.notification as LaborNotification)
-            : notification
-        )
-      );
-      setUnreadCount((current) =>
-        notifications.find((notification) => notification.id === notificationId && !notification.leida)
-          ? Math.max(0, current - 1)
-          : current
-      );
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "No fue posible actualizar la notificacion."
-      );
-    } finally {
-      setMarkingNotificationId(null);
-    }
-  }
-
   return (
     <section className="mt-8 glass rounded-[2rem] p-6">
       <div className="flex items-center gap-2">
@@ -261,20 +220,6 @@ export function BarberTodaySchedule() {
               Penalidad por 5 observaciones: {formatLaborPenalty(data.observationsPenalty.valor)}
             </div>
           ) : null}
-          {data.observations.length ? (
-            <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-sand/75">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sand/55">
-                Observaciones de la semana
-              </p>
-              <div className="mt-3 space-y-2">
-                {data.observations.map((observation) => (
-                  <p key={observation.id}>
-                    {formatLaborDate(observation.fecha)} - {observation.justificacion}
-                  </p>
-                ))}
-              </div>
-            </div>
-          ) : null}
           {showNotifications ? (
             <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sand/55">
@@ -289,18 +234,6 @@ export function BarberTodaySchedule() {
                     >
                       <p className="font-semibold text-sand">{notification.titulo}</p>
                       <p className="mt-1">{notification.mensaje}</p>
-                      {!notification.leida ? (
-                        <button
-                          type="button"
-                          onClick={() => void markNotificationAsRead(notification.id)}
-                          disabled={markingNotificationId === notification.id}
-                          className="mt-3 rounded-lg border border-accent/40 px-3 py-1.5 text-xs font-semibold text-accent disabled:opacity-60"
-                        >
-                          {markingNotificationId === notification.id ? "Actualizando..." : "Marcar como leida"}
-                        </button>
-                      ) : (
-                        <p className="mt-3 text-xs font-semibold text-sand/45">Leida</p>
-                      )}
                     </div>
                   ))
                 ) : (
