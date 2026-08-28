@@ -394,12 +394,12 @@ export function AdminLaborSchedules({
     return (
       <div className="rounded-[1.75rem] border border-accent/20 bg-black/10 p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent/80">
               Horarios de
             </p>
-            <h2 className="mt-2 text-xl font-semibold text-sand">{selectedBarber.nombre}</h2>
-            <p className="mt-2 text-sm font-semibold text-sand/75">
+            <h2 className="text-xl font-semibold text-sand">{selectedBarber.nombre}</h2>
+            <p className="text-sm font-semibold text-sand/75">
               Observaciones {observationsCount}
             </p>
             {observationsCount >= 5 ? (
@@ -559,41 +559,10 @@ export function AdminLaborSchedules({
               </p>
               <p className="mt-2 font-semibold text-sand">Observaciones {observationsCount}</p>
             </div>
-            {observationsCount < 5 ? (
-              <button
-                type="button"
-                onClick={() => setShowObservationForm((current) => !current)}
-                className="rounded-xl border border-accent/40 px-3 py-2 text-sm font-semibold text-accent"
-              >
-                Agregar punto negativo
-              </button>
-            ) : (
+            {observationsCount >= 5 ? (
               <p className="text-sm font-semibold text-amber-200">Limite semanal alcanzado</p>
-            )}
+            ) : null}
           </div>
-
-          {showObservationForm && observationsCount < 5 ? (
-            <div className="mt-4 space-y-3">
-              <label className="block space-y-2 text-sm text-sand/70">
-                <span>Justificacion</span>
-                <textarea
-                  value={justification}
-                  maxLength={500}
-                  rows={3}
-                  onChange={(event) => setJustification(event.target.value)}
-                  className="w-full resize-y rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sand outline-none"
-                />
-              </label>
-              <button
-                type="button"
-                onClick={() => void addObservation()}
-                disabled={savingObservation}
-                className="rounded-xl bg-accent px-4 py-2 text-sm font-bold text-ink disabled:opacity-60"
-              >
-                {savingObservation ? "Guardando..." : "Confirmar punto negativo"}
-              </button>
-            </div>
-          ) : null}
 
           <div className="mt-4 space-y-2 text-sm text-sand/75">
             {observations.length ? (
@@ -612,6 +581,40 @@ export function AdminLaborSchedules({
             </p>
           ) : null}
         </div>
+
+        {observationsCount < 5 ? (
+          <div className="space-y-3">
+            <button
+              type="button"
+              onClick={() => setShowObservationForm((current) => !current)}
+              className="w-full rounded-xl border border-accent/40 px-3 py-3 text-sm font-semibold text-accent"
+            >
+              Punto negativo
+            </button>
+            {showObservationForm ? (
+              <div className="space-y-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                <label className="block space-y-2 text-sm text-sand/70">
+                  <span>Justificacion</span>
+                  <textarea
+                    value={justification}
+                    maxLength={500}
+                    rows={3}
+                    onChange={(event) => setJustification(event.target.value)}
+                    className="w-full resize-y rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sand outline-none"
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={() => void addObservation()}
+                  disabled={savingObservation}
+                  className="rounded-xl bg-accent px-4 py-2 text-sm font-bold text-ink disabled:opacity-60"
+                >
+                  {savingObservation ? "Guardando..." : "Confirmar punto negativo"}
+                </button>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
 
         <button
           type="button"
