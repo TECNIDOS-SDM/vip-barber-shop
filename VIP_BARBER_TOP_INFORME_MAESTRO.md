@@ -1,5 +1,19 @@
 ﻿# VIP BARBER TOP - Informe Maestro
 
+## Actualizacion: Modulo laboral, Etapa 5
+
+Se agregaron notificaciones laborales internas, limitadas al modulo laboral y sin integrar servicios externos:
+
+- Migracion incremental `supabase/migrations/2026-08-28_modulo_laboral_etapa_5.sql`, aplicada manualmente en el proyecto Supabase de VIP BARBER TOP.
+- Tabla independiente `notificaciones_laborales`, ligada a un unico barbero y al registro de observacion o penalidad que origina cada aviso.
+- Tipos limitados a `observacion`, `penalidad_tardanza` y `penalidad_cinco_observaciones`; indices unicos parciales impiden avisos duplicados por el mismo origen.
+- Las funciones transaccionales de llegada y observaciones crean las notificaciones solo despues del evento laboral valido. La quinta observacion genera dos avisos: la observacion y su penalidad informativa.
+- El valor mostrado en avisos de penalidad conserva el snapshot almacenado en la penalidad; no se recalcula con configuraciones futuras.
+- El panel del barbero muestra por separado `Observaciones X` y `Notificaciones X`. Puede abrir las tarjetas semanales y marcar unicamente sus propios avisos como leidos.
+- RLS niega el acceso publico y limita lectura y marcado de lectura al barbero propietario durante la semana vigente. No existe endpoint generico de creacion ni eliminacion de avisos.
+- La limpieza laboral semanal elimina primero notificaciones antiguas, despues observaciones, penalidades y asistencias. Conserva horarios, configuracion y reservas.
+- No se agregaron correo, WhatsApp automatico, SMS, push externo, polling, Realtime laboral, pagos ni reportes financieros.
+
 ## Actualizacion: Modulo laboral, Etapa 4
 
 Se agregaron observaciones laborales semanales y una configuracion informativa de penalidades, sin modificar reservas ni la agenda:

@@ -10,6 +10,9 @@ export const laborPenaltyColumns =
 export const laborObservationColumns =
   "id, barbero_id, fecha, semana_inicio, justificacion, creado_por, created_at";
 
+export const laborNotificationColumns =
+  "id, barbero_id, semana_inicio, fecha, tipo, titulo, mensaje, valor_penalidad, leida, created_at";
+
 // The labor module owns its own weekly cleanup and never touches reservations.
 export async function cleanupPreviousLaborAttendance(reference = new Date()) {
   const supabase = getSupabaseAdminClient();
@@ -19,9 +22,18 @@ export async function cleanupPreviousLaborAttendance(reference = new Date()) {
   }
 
   const { weekStart } = getCurrentLaborDay(reference);
+  const notificationsTable = supabase.from("notificaciones_laborales") as any;
   const observationsTable = supabase.from("observaciones_laborales") as any;
   const penaltiesTable = supabase.from("penalidades_laborales") as any;
   const attendanceTable = supabase.from("asistencias_laborales") as any;
+
+  const { error: notificationsError } = await notificationsTable
+    .delete()
+    .lt("semana_inicio", weekStart);
+
+  if (notificationsError) {
+    throw new Error(notificationsError.message);
+  }
 
   const { error: observationsError } = await observationsTable
     .delete()

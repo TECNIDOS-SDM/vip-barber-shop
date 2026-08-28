@@ -59,6 +59,19 @@ export type LaborConfiguration = {
   updated_at: string;
 };
 
+export type LaborNotification = {
+  id: string;
+  barbero_id: string;
+  semana_inicio: string;
+  fecha: string;
+  tipo: "observacion" | "penalidad_tardanza" | "penalidad_cinco_observaciones";
+  titulo: string;
+  mensaje: string;
+  valor_penalidad: number | null;
+  leida: boolean;
+  created_at: string;
+};
+
 export type LaborTodayResponse = {
   dayOfWeek: LaborDayOfWeek;
   date: string;

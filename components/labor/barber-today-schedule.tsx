@@ -9,10 +9,19 @@ import {
   formatLaborPenalty,
   formatLaborTimestamp
 } from "@/lib/labor/week";
-import type { LaborAttendance, LaborPenalty, LaborTodayResponse } from "@/types/labor";
+import type {
+  LaborAttendance,
+  LaborNotification,
+  LaborPenalty,
+  LaborTodayResponse
+} from "@/types/labor";
 
 export function BarberTodaySchedule() {
   const [data, setData] = useState<LaborTodayResponse | null>(null);
+  const [notifications, setNotifications] = useState<LaborNotification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [markingNotificationId, setMarkingNotificationId] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [marking, setMarking] = useState<"check_in" | "check_out" | null>(null);
 
@@ -21,16 +30,27 @@ export function BarberTodaySchedule() {
 
     async function loadSchedule() {
       try {
-        const response = await fetch("/api/barber/labor-schedule", { cache: "no-store" });
+        const [response, notificationsResponse] = await Promise.all([
+          fetch("/api/barber/labor-schedule", { cache: "no-store" }),
+          fetch("/api/barber/labor-notifications", { cache: "no-store" })
+        ]);
 
         if (!response.ok) {
           return;
         }
 
         const payload = (await response.json()) as LaborTodayResponse;
+        const notificationsPayload = notificationsResponse.ok
+          ? ((await notificationsResponse.json()) as {
+              notifications: LaborNotification[];
+              unreadCount: number;
+            })
+          : null;
 
         if (active) {
           setData(payload);
+          setNotifications(notificationsPayload?.notifications ?? []);
+          setUnreadCount(notificationsPayload?.unreadCount ?? 0);
         }
       } finally {
         if (active) {
@@ -73,6 +93,20 @@ export function BarberTodaySchedule() {
             }
           : current
       );
+      if (action === "check_in" && payload.penalty) {
+        const notificationsResponse = await fetch("/api/barber/labor-notifications", {
+          cache: "no-store"
+        });
+
+        if (notificationsResponse.ok) {
+          const notificationsPayload = (await notificationsResponse.json()) as {
+            notifications: LaborNotification[];
+            unreadCount: number;
+          };
+          setNotifications(notificationsPayload.notifications);
+          setUnreadCount(notificationsPayload.unreadCount);
+        }
+      }
       toast.success(action === "check_in" ? "Llegada registrada." : "Salida registrada.");
     } catch (error) {
       toast.error(
@@ -80,6 +114,67 @@ export function BarberTodaySchedule() {
       );
     } finally {
       setMarking(null);
+    }
+  }
+
+  async function openNotifications() {
+    const nextVisible = !showNotifications;
+    setShowNotifications(nextVisible);
+
+    if (!nextVisible) {
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/barber/labor-notifications", { cache: "no-store" });
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? "No fue posible cargar las notificaciones.");
+      }
+
+      setNotifications(payload.notifications as LaborNotification[]);
+      setUnreadCount(payload.unreadCount ?? 0);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "No fue posible cargar las notificaciones."
+      );
+    }
+  }
+
+  async function markNotificationAsRead(notificationId: string) {
+    setMarkingNotificationId(notificationId);
+
+    try {
+      const response = await fetch("/api/barber/labor-notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: notificationId })
+      });
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? "No fue posible actualizar la notificacion.");
+      }
+
+      setNotifications((current) =>
+        current.map((notification) =>
+          notification.id === notificationId
+            ? (payload.notification as LaborNotification)
+            : notification
+        )
+      );
+      setUnreadCount((current) =>
+        notifications.find((notification) => notification.id === notificationId && !notification.leida)
+          ? Math.max(0, current - 1)
+          : current
+      );
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "No fue posible actualizar la notificacion."
+      );
+    } finally {
+      setMarkingNotificationId(null);
     }
   }
 
@@ -125,28 +220,6 @@ export function BarberTodaySchedule() {
               Penalidad por tardanza: {formatLaborPenalty(data.penalty.valor)}
             </div>
           ) : null}
-          <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-sand sm:col-span-2">
-            Observaciones {data?.observationsCount ?? 0}
-          </div>
-          {data?.observationsPenalty ? (
-            <div className="rounded-2xl border border-amber-300/30 bg-amber-300/10 px-4 py-3 text-sm font-semibold text-sand sm:col-span-2">
-              Penalidad por 5 observaciones: {formatLaborPenalty(data.observationsPenalty.valor)}
-            </div>
-          ) : null}
-          {data?.observations.length ? (
-            <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-sand/75 sm:col-span-2">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sand/55">
-                Observaciones de la semana
-              </p>
-              <div className="mt-3 space-y-2">
-                {data.observations.map((observation) => (
-                  <p key={observation.id}>
-                    {formatLaborDate(observation.fecha)} - {observation.justificacion}
-                  </p>
-                ))}
-              </div>
-            </div>
-          ) : null}
           {!attendance?.hora_entrada_real ? (
             <button
               type="button"
@@ -166,6 +239,75 @@ export function BarberTodaySchedule() {
             >
               {marking === "check_out" ? "Registrando..." : "Marcar hora de salida"}
             </button>
+          ) : null}
+        </div>
+      ) : null}
+      {loaded && data ? (
+        <div className="mt-4 space-y-3">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-sand">
+              Observaciones {data.observationsCount}
+            </div>
+            <button
+              type="button"
+              onClick={() => void openNotifications()}
+              className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-left text-sm font-semibold text-sand transition hover:border-accent/40"
+            >
+              Notificaciones {unreadCount}
+            </button>
+          </div>
+          {data.observationsPenalty ? (
+            <div className="rounded-2xl border border-amber-300/30 bg-amber-300/10 px-4 py-3 text-sm font-semibold text-sand">
+              Penalidad por 5 observaciones: {formatLaborPenalty(data.observationsPenalty.valor)}
+            </div>
+          ) : null}
+          {data.observations.length ? (
+            <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-sand/75">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sand/55">
+                Observaciones de la semana
+              </p>
+              <div className="mt-3 space-y-2">
+                {data.observations.map((observation) => (
+                  <p key={observation.id}>
+                    {formatLaborDate(observation.fecha)} - {observation.justificacion}
+                  </p>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          {showNotifications ? (
+            <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sand/55">
+                Notificaciones de la semana
+              </p>
+              <div className="mt-3 space-y-3">
+                {notifications.length ? (
+                  notifications.map((notification) => (
+                    <div
+                      key={notification.id}
+                      className="rounded-xl border border-white/10 bg-black/15 px-3 py-3 text-sm text-sand/75"
+                    >
+                      <p className="font-semibold text-sand">{notification.titulo}</p>
+                      <p className="mt-1">{notification.mensaje}</p>
+                      {!notification.leida ? (
+                        <button
+                          type="button"
+                          onClick={() => void markNotificationAsRead(notification.id)}
+                          disabled={markingNotificationId === notification.id}
+                          className="mt-3 rounded-lg border border-accent/40 px-3 py-1.5 text-xs font-semibold text-accent disabled:opacity-60"
+                        >
+                          {markingNotificationId === notification.id ? "Actualizando..." : "Marcar como leida"}
+                        </button>
+                      ) : (
+                        <p className="mt-3 text-xs font-semibold text-sand/45">Leida</p>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-sand/65">No tienes notificaciones esta semana.</p>
+                )}
+              </div>
+            </div>
           ) : null}
         </div>
       ) : null}
