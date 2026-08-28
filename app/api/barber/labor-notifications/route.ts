@@ -1,10 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getCurrentUserRole } from "@/lib/auth";
-import {
-  cleanupPreviousLaborAttendance,
-  laborNotificationColumns
-} from "@/lib/labor/attendance";
+import { laborNotificationColumns } from "@/lib/labor/attendance";
 import { getCurrentLaborDay } from "@/lib/labor/week";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -41,15 +38,6 @@ export async function GET() {
 
   if ("error" in access) {
     return access.error;
-  }
-
-  try {
-    await cleanupPreviousLaborAttendance();
-  } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "No fue posible actualizar las notificaciones." },
-      { status: 500 }
-    );
   }
 
   const { weekStart } = getCurrentLaborDay();

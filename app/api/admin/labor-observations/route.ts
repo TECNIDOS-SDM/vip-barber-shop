@@ -60,15 +60,6 @@ export async function GET(request: Request) {
     return access.error;
   }
 
-  try {
-    await cleanupPreviousLaborAttendance();
-  } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "No fue posible actualizar la informacion laboral." },
-      { status: 500 }
-    );
-  }
-
   const { data: configuration, error: configurationError } = await access.supabase
     .from("configuracion_laboral")
     .select("id, valor_penalidad, created_at, updated_at")
