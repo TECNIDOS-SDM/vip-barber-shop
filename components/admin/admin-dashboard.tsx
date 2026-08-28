@@ -967,7 +967,7 @@ export function AdminDashboard({
     async function loadObservationCount() {
       try {
         const response = await fetch(
-          `/api/admin/labor-observations?barbero_id=${encodeURIComponent(activeBarber.id)}`,
+          `/api/admin/labor-observations?barbero_id=${encodeURIComponent(activeBarber.id)}&summary=count`,
           { cache: "no-store" }
         );
         const payload = await response.json();

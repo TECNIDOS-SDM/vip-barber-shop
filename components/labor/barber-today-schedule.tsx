@@ -32,7 +32,7 @@ export function BarberTodaySchedule() {
       try {
         const [response, notificationsResponse] = await Promise.all([
           fetch("/api/barber/labor-schedule", { cache: "no-store" }),
-          fetch("/api/barber/labor-notifications", { cache: "no-store" })
+          fetch("/api/barber/labor-notifications?summary=count", { cache: "no-store" })
         ]);
 
         if (!response.ok) {
@@ -49,7 +49,7 @@ export function BarberTodaySchedule() {
 
         if (active) {
           setData(payload);
-          setNotifications(notificationsPayload?.notifications ?? []);
+          setNotifications([]);
           setUnreadCount(notificationsPayload?.unreadCount ?? 0);
         }
       } finally {

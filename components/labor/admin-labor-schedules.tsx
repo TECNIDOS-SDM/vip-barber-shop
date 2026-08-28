@@ -157,12 +157,6 @@ export function AdminLaborSchedules({
     setObservationsCount(0);
     setObservationsPenalty(null);
     setView("days");
-
-    try {
-      await loadObservations(barber.id);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "No fue posible cargar las observaciones.");
-    }
   }
 
   async function savePenaltyConfiguration() {

@@ -123,6 +123,11 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: countError.message }, { status: 400 });
   }
 
+  // The selected-barber header only needs this number, not the weekly detail.
+  if (url.searchParams.get("summary") === "count") {
+    return NextResponse.json({ observationsCount: count ?? 0 });
+  }
+
   let observationsQuery = observationsTable
     .select(laborObservationColumns)
     .eq("barbero_id", parsedBarberId.data)

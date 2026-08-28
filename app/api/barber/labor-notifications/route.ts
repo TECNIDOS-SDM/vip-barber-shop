@@ -33,7 +33,7 @@ async function requireBarber() {
   return { supabase, barberoId: profile.barbero_id };
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   const access = await requireBarber();
 
   if ("error" in access) {
@@ -42,6 +42,21 @@ export async function GET() {
 
   const { weekStart } = getCurrentLaborDay();
   const notificationsTable = access.supabase.from("notificaciones_laborales") as any;
+
+  if (new URL(request.url).searchParams.get("summary") === "count") {
+    const { count, error } = await notificationsTable
+      .select("id", { count: "exact", head: true })
+      .eq("barbero_id", access.barberoId)
+      .eq("semana_inicio", weekStart)
+      .eq("leida", false);
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
+    return NextResponse.json({ unreadCount: count ?? 0 });
+  }
+
   const { data, error } = await notificationsTable
     .select(laborNotificationColumns)
     .eq("barbero_id", access.barberoId)

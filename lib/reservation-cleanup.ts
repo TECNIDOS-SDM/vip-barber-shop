@@ -4,6 +4,11 @@ import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { toZonedTime } from "date-fns-tz";
 
 let lastCleanupDate: string | null = null;
+let cleanupInFlight: Promise<{
+  ran: boolean;
+  deleted: number | null;
+  error: string | null;
+}> | null = null;
 
 function getNextRecurringDate(isoDate: string, todayIso: string) {
   let nextDate = parseISO(`${isoDate}T00:00:00`);
@@ -38,6 +43,12 @@ export async function cleanupExpiredReservations() {
       error: null
     };
   }
+
+  if (cleanupInFlight) {
+    return cleanupInFlight;
+  }
+
+  cleanupInFlight = (async () => {
 
   const supabase = getSupabaseAdminClient();
 
@@ -95,4 +106,11 @@ export async function cleanupExpiredReservations() {
     deleted: count,
     error: error?.message ?? recurringResult.error?.message ?? null
   };
+  })();
+
+  try {
+    return await cleanupInFlight;
+  } finally {
+    cleanupInFlight = null;
+  }
 }
