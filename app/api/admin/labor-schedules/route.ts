@@ -7,6 +7,7 @@ import {
   laborPenaltyColumns
 } from "@/lib/labor/attendance";
 import { getLaborDateForDay } from "@/lib/labor/week";
+import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { LaborDayOfWeek } from "@/types/labor";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -48,6 +49,36 @@ const scheduleSchema = z
     }
   });
 
+async function hasAdministratorRole(userId: string, role: string | null) {
+  if (role === "administrador") {
+    return true;
+  }
+
+  const adminSupabase = getSupabaseAdminClient();
+
+  if (!adminSupabase) {
+    return false;
+  }
+
+  const { data: profile } = await adminSupabase
+    .from("perfiles_usuario")
+    .select("rol")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if ((profile as { rol?: string } | null)?.rol === "administrador") {
+    return true;
+  }
+
+  const { data: administrator } = await adminSupabase
+    .from("administradores")
+    .select("id")
+    .eq("id", userId)
+    .maybeSingle();
+
+  return Boolean(administrator);
+}
+
 async function requireAdmin() {
   const supabase = await getSupabaseServerClient();
 
@@ -65,7 +96,7 @@ async function requireAdmin() {
 
   const { role } = await getCurrentUserRole(supabase, user);
 
-  if (role !== "administrador") {
+  if (!(await hasAdministratorRole(user.id, role))) {
     return { error: NextResponse.json({ error: "No autorizado." }, { status: 403 }) };
   }
 

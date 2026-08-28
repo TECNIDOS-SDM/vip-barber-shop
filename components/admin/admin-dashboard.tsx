@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import dynamic from "next/dynamic";
 import Image from "next/image";
 import { Clock3, Plus, Trash2, Upload, UserRoundCheck } from "lucide-react";
 import { toast } from "sonner";
@@ -14,9 +15,17 @@ import { formatHourDisplay } from "@/lib/date";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { SignOutButton } from "@/components/shared/sign-out-button";
 import { Logo } from "@/components/shared/logo";
-import { AdminLaborSchedules } from "@/components/labor/admin-labor-schedules";
 import { cn } from "@/lib/utils";
 import { buildWhatsAppUrl } from "@/lib/whatsapp";
+
+const AdminLaborSchedules = dynamic(
+  () =>
+    import("@/components/labor/admin-labor-schedules").then(
+      (module) => module.AdminLaborSchedules
+    ),
+  { ssr: false }
+);
+
 type DashboardProps = {
   adminEmail: string;
   initialData: {
