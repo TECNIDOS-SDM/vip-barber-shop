@@ -3,11 +3,16 @@ import { getCurrentUserRole } from "@/lib/auth";
 import {
   cleanupPreviousLaborAttendance,
   laborAttendanceColumns,
-  laborObservationColumns,
   laborPenaltyColumns
 } from "@/lib/labor/attendance";
 import { getCurrentLaborDay } from "@/lib/labor/week";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+
+type WeeklyPenalty = {
+  asistencia_id: string | null;
+  tipo: "tardanza" | "cinco_observaciones";
+  valor: number;
+};
 
 export async function GET() {
   const supabase = await getSupabaseServerClient();
@@ -41,73 +46,70 @@ export async function GET() {
     );
   }
 
-  const { data, error } = await supabase
-    .from("horarios_laborales_barberos")
-    .select("id, barbero_id, dia_semana, hora_entrada, hora_salida, trabaja, created_at, updated_at")
-    .eq("barbero_id", profile.barbero_id)
-    .eq("dia_semana", today.dayOfWeek)
-    .maybeSingle();
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
-  }
-
-  const { data: attendance, error: attendanceError } = await supabase
-    .from("asistencias_laborales")
-    .select(laborAttendanceColumns)
-    .eq("barbero_id", profile.barbero_id)
-    .eq("fecha", today.date)
-    .maybeSingle();
-
-  if (attendanceError) {
-    return NextResponse.json({ error: attendanceError.message }, { status: 400 });
-  }
-
-  const { data: penalty, error: penaltyError } = attendance
-    ? await supabase
-        .from("penalidades_laborales")
-        .select(laborPenaltyColumns)
-        .eq("asistencia_id", attendance.id)
-        .eq("tipo", "tardanza")
-        .maybeSingle()
-    : { data: null, error: null };
-
-  if (penaltyError) {
-    return NextResponse.json({ error: penaltyError.message }, { status: 400 });
-  }
-
   const observationsTable = supabase.from("observaciones_laborales") as any;
   const penaltiesTable = supabase.from("penalidades_laborales") as any;
-  const { data: observations, error: observationsError } = await observationsTable
-    .select(laborObservationColumns)
-    .eq("barbero_id", profile.barbero_id)
-    .eq("semana_inicio", today.weekStart)
-    .order("fecha", { ascending: true })
-    .order("created_at", { ascending: true });
+  const [scheduleResult, attendanceResult, weeklyAttendanceResult, observationsCountResult, penaltiesResult] =
+    await Promise.all([
+      supabase
+        .from("horarios_laborales_barberos")
+        .select("id, barbero_id, dia_semana, hora_entrada, hora_salida, trabaja, created_at, updated_at")
+        .eq("barbero_id", profile.barbero_id)
+        .eq("dia_semana", today.dayOfWeek)
+        .maybeSingle(),
+      supabase
+        .from("asistencias_laborales")
+        .select(laborAttendanceColumns)
+        .eq("barbero_id", profile.barbero_id)
+        .eq("fecha", today.date)
+        .maybeSingle(),
+      supabase
+        .from("asistencias_laborales")
+        .select("fecha, hora_entrada_real, hora_salida_real")
+        .eq("barbero_id", profile.barbero_id)
+        .eq("semana_inicio", today.weekStart)
+        .order("fecha", { ascending: true }),
+      observationsTable
+        .select("id", { count: "exact", head: true })
+        .eq("barbero_id", profile.barbero_id)
+        .eq("semana_inicio", today.weekStart),
+      penaltiesTable
+        .select(laborPenaltyColumns)
+        .eq("barbero_id", profile.barbero_id)
+        .eq("semana_inicio", today.weekStart)
+    ]);
 
-  if (observationsError) {
-    return NextResponse.json({ error: observationsError.message }, { status: 400 });
+  const requestError =
+    scheduleResult.error ??
+    attendanceResult.error ??
+    weeklyAttendanceResult.error ??
+    observationsCountResult.error ??
+    penaltiesResult.error;
+
+  if (requestError) {
+    return NextResponse.json({ error: requestError.message }, { status: 400 });
   }
 
-  const { data: observationsPenalty, error: observationsPenaltyError } = await penaltiesTable
-    .select(laborPenaltyColumns)
-    .eq("barbero_id", profile.barbero_id)
-    .eq("semana_inicio", today.weekStart)
-    .eq("tipo", "cinco_observaciones")
-    .maybeSingle();
-
-  if (observationsPenaltyError) {
-    return NextResponse.json({ error: observationsPenaltyError.message }, { status: 400 });
-  }
+  const attendance = attendanceResult.data;
+  const weeklyPenalties = (penaltiesResult.data ?? []) as WeeklyPenalty[];
+  const penalty = attendance
+    ? weeklyPenalties.find(
+        (item) => item.asistencia_id === attendance.id && item.tipo === "tardanza"
+      ) ?? null
+    : null;
+  const observationsPenalty =
+    weeklyPenalties.find((item) => item.tipo === "cinco_observaciones") ?? null;
+  const weeklyPenaltyTotal = weeklyPenalties.reduce((total, item) => total + item.valor, 0);
 
   return NextResponse.json({
     dayOfWeek: today.dayOfWeek,
     date: today.date,
-    schedule: data ?? null,
+    schedule: scheduleResult.data ?? null,
     attendance: attendance ?? null,
     penalty: penalty ?? null,
-    observations: observations ?? [],
-    observationsCount: observations?.length ?? 0,
-    observationsPenalty: observationsPenalty ?? null
+    observations: [],
+    observationsCount: observationsCountResult.count ?? 0,
+    observationsPenalty,
+    weeklyAttendance: weeklyAttendanceResult.data ?? [],
+    weeklyPenaltyTotal
   });
 }

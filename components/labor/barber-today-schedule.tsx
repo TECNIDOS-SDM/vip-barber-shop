@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Clock3 } from "lucide-react";
 import { toast } from "sonner";
-import { formatHourDisplay } from "@/lib/date";
+import { formatHourDisplay, getCurrentWeek } from "@/lib/date";
 import { formatLaborPenalty, formatLaborTimestamp } from "@/lib/labor/week";
 import type {
   LaborAttendance,
@@ -63,6 +63,10 @@ export function BarberTodaySchedule() {
 
   const schedule = data?.schedule;
   const attendance = data?.attendance;
+  const weeklyDays = getCurrentWeek();
+  const weeklyAttendanceByDate = new Map(
+    data?.weeklyAttendance.map((item) => [item.fecha, item]) ?? []
+  );
 
   async function markAttendance(action: "check_in" | "check_out") {
     setMarking(action);
@@ -79,15 +83,45 @@ export function BarberTodaySchedule() {
         throw new Error(payload.error ?? "No fue posible registrar la asistencia.");
       }
 
-      setData((current) =>
-        current
-          ? {
-              ...current,
-              attendance: payload.attendance as LaborAttendance,
-              penalty: (payload.penalty as LaborPenalty | null | undefined) ?? current.penalty
-            }
-          : current
-      );
+      setData((current) => {
+        if (!current) {
+          return current;
+        }
+
+        const nextAttendance = payload.attendance as LaborAttendance;
+        const penalty = (payload.penalty as LaborPenalty | null | undefined) ?? current.penalty;
+        const existingDay = current.weeklyAttendance.find(
+          (item) => item.fecha === nextAttendance.fecha
+        );
+        const weeklyAttendance = existingDay
+          ? current.weeklyAttendance.map((item) =>
+              item.fecha === nextAttendance.fecha
+                ? {
+                    fecha: nextAttendance.fecha,
+                    hora_entrada_real: nextAttendance.hora_entrada_real,
+                    hora_salida_real: nextAttendance.hora_salida_real
+                  }
+                : item
+            )
+          : [
+              ...current.weeklyAttendance,
+              {
+                fecha: nextAttendance.fecha,
+                hora_entrada_real: nextAttendance.hora_entrada_real,
+                hora_salida_real: nextAttendance.hora_salida_real
+              }
+            ];
+
+        return {
+          ...current,
+          attendance: nextAttendance,
+          penalty,
+          weeklyAttendance,
+          weeklyPenaltyTotal:
+            current.weeklyPenaltyTotal +
+            (action === "check_in" && payload.penalty ? (payload.penalty as LaborPenalty).valor : 0)
+        };
+      });
       if (action === "check_in" && payload.penalty) {
         const notificationsResponse = await fetch("/api/barber/labor-notifications", {
           cache: "no-store"
@@ -203,9 +237,12 @@ export function BarberTodaySchedule() {
       ) : null}
       {loaded && data ? (
         <div className="mt-4 space-y-3">
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-3">
             <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-sand">
               Observaciones {data.observationsCount}
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-sand">
+              Debe: {formatLaborPenalty(data.weeklyPenaltyTotal)}
             </div>
             <button
               type="button"
@@ -242,6 +279,31 @@ export function BarberTodaySchedule() {
               </div>
             </div>
           ) : null}
+        </div>
+      ) : null}
+      {loaded && data ? (
+        <div className="mt-6">
+          <h3 className="text-lg font-semibold text-sand">Asistencia de la semana</h3>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            {weeklyDays.map((day) => {
+              const dayAttendance = weeklyAttendanceByDate.get(day.isoDate);
+
+              return (
+                <div
+                  key={day.isoDate}
+                  className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm"
+                >
+                  <p className="font-semibold text-sand">{day.label}</p>
+                  <p className="mt-1 text-sand/70">
+                    Entrada: {dayAttendance?.hora_entrada_real ? formatLaborTimestamp(dayAttendance.hora_entrada_real) : "—"}
+                  </p>
+                  <p className="text-sand/70">
+                    Salida: {dayAttendance?.hora_salida_real ? formatLaborTimestamp(dayAttendance.hora_salida_real) : "—"}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
         </div>
       ) : null}
     </section>

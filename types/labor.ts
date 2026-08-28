@@ -30,6 +30,11 @@ export type LaborAttendance = {
   updated_at: string;
 };
 
+export type LaborWeeklyAttendance = Pick<
+  LaborAttendance,
+  "fecha" | "hora_entrada_real" | "hora_salida_real"
+>;
+
 export type LaborPenalty = {
   id: string;
   barbero_id: string;
@@ -81,4 +86,6 @@ export type LaborTodayResponse = {
   observations: LaborObservation[];
   observationsCount: number;
   observationsPenalty: LaborPenalty | null;
+  weeklyAttendance: LaborWeeklyAttendance[];
+  weeklyPenaltyTotal: number;
 };
