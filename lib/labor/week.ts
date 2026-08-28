@@ -34,3 +34,11 @@ export function formatLaborPenalty(value: number) {
     maximumFractionDigits: 0
   }).format(value);
 }
+
+export function formatLaborDate(date: string) {
+  return new Intl.DateTimeFormat("es-CO", {
+    timeZone: "America/Bogota",
+    day: "numeric",
+    month: "short"
+  }).format(new Date(`${date}T12:00:00Z`));
+}

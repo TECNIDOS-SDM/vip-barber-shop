@@ -1,15 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowLeft, Clock3, Save } from "lucide-react";
 import { toast } from "sonner";
 import { WEEK_DAYS } from "@/lib/constants";
 import { formatHourDisplay } from "@/lib/date";
-import { formatLaborPenalty, formatLaborTimestamp } from "@/lib/labor/week";
+import {
+  formatLaborDate,
+  formatLaborPenalty,
+  formatLaborTimestamp
+} from "@/lib/labor/week";
 import { cn } from "@/lib/utils";
 import type {
   LaborAttendance,
+  LaborConfiguration,
   LaborDayOfWeek,
+  LaborObservation,
   LaborPenalty,
   LaborSchedule
 } from "@/types/labor";
@@ -58,7 +64,67 @@ export function AdminLaborSchedules({
   const [form, setForm] = useState<ScheduleForm>(emptyScheduleForm);
   const [attendance, setAttendance] = useState<LaborAttendance | null>(null);
   const [penalty, setPenalty] = useState<LaborPenalty | null>(null);
+  const [selectedDate, setSelectedDate] = useState("");
+  const [observations, setObservations] = useState<LaborObservation[]>([]);
+  const [observationsCount, setObservationsCount] = useState(0);
+  const [observationsPenalty, setObservationsPenalty] = useState<LaborPenalty | null>(null);
+  const [configuration, setConfiguration] = useState<LaborConfiguration | null>(null);
+  const [penaltyValue, setPenaltyValue] = useState("10000");
+  const [showPenaltyEditor, setShowPenaltyEditor] = useState(false);
+  const [showObservationForm, setShowObservationForm] = useState(false);
+  const [justification, setJustification] = useState("");
+  const [savingObservation, setSavingObservation] = useState(false);
+  const [savingConfiguration, setSavingConfiguration] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadConfiguration() {
+      try {
+        const response = await fetch("/api/admin/labor-observations", { cache: "no-store" });
+        const payload = await response.json();
+
+        if (response.ok && active && payload.configuration) {
+          setConfiguration(payload.configuration as LaborConfiguration);
+          setPenaltyValue(String(payload.configuration.valor_penalidad));
+        }
+      } catch {
+        // The schedule flow remains usable if the optional labor configuration is unavailable.
+      }
+    }
+
+    void loadConfiguration();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  async function loadObservations(barberoId: string, date?: string) {
+    const query = new URLSearchParams({ barbero_id: barberoId });
+
+    if (date) {
+      query.set("fecha", date);
+    }
+
+    const response = await fetch(`/api/admin/labor-observations?${query.toString()}`, {
+      cache: "no-store"
+    });
+    const payload = await response.json();
+
+    if (!response.ok) {
+      throw new Error(payload.error ?? "No fue posible cargar las observaciones.");
+    }
+
+    setConfiguration((payload.configuration as LaborConfiguration | null) ?? null);
+    if (payload.configuration) {
+      setPenaltyValue(String(payload.configuration.valor_penalidad));
+    }
+    setObservationsCount(payload.observationsCount ?? 0);
+    setObservations((payload.observations as LaborObservation[] | undefined) ?? []);
+    setObservationsPenalty((payload.observationsPenalty as LaborPenalty | null | undefined) ?? null);
+  }
 
   async function openDay(day: LaborDayOfWeek) {
     if (!selectedBarber) {
@@ -80,11 +146,117 @@ export function AdminLaborSchedules({
       setForm(toScheduleForm(payload.schedule ?? null));
       setAttendance(payload.attendance ?? null);
       setPenalty(payload.penalty ?? null);
+      setSelectedDate(payload.date ?? "");
+      await loadObservations(selectedBarber.id, payload.date);
       setView("editor");
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "No fue posible cargar el horario."
       );
+    }
+  }
+
+  async function selectBarber(barber: LaborBarber) {
+    setSelectedBarber(barber);
+    setObservations([]);
+    setObservationsCount(0);
+    setObservationsPenalty(null);
+    setView("days");
+
+    try {
+      await loadObservations(barber.id);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "No fue posible cargar las observaciones.");
+    }
+  }
+
+  async function addObservation() {
+    if (!selectedBarber || !selectedDate) {
+      return;
+    }
+
+    const cleanJustification = justification.trim();
+
+    if (cleanJustification.length < 3) {
+      toast.error("La justificacion debe tener al menos 3 caracteres.");
+      return;
+    }
+
+    if (!window.confirm(`¿Agregar este punto negativo a ${selectedBarber.nombre}?\n\n${cleanJustification}`)) {
+      return;
+    }
+
+    setSavingObservation(true);
+
+    try {
+      const response = await fetch("/api/admin/labor-observations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          barbero_id: selectedBarber.id,
+          fecha: selectedDate,
+          justificacion: cleanJustification
+        })
+      });
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? "No fue posible agregar el punto negativo.");
+      }
+
+      setObservations((current) => [...current, payload.observation as LaborObservation]);
+      setObservationsCount(payload.observationsCount ?? 0);
+      setObservationsPenalty(
+        (payload.observationsPenalty as LaborPenalty | null | undefined) ?? observationsPenalty
+      );
+      setJustification("");
+      setShowObservationForm(false);
+      toast.success("Punto negativo agregado.");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "No fue posible agregar el punto negativo."
+      );
+    } finally {
+      setSavingObservation(false);
+    }
+  }
+
+  async function savePenaltyConfiguration() {
+    const value = Number(penaltyValue);
+
+    if (!Number.isInteger(value) || value < 0 || value > 1000000) {
+      toast.error("Ingresa un valor entero entre 0 y 1.000.000.");
+      return;
+    }
+
+    if (!window.confirm(`Nuevo valor informativo de penalidad: ${formatLaborPenalty(value)}`)) {
+      return;
+    }
+
+    setSavingConfiguration(true);
+
+    try {
+      const response = await fetch("/api/admin/labor-observations", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ valor_penalidad: value })
+      });
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? "No fue posible guardar el valor de penalidad.");
+      }
+
+      setConfiguration(payload.configuration as LaborConfiguration);
+      setPenaltyValue(String(payload.configuration.valor_penalidad));
+      setShowPenaltyEditor(false);
+      toast.success(`Nuevo valor informativo de penalidad: ${formatLaborPenalty(value)}`);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "No fue posible guardar el valor de penalidad."
+      );
+    } finally {
+      setSavingConfiguration(false);
     }
   }
 
@@ -154,10 +326,7 @@ export function AdminLaborSchedules({
             <button
               key={barber.id}
               type="button"
-              onClick={() => {
-                setSelectedBarber(barber);
-                setView("days");
-              }}
+              onClick={() => void selectBarber(barber)}
               className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-left transition hover:border-accent/40"
             >
               <p className="font-semibold text-sand">{barber.nombre}</p>
@@ -166,6 +335,56 @@ export function AdminLaborSchedules({
               </p>
             </button>
           ))}
+        </div>
+
+        <div className="mt-5 rounded-2xl border border-white/10 bg-white/5 px-4 py-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sand/55">
+            Configuracion de penalidades
+          </p>
+          {showPenaltyEditor ? (
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <input
+                type="number"
+                min="0"
+                max="1000000"
+                step="1"
+                value={penaltyValue}
+                onChange={(event) => setPenaltyValue(event.target.value)}
+                className="w-40 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-sand outline-none"
+              />
+              <button
+                type="button"
+                onClick={() => void savePenaltyConfiguration()}
+                disabled={savingConfiguration}
+                className="rounded-xl bg-accent px-3 py-2 text-sm font-bold text-ink disabled:opacity-60"
+              >
+                {savingConfiguration ? "Guardando..." : "Guardar"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setPenaltyValue(String(configuration?.valor_penalidad ?? 10000));
+                  setShowPenaltyEditor(false);
+                }}
+                className="rounded-xl border border-white/10 px-3 py-2 text-sm font-semibold text-sand/80"
+              >
+                Cancelar
+              </button>
+            </div>
+          ) : (
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+              <p className="font-semibold text-sand">
+                {formatLaborPenalty(configuration?.valor_penalidad ?? 10000)}
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowPenaltyEditor(true)}
+                className="rounded-xl border border-white/10 px-3 py-2 text-sm font-semibold text-sand/80"
+              >
+                Cambiar valor
+              </button>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -180,6 +399,12 @@ export function AdminLaborSchedules({
               Horarios de
             </p>
             <h2 className="mt-2 text-xl font-semibold text-sand">{selectedBarber.nombre}</h2>
+            <p className="mt-2 text-sm font-semibold text-sand/75">
+              Observaciones {observationsCount}
+            </p>
+            {observationsCount >= 5 ? (
+              <p className="mt-1 text-sm font-semibold text-amber-200">Limite semanal alcanzado</p>
+            ) : null}
           </div>
           <button
             type="button"
@@ -324,6 +549,68 @@ export function AdminLaborSchedules({
           <p className="mt-2 font-semibold text-sand">
             {penalty ? `Tardanza — ${formatLaborPenalty(penalty.valor)}` : "Sin penalidad"}
           </p>
+        </div>
+
+        <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sand/55">
+                Observaciones
+              </p>
+              <p className="mt-2 font-semibold text-sand">Observaciones {observationsCount}</p>
+            </div>
+            {observationsCount < 5 ? (
+              <button
+                type="button"
+                onClick={() => setShowObservationForm((current) => !current)}
+                className="rounded-xl border border-accent/40 px-3 py-2 text-sm font-semibold text-accent"
+              >
+                Agregar punto negativo
+              </button>
+            ) : (
+              <p className="text-sm font-semibold text-amber-200">Limite semanal alcanzado</p>
+            )}
+          </div>
+
+          {showObservationForm && observationsCount < 5 ? (
+            <div className="mt-4 space-y-3">
+              <label className="block space-y-2 text-sm text-sand/70">
+                <span>Justificacion</span>
+                <textarea
+                  value={justification}
+                  maxLength={500}
+                  rows={3}
+                  onChange={(event) => setJustification(event.target.value)}
+                  className="w-full resize-y rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sand outline-none"
+                />
+              </label>
+              <button
+                type="button"
+                onClick={() => void addObservation()}
+                disabled={savingObservation}
+                className="rounded-xl bg-accent px-4 py-2 text-sm font-bold text-ink disabled:opacity-60"
+              >
+                {savingObservation ? "Guardando..." : "Confirmar punto negativo"}
+              </button>
+            </div>
+          ) : null}
+
+          <div className="mt-4 space-y-2 text-sm text-sand/75">
+            {observations.length ? (
+              observations.map((observation) => (
+                <p key={observation.id}>
+                  {formatLaborDate(observation.fecha)} - {observation.justificacion}
+                </p>
+              ))
+            ) : (
+              <p>Sin observaciones</p>
+            )}
+          </div>
+          {observationsPenalty ? (
+            <p className="mt-4 rounded-xl border border-amber-300/30 bg-amber-300/10 px-3 py-2 text-sm font-semibold text-sand">
+              Penalidad por 5 observaciones: {formatLaborPenalty(observationsPenalty.valor)}
+            </p>
+          ) : null}
         </div>
 
         <button

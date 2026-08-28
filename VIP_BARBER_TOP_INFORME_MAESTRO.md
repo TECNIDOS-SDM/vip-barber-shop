@@ -1,5 +1,20 @@
 ﻿# VIP BARBER TOP - Informe Maestro
 
+## Actualizacion: Modulo laboral, Etapa 4
+
+Se agregaron observaciones laborales semanales y una configuracion informativa de penalidades, sin modificar reservas ni la agenda:
+
+- Migracion incremental `supabase/migrations/2026-08-28_modulo_laboral_etapa_4.sql`, aplicada manualmente en el proyecto Supabase de VIP BARBER TOP.
+- Tabla independiente `observaciones_laborales`: cada fila representa un punto negativo, asociado al barbero, fecha laboral actual, semana, justificacion y administrador creador.
+- El contador se obtiene de las filas reales de la semana vigente: progresa de `Observaciones 0` a `Observaciones 5`; el servidor rechaza una sexta observacion.
+- La insercion, conteo y generacion de la quinta penalidad se ejecutan en una funcion transaccional protegida con bloqueo asesor por barbero y semana. Solo puede existir una penalidad `cinco_observaciones` por barbero y semana.
+- `configuracion_laboral` conserva un valor global inicial de `10000` COP. El administrador puede cambiarlo desde Horarios; solo impacta penalidades nuevas por tardanza y por cinco observaciones. Cada penalidad conserva el valor vigente como snapshot.
+- El barbero puede consultar su contador, el detalle de fecha y justificacion de sus observaciones actuales y la penalidad por cinco observaciones, sin controles de escritura.
+- El administrador ve el contador al seleccionar el barbero y puede agregar puntos negativos, con confirmacion y justificacion obligatoria, dentro de `Horarios -> Barbero -> Dia`.
+- RLS niega el acceso publico. El barbero solo puede leer sus propias observaciones de la semana actual; las escrituras se realizan exclusivamente por endpoints autenticados de servidor. Las observaciones y penalidades son inmutables desde la aplicacion.
+- La limpieza laboral semanal independiente elimina en orden observaciones, penalidades y asistencias de semanas anteriores. Conserva horarios laborales, la configuracion de penalidad y todo el dominio de reservas.
+- No se agregaron pagos, descuentos, nomina, cobros, historicos financieros, notificaciones externas, polling ni Realtime laboral.
+
 ## Actualizacion: Modulo laboral, Etapa 3
 
 Se agrego la penalidad informativa automatica por tardanza, aislada de reservas y de la agenda:

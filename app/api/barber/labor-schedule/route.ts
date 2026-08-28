@@ -3,6 +3,7 @@ import { getCurrentUserRole } from "@/lib/auth";
 import {
   cleanupPreviousLaborAttendance,
   laborAttendanceColumns,
+  laborObservationColumns,
   laborPenaltyColumns
 } from "@/lib/labor/attendance";
 import { getCurrentLaborDay } from "@/lib/labor/week";
@@ -75,11 +76,38 @@ export async function GET() {
     return NextResponse.json({ error: penaltyError.message }, { status: 400 });
   }
 
+  const observationsTable = supabase.from("observaciones_laborales") as any;
+  const penaltiesTable = supabase.from("penalidades_laborales") as any;
+  const { data: observations, error: observationsError } = await observationsTable
+    .select(laborObservationColumns)
+    .eq("barbero_id", profile.barbero_id)
+    .eq("semana_inicio", today.weekStart)
+    .order("fecha", { ascending: true })
+    .order("created_at", { ascending: true });
+
+  if (observationsError) {
+    return NextResponse.json({ error: observationsError.message }, { status: 400 });
+  }
+
+  const { data: observationsPenalty, error: observationsPenaltyError } = await penaltiesTable
+    .select(laborPenaltyColumns)
+    .eq("barbero_id", profile.barbero_id)
+    .eq("semana_inicio", today.weekStart)
+    .eq("tipo", "cinco_observaciones")
+    .maybeSingle();
+
+  if (observationsPenaltyError) {
+    return NextResponse.json({ error: observationsPenaltyError.message }, { status: 400 });
+  }
+
   return NextResponse.json({
     dayOfWeek: today.dayOfWeek,
     date: today.date,
     schedule: data ?? null,
     attendance: attendance ?? null,
-    penalty: penalty ?? null
+    penalty: penalty ?? null,
+    observations: observations ?? [],
+    observationsCount: observations?.length ?? 0,
+    observationsPenalty: observationsPenalty ?? null
   });
 }

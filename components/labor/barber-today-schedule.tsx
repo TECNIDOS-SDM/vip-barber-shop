@@ -4,7 +4,11 @@ import { useEffect, useState } from "react";
 import { Clock3 } from "lucide-react";
 import { toast } from "sonner";
 import { formatHourDisplay } from "@/lib/date";
-import { formatLaborPenalty, formatLaborTimestamp } from "@/lib/labor/week";
+import {
+  formatLaborDate,
+  formatLaborPenalty,
+  formatLaborTimestamp
+} from "@/lib/labor/week";
 import type { LaborAttendance, LaborPenalty, LaborTodayResponse } from "@/types/labor";
 
 export function BarberTodaySchedule() {
@@ -119,6 +123,28 @@ export function BarberTodaySchedule() {
           {data?.penalty ? (
             <div className="rounded-2xl border border-amber-300/30 bg-amber-300/10 px-4 py-3 text-sm font-semibold text-sand sm:col-span-2">
               Penalidad por tardanza: {formatLaborPenalty(data.penalty.valor)}
+            </div>
+          ) : null}
+          <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-sand sm:col-span-2">
+            Observaciones {data?.observationsCount ?? 0}
+          </div>
+          {data?.observationsPenalty ? (
+            <div className="rounded-2xl border border-amber-300/30 bg-amber-300/10 px-4 py-3 text-sm font-semibold text-sand sm:col-span-2">
+              Penalidad por 5 observaciones: {formatLaborPenalty(data.observationsPenalty.valor)}
+            </div>
+          ) : null}
+          {data?.observations.length ? (
+            <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-sand/75 sm:col-span-2">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sand/55">
+                Observaciones de la semana
+              </p>
+              <div className="mt-3 space-y-2">
+                {data.observations.map((observation) => (
+                  <p key={observation.id}>
+                    {formatLaborDate(observation.fecha)} - {observation.justificacion}
+                  </p>
+                ))}
+              </div>
             </div>
           ) : null}
           {!attendance?.hora_entrada_real ? (
