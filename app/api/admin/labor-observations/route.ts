@@ -87,6 +87,41 @@ export async function GET(request: Request) {
     return access.error;
   }
 
+  const url = new URL(request.url);
+  const parsedBarberId = z.string().uuid().safeParse(url.searchParams.get("barbero_id"));
+
+  const { weekStart } = getCurrentLaborDay();
+  const observationsTable = access.supabase.from("observaciones_laborales") as any;
+  const penaltiesTable = access.supabase.from("penalidades_laborales") as any;
+
+  if (parsedBarberId.success && url.searchParams.get("summary") === "count") {
+    const [observationsResult, penaltiesResult] = await Promise.all([
+      observationsTable
+        .select("id", { count: "exact", head: true })
+        .eq("barbero_id", parsedBarberId.data)
+        .eq("semana_inicio", weekStart),
+      penaltiesTable
+        .select("valor", { count: "exact" })
+        .eq("barbero_id", parsedBarberId.data)
+        .eq("semana_inicio", weekStart)
+    ]);
+
+    const summaryError = observationsResult.error ?? penaltiesResult.error;
+
+    if (summaryError) {
+      return NextResponse.json({ error: summaryError.message }, { status: 400 });
+    }
+
+    return NextResponse.json({
+      observationsCount: observationsResult.count ?? 0,
+      penaltiesCount: penaltiesResult.count ?? 0,
+      penaltiesTotal: (penaltiesResult.data ?? []).reduce(
+        (total: number, penalty: { valor: number }) => total + penalty.valor,
+        0
+      )
+    });
+  }
+
   const { data: configuration, error: configurationError } = await access.supabase
     .from("configuracion_laboral")
     .select("id, valor_penalidad, created_at, updated_at")
@@ -96,9 +131,6 @@ export async function GET(request: Request) {
   if (configurationError) {
     return NextResponse.json({ error: configurationError.message }, { status: 400 });
   }
-
-  const url = new URL(request.url);
-  const parsedBarberId = z.string().uuid().safeParse(url.searchParams.get("barbero_id"));
 
   if (!parsedBarberId.success) {
     return NextResponse.json({ configuration: configuration ?? null });
@@ -110,10 +142,6 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "La fecha debe pertenecer a la semana laboral actual." }, { status: 400 });
   }
 
-  const { weekStart } = getCurrentLaborDay();
-  const observationsTable = access.supabase.from("observaciones_laborales") as any;
-  const penaltiesTable = access.supabase.from("penalidades_laborales") as any;
-
   const { count, error: countError } = await observationsTable
     .select("id", { count: "exact", head: true })
     .eq("barbero_id", parsedBarberId.data)
@@ -121,11 +149,6 @@ export async function GET(request: Request) {
 
   if (countError) {
     return NextResponse.json({ error: countError.message }, { status: 400 });
-  }
-
-  // The selected-barber header only needs this number, not the weekly detail.
-  if (url.searchParams.get("summary") === "count") {
-    return NextResponse.json({ observationsCount: count ?? 0 });
   }
 
   let observationsQuery = observationsTable

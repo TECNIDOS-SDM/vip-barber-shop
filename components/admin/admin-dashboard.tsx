@@ -50,6 +50,12 @@ type DashboardProps = {
   initialViewState?: AdminDashboardViewState | null;
 };
 
+type LaborSummary = {
+  observationsCount: number;
+  penaltiesCount: number;
+  penaltiesTotal: number;
+};
+
 const DAY_FULL_BLOCK_MARKER = "__vip_barber_top_day_full_block__";
 
 type CollapsibleSectionProps = {
@@ -191,6 +197,7 @@ export function AdminDashboard({
   const [reservations, setReservations] = useState(initialData.reservations);
   const [profiles, setProfiles] = useState(initialData.profiles);
   const [observationCounts, setObservationCounts] = useState<Record<string, number>>({});
+  const [laborSummaries, setLaborSummaries] = useState<Record<string, LaborSummary>>({});
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [barberForm, setBarberForm] = useState(emptyBarberForm);
@@ -268,6 +275,7 @@ export function AdminDashboard({
         observationCountWeekStartRef.current = nextWeekStart;
         loadedObservationCountsRef.current.clear();
         setObservationCounts({});
+        setLaborSummaries({});
       }
 
       setDashboardWeek(payload.currentWeek ?? []);
@@ -981,6 +989,14 @@ export function AdminDashboard({
             ...current,
             [activeBarber.id]: Math.min(5, payload.observationsCount ?? 0)
           }));
+          setLaborSummaries((current) => ({
+            ...current,
+            [activeBarber.id]: {
+              observationsCount: Math.min(5, payload.observationsCount ?? 0),
+              penaltiesCount: payload.penaltiesCount ?? 0,
+              penaltiesTotal: payload.penaltiesTotal ?? 0
+            }
+          }));
           loadedObservationCountsRef.current.add(activeBarber.id);
         }
       } catch {
@@ -1079,6 +1095,13 @@ export function AdminDashboard({
   const activeBarberObservationCount = activeBarber
     ? observationCounts[activeBarber.id] ?? 0
     : 0;
+  const activeBarberLaborSummary = activeBarber
+    ? laborSummaries[activeBarber.id] ?? {
+        observationsCount: activeBarberObservationCount,
+        penaltiesCount: 0,
+        penaltiesTotal: 0
+      }
+    : null;
 
   function closeAgendaObservationModal() {
     setShowAgendaObservationModal(false);
@@ -1123,6 +1146,28 @@ export function AdminDashboard({
         ...current,
         [activeBarber.id]: Math.min(5, payload.observationsCount ?? activeBarberObservationCount)
       }));
+      setLaborSummaries((current) => {
+        const currentSummary = current[activeBarber.id] ?? {
+          observationsCount: activeBarberObservationCount,
+          penaltiesCount: 0,
+          penaltiesTotal: 0
+        };
+        const observationPenalty = payload.observationsPenalty as { valor?: number } | null;
+
+        return {
+          ...current,
+          [activeBarber.id]: {
+            observationsCount: Math.min(
+              5,
+              payload.observationsCount ?? currentSummary.observationsCount
+            ),
+            penaltiesCount:
+              currentSummary.penaltiesCount + (observationPenalty?.valor !== undefined ? 1 : 0),
+            penaltiesTotal:
+              currentSummary.penaltiesTotal + (observationPenalty?.valor ?? 0)
+          }
+        };
+      });
       closeAgendaObservationModal();
       toast.success("Punto negativo agregado.");
     } catch (error) {
@@ -1244,9 +1289,17 @@ export function AdminDashboard({
                     <h3 className="mt-2 text-2xl font-semibold text-sand">
                       {activeBarber.nombre}
                     </h3>
-                    <p className="mt-2 text-sm font-semibold text-sand/60">
-                      Observaciones {activeBarberObservationCount}
-                    </p>
+                    <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-sm font-semibold text-sand/60">
+                      <p>Observaciones {activeBarberLaborSummary?.observationsCount ?? 0}</p>
+                      <p>Penalidades {activeBarberLaborSummary?.penaltiesCount ?? 0}</p>
+                      <p>
+                        Debe: {new Intl.NumberFormat("es-CO", {
+                          style: "currency",
+                          currency: "COP",
+                          maximumFractionDigits: 0
+                        }).format(activeBarberLaborSummary?.penaltiesTotal ?? 0)}
+                      </p>
+                    </div>
                   </div>
                   <div className="flex flex-col gap-4 sm:flex-row">
                     {activeBarberView !== "perfil" ? (
