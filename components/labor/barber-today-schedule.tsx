@@ -102,7 +102,7 @@ export function BarberTodaySchedule() {
           setUnreadCount(notificationsPayload.unreadCount);
         }
       }
-      toast.success(action === "check_in" ? "Llegada registrada." : "Salida registrada.");
+      toast.success(action === "check_in" ? "Entrada registrada." : "Salida registrada.");
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "No fue posible registrar la asistencia."
@@ -166,7 +166,7 @@ export function BarberTodaySchedule() {
           </div>
           {attendance?.hora_entrada_real ? (
             <p className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm font-medium text-sand sm:col-span-2">
-              Llegada registrada: {formatLaborTimestamp(attendance.hora_entrada_real)}
+              Entrada: {formatLaborTimestamp(attendance.hora_entrada_real)}
             </p>
           ) : null}
           {attendance?.hora_salida_real ? (
@@ -186,7 +186,7 @@ export function BarberTodaySchedule() {
               disabled={marking !== null}
               className="rounded-2xl bg-accent px-4 py-3 text-sm font-bold text-ink disabled:opacity-60 sm:col-span-2"
             >
-              {marking === "check_in" ? "Registrando..." : "Marcar hora de llegada"}
+              {marking === "check_in" ? "Registrando..." : "Marcar entrada"}
             </button>
           ) : null}
           {attendance?.hora_entrada_real && !attendance.hora_salida_real ? (
@@ -196,7 +196,7 @@ export function BarberTodaySchedule() {
               disabled={marking !== null}
               className="rounded-2xl bg-accent px-4 py-3 text-sm font-bold text-ink disabled:opacity-60 sm:col-span-2"
             >
-              {marking === "check_out" ? "Registrando..." : "Marcar hora de salida"}
+              {marking === "check_out" ? "Registrando..." : "Marcar salida"}
             </button>
           ) : null}
         </div>
