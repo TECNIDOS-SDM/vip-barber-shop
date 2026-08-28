@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import { Clock3 } from "lucide-react";
 import { toast } from "sonner";
 import { formatHourDisplay } from "@/lib/date";
-import { formatLaborTimestamp } from "@/lib/labor/week";
-import type { LaborAttendance, LaborTodayResponse } from "@/types/labor";
+import { formatLaborPenalty, formatLaborTimestamp } from "@/lib/labor/week";
+import type { LaborAttendance, LaborPenalty, LaborTodayResponse } from "@/types/labor";
 
 export function BarberTodaySchedule() {
   const [data, setData] = useState<LaborTodayResponse | null>(null);
@@ -62,7 +62,11 @@ export function BarberTodaySchedule() {
 
       setData((current) =>
         current
-          ? { ...current, attendance: payload.attendance as LaborAttendance }
+          ? {
+              ...current,
+              attendance: payload.attendance as LaborAttendance,
+              penalty: (payload.penalty as LaborPenalty | null | undefined) ?? current.penalty
+            }
           : current
       );
       toast.success(action === "check_in" ? "Llegada registrada." : "Salida registrada.");
@@ -111,6 +115,11 @@ export function BarberTodaySchedule() {
             <p className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm font-medium text-sand sm:col-span-2">
               Salida registrada: {formatLaborTimestamp(attendance.hora_salida_real)}
             </p>
+          ) : null}
+          {data?.penalty ? (
+            <div className="rounded-2xl border border-amber-300/30 bg-amber-300/10 px-4 py-3 text-sm font-semibold text-sand sm:col-span-2">
+              Penalidad por tardanza: {formatLaborPenalty(data.penalty.valor)}
+            </div>
           ) : null}
           {!attendance?.hora_entrada_real ? (
             <button

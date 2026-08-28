@@ -5,9 +5,14 @@ import { ArrowLeft, Clock3, Save } from "lucide-react";
 import { toast } from "sonner";
 import { WEEK_DAYS } from "@/lib/constants";
 import { formatHourDisplay } from "@/lib/date";
-import { formatLaborTimestamp } from "@/lib/labor/week";
+import { formatLaborPenalty, formatLaborTimestamp } from "@/lib/labor/week";
 import { cn } from "@/lib/utils";
-import type { LaborAttendance, LaborDayOfWeek, LaborSchedule } from "@/types/labor";
+import type {
+  LaborAttendance,
+  LaborDayOfWeek,
+  LaborPenalty,
+  LaborSchedule
+} from "@/types/labor";
 
 type LaborBarber = {
   id: string;
@@ -52,6 +57,7 @@ export function AdminLaborSchedules({
   const [selectedDay, setSelectedDay] = useState<LaborDayOfWeek | null>(null);
   const [form, setForm] = useState<ScheduleForm>(emptyScheduleForm);
   const [attendance, setAttendance] = useState<LaborAttendance | null>(null);
+  const [penalty, setPenalty] = useState<LaborPenalty | null>(null);
   const [saving, setSaving] = useState(false);
 
   async function openDay(day: LaborDayOfWeek) {
@@ -73,6 +79,7 @@ export function AdminLaborSchedules({
       setSelectedDay(day);
       setForm(toScheduleForm(payload.schedule ?? null));
       setAttendance(payload.attendance ?? null);
+      setPenalty(payload.penalty ?? null);
       setView("editor");
     } catch (error) {
       toast.error(
@@ -308,6 +315,15 @@ export function AdminLaborSchedules({
               </p>
             </div>
           </div>
+        </div>
+
+        <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sand/55">
+            Penalidad
+          </p>
+          <p className="mt-2 font-semibold text-sand">
+            {penalty ? `Tardanza — ${formatLaborPenalty(penalty.valor)}` : "Sin penalidad"}
+          </p>
         </div>
 
         <button

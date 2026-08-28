@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { getCurrentUserRole } from "@/lib/auth";
 import {
   cleanupPreviousLaborAttendance,
-  laborAttendanceColumns
+  laborAttendanceColumns,
+  laborPenaltyColumns
 } from "@/lib/labor/attendance";
 import { getCurrentLaborDay } from "@/lib/labor/week";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
@@ -61,10 +62,24 @@ export async function GET() {
     return NextResponse.json({ error: attendanceError.message }, { status: 400 });
   }
 
+  const { data: penalty, error: penaltyError } = attendance
+    ? await supabase
+        .from("penalidades_laborales")
+        .select(laborPenaltyColumns)
+        .eq("asistencia_id", attendance.id)
+        .eq("tipo", "tardanza")
+        .maybeSingle()
+    : { data: null, error: null };
+
+  if (penaltyError) {
+    return NextResponse.json({ error: penaltyError.message }, { status: 400 });
+  }
+
   return NextResponse.json({
     dayOfWeek: today.dayOfWeek,
     date: today.date,
     schedule: data ?? null,
-    attendance: attendance ?? null
+    attendance: attendance ?? null,
+    penalty: penalty ?? null
   });
 }

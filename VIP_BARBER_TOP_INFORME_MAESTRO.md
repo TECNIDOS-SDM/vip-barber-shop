@@ -1,5 +1,18 @@
 ﻿# VIP BARBER TOP - Informe Maestro
 
+## Actualizacion: Modulo laboral, Etapa 3
+
+Se agrego la penalidad informativa automatica por tardanza, aislada de reservas y de la agenda:
+
+- Migracion incremental `supabase/migrations/2026-08-28_modulo_laboral_etapa_3.sql` con la tabla `penalidades_laborales`.
+- La llegada se registra mediante una funcion transaccional exclusiva del servidor, que toma `now()` de PostgreSQL y resuelve fecha y semana en `America/Bogota`.
+- Se genera una sola penalidad `tardanza` de valor fijo informativo `10000` cuando la llegada es a los 5 minutos exactos o mas despues de la entrada programada. Antes de ese umbral no se crea penalidad.
+- La penalidad se relaciona con la asistencia que la origino y tiene un indice unico parcial para impedir duplicados de tardanza, incluso ante doble clic o concurrencia.
+- El barbero la ve de forma compacta dentro de `Horario de hoy`; el administrador la consulta en `Horarios -> Barbero -> Dia`, sin controles para editarla o borrarla.
+- RLS permite solo lectura de la semana vigente al administrador o al propio barbero. El cliente publico no tiene acceso ni permisos de escritura.
+- La limpieza laboral elimina primero penalidades semanales antiguas y despues asistencias antiguas. Nunca toca horarios laborales ni reservas.
+- No se implementaron observaciones, puntos negativos, cobros, pagos, configuracion editable del valor ni notificaciones generales.
+
 ## Actualizacion: Modulo laboral, Etapa 2
 
 Se implemento la marcacion diaria de llegada y salida sin modificar el dominio de reservas:

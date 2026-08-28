@@ -54,7 +54,7 @@ export async function POST(request: Request) {
   const today = getCurrentLaborDay(now);
   const { data: schedule, error: scheduleError } = await access.supabase
     .from("horarios_laborales_barberos")
-    .select("id, trabaja")
+    .select("id, trabaja, hora_entrada")
     .eq("barbero_id", access.barberoId)
     .eq("dia_semana", today.dayOfWeek)
     .maybeSingle();
@@ -72,6 +72,13 @@ export async function POST(request: Request) {
 
   if (!schedule.trabaja) {
     return NextResponse.json({ error: "Hoy no tienes jornada programada." }, { status: 409 });
+  }
+
+  if (!schedule.hora_entrada) {
+    return NextResponse.json(
+      { error: "No tienes horario laboral configurado para hoy." },
+      { status: 409 }
+    );
   }
 
   try {
@@ -93,15 +100,10 @@ export async function POST(request: Request) {
   const attendanceTable = adminSupabase.from("asistencias_laborales") as any;
 
   if (parsed.data.action === "check_in") {
-    const { data: attendance, error } = await attendanceTable
-      .insert({
-        barbero_id: access.barberoId,
-        fecha: today.date,
-        semana_inicio: today.weekStart,
-        hora_entrada_real: now.toISOString()
-      })
-      .select(laborAttendanceColumns)
-      .single();
+    const { data, error } = await (adminSupabase as any).rpc("registrar_llegada_laboral", {
+      p_barbero_id: access.barberoId,
+      p_hora_programada: schedule.hora_entrada
+    });
 
     if (error) {
       if (error.code === "23505") {
@@ -111,7 +113,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
-    return NextResponse.json({ attendance });
+    return NextResponse.json({
+      attendance: data?.attendance ?? null,
+      penalty: data?.penalty ?? null
+    });
   }
 
   const { data: currentAttendance, error: currentAttendanceError } = await attendanceTable

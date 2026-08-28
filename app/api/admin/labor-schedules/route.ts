@@ -3,7 +3,8 @@ import { z } from "zod";
 import { getCurrentUserRole } from "@/lib/auth";
 import {
   cleanupPreviousLaborAttendance,
-  laborAttendanceColumns
+  laborAttendanceColumns,
+  laborPenaltyColumns
 } from "@/lib/labor/attendance";
 import { getLaborDateForDay } from "@/lib/labor/week";
 import type { LaborDayOfWeek } from "@/types/labor";
@@ -123,7 +124,25 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: attendanceError.message }, { status: 400 });
   }
 
-  return NextResponse.json({ schedule: data ?? null, attendance: attendance ?? null, date });
+  const { data: penalty, error: penaltyError } = attendance
+    ? await access.supabase
+        .from("penalidades_laborales")
+        .select(laborPenaltyColumns)
+        .eq("asistencia_id", attendance.id)
+        .eq("tipo", "tardanza")
+        .maybeSingle()
+    : { data: null, error: null };
+
+  if (penaltyError) {
+    return NextResponse.json({ error: penaltyError.message }, { status: 400 });
+  }
+
+  return NextResponse.json({
+    schedule: data ?? null,
+    attendance: attendance ?? null,
+    penalty: penalty ?? null,
+    date
+  });
 }
 
 export async function POST(request: Request) {

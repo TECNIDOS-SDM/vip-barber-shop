@@ -30,9 +30,22 @@ export type LaborAttendance = {
   updated_at: string;
 };
 
+export type LaborPenalty = {
+  id: string;
+  barbero_id: string;
+  asistencia_id: string;
+  fecha: string;
+  semana_inicio: string;
+  tipo: "tardanza";
+  motivo: string;
+  valor: number;
+  created_at: string;
+};
+
 export type LaborTodayResponse = {
   dayOfWeek: LaborDayOfWeek;
   date: string;
   schedule: LaborSchedule | null;
   attendance: LaborAttendance | null;
+  penalty: LaborPenalty | null;
 };
