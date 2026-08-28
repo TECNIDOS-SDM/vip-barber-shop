@@ -1,5 +1,14 @@
 ﻿# VIP BARBER TOP - Informe Maestro
 
+## Actualizacion: Modulo laboral, Etapa 6
+
+Se realizo la auditoria final del modulo laboral y se reforzo la regla definitiva de reinicio semanal fisico:
+
+- La limpieza lazy laboral ahora se ejecuta mediante `limpiar_datos_laborales_anteriores()`, una unica funcion transaccional de servidor que calcula la semana en `America/Bogota`.
+- En cada primer acceso laboral de una nueva semana elimina fisicamente, en orden seguro, notificaciones, observaciones, penalidades y asistencias con `semana_inicio` anterior a la vigente.
+- La funcion es idempotente, no toca registros de la semana vigente y no referencia tablas de reservas, agenda, usuarios, perfiles ni configuracion general.
+- Verificacion directa en Supabase: para la semana iniciada el `2026-08-24`, las cuatro tablas operativas reportaron `0` filas antiguas. Horarios laborales y configuracion de penalidad permanecen disponibles; el acceso publico a notificaciones sigue bloqueado.
+
 ## Actualizacion: Modulo laboral, Etapa 5
 
 Se agregaron notificaciones laborales internas, limitadas al modulo laboral y sin integrar servicios externos:

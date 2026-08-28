@@ -1,4 +1,3 @@
-import { getCurrentLaborDay } from "@/lib/labor/week";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export const laborAttendanceColumns =
@@ -21,39 +20,9 @@ export async function cleanupPreviousLaborAttendance(reference = new Date()) {
     throw new Error("Supabase no configurado.");
   }
 
-  const { weekStart } = getCurrentLaborDay(reference);
-  const notificationsTable = supabase.from("notificaciones_laborales") as any;
-  const observationsTable = supabase.from("observaciones_laborales") as any;
-  const penaltiesTable = supabase.from("penalidades_laborales") as any;
-  const attendanceTable = supabase.from("asistencias_laborales") as any;
+  void reference;
 
-  const { error: notificationsError } = await notificationsTable
-    .delete()
-    .lt("semana_inicio", weekStart);
-
-  if (notificationsError) {
-    throw new Error(notificationsError.message);
-  }
-
-  const { error: observationsError } = await observationsTable
-    .delete()
-    .lt("semana_inicio", weekStart);
-
-  if (observationsError) {
-    throw new Error(observationsError.message);
-  }
-
-  const { error: penaltiesError } = await penaltiesTable
-    .delete()
-    .lt("semana_inicio", weekStart);
-
-  if (penaltiesError) {
-    throw new Error(penaltiesError.message);
-  }
-
-  const { error } = await attendanceTable
-    .delete()
-    .lt("semana_inicio", weekStart);
+  const { error } = await (supabase as any).rpc("limpiar_datos_laborales_anteriores");
 
   if (error) {
     throw new Error(error.message);
