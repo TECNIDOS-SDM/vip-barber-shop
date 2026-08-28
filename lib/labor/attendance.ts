@@ -1,4 +1,5 @@
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getCurrentLaborDay } from "@/lib/labor/week";
 
 export const laborAttendanceColumns =
   "id, barbero_id, fecha, semana_inicio, hora_entrada_real, hora_salida_real, created_at, updated_at";
@@ -13,9 +14,16 @@ export const laborNotificationColumns =
   "id, barbero_id, semana_inicio, fecha, tipo, titulo, mensaje, valor_penalidad, leida, created_at";
 
 let cleanupInFlight: Promise<void> | null = null;
+let lastCleanedWeekStart: string | null = null;
 
 // The labor module owns its own weekly cleanup and never touches reservations.
 export async function cleanupPreviousLaborAttendance(reference = new Date()) {
+  const { weekStart } = getCurrentLaborDay(reference);
+
+  if (lastCleanedWeekStart === weekStart) {
+    return;
+  }
+
   if (cleanupInFlight) {
     return cleanupInFlight;
   }
@@ -38,6 +46,7 @@ export async function cleanupPreviousLaborAttendance(reference = new Date()) {
 
   try {
     await cleanupInFlight;
+    lastCleanedWeekStart = weekStart;
   } finally {
     cleanupInFlight = null;
   }
