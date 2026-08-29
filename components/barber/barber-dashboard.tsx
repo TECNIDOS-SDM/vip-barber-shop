@@ -85,6 +85,16 @@ export function BarberDashboard({
   const shouldRefreshAgainRef = useRef(false);
   const refreshTimeoutRef = useRef<number | null>(null);
 
+  useEffect(() => {
+    if (sessionStorage.getItem("vipBarberOpenTodayScheduleOnce") !== "true") {
+      return;
+    }
+
+    sessionStorage.removeItem("vipBarberOpenTodayScheduleOnce");
+    setSelectedDate(getCurrentIsoDateForDashboard(dashboardData.currentWeek));
+    setPanelView("hours");
+  }, [dashboardData.currentWeek]);
+
   async function refreshData() {
     if (isRefreshingRef.current) {
       shouldRefreshAgainRef.current = true;
