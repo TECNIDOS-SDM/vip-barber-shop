@@ -22,6 +22,15 @@ export function BarberTodaySchedule() {
   const [marking, setMarking] = useState<"check_in" | "check_out" | null>(null);
 
   useEffect(() => {
+    if (sessionStorage.getItem("vipBarberOpenTodayScheduleOnce") !== "true") {
+      return;
+    }
+
+    sessionStorage.removeItem("vipBarberOpenTodayScheduleOnce");
+    setIsLaborOpen(true);
+  }, []);
+
+  useEffect(() => {
     let active = true;
 
     async function loadNotificationsSummary() {

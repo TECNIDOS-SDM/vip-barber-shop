@@ -73,6 +73,10 @@ export function AdminLoginForm({
         })
       )}; path=/; max-age=86400; samesite=lax`;
 
+      if (nextPath.startsWith("/gestion-equipo")) {
+        sessionStorage.setItem("vipBarberOpenTodayScheduleOnce", "true");
+      }
+
       window.location.assign(nextPath);
     } catch (error) {
       toast.error(
