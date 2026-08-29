@@ -17,6 +17,7 @@ export function BarberTodaySchedule() {
   const [notifications, setNotifications] = useState<LaborNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showTodaySchedule, setShowTodaySchedule] = useState(false);
   const [isLaborOpen, setIsLaborOpen] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [marking, setMarking] = useState<"check_in" | "check_out" | null>(null);
@@ -27,7 +28,7 @@ export function BarberTodaySchedule() {
     }
 
     sessionStorage.removeItem("vipBarberOpenTodayScheduleOnce");
-    setIsLaborOpen(true);
+    setShowTodaySchedule(true);
   }, []);
 
   useEffect(() => {
@@ -53,7 +54,7 @@ export function BarberTodaySchedule() {
   }, []);
 
   useEffect(() => {
-    if (!isLaborOpen || loaded) {
+    if ((!isLaborOpen && !showTodaySchedule) || loaded) {
       return;
     }
 
@@ -79,7 +80,7 @@ export function BarberTodaySchedule() {
     return () => {
       active = false;
     };
-  }, [isLaborOpen, loaded]);
+  }, [isLaborOpen, loaded, showTodaySchedule]);
 
   const schedule = data?.schedule;
   const attendance = data?.attendance;
@@ -87,6 +88,14 @@ export function BarberTodaySchedule() {
   const weeklyAttendanceByDate = new Map(
     data?.weeklyAttendance.map((item) => [item.fecha, item]) ?? []
   );
+  const todayLabel = data
+    ? new Intl.DateTimeFormat("es-CO", {
+        weekday: "long",
+        timeZone: "America/Bogota"
+      })
+        .format(new Date(`${data.date}T12:00:00-05:00`))
+        .toUpperCase()
+    : "";
 
   async function markAttendance(action: "check_in" | "check_out") {
     setMarking(action);
@@ -193,6 +202,67 @@ export function BarberTodaySchedule() {
 
   return (
     <>
+      {showTodaySchedule && loaded ? (
+        <section className="mt-8 glass rounded-[2rem] p-4 sm:p-6" aria-label="Horario de hoy">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sand/55">
+            Horario del día
+          </p>
+          <h2 className="mt-1 text-xl font-semibold text-sand">{todayLabel}</h2>
+          {!schedule ? (
+            <p className="mt-4 text-sm text-sand/65">No tienes horario configurado para hoy.</p>
+          ) : null}
+          {schedule && !schedule.trabaja ? (
+            <p className="mt-4 text-sm text-sand/65">Hoy no tienes jornada programada.</p>
+          ) : null}
+          {schedule?.trabaja ? (
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sand/55">Entrada programada</p>
+                <p className="mt-1 font-semibold text-sand">
+                  {schedule.hora_entrada ? formatHourDisplay(schedule.hora_entrada.slice(0, 5)) : "-"}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sand/55">Salida programada</p>
+                <p className="mt-1 font-semibold text-sand">
+                  {schedule.hora_salida ? formatHourDisplay(schedule.hora_salida.slice(0, 5)) : "-"}
+                </p>
+              </div>
+              {attendance?.hora_entrada_real ? (
+                <p className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm font-medium text-sand sm:col-span-2">
+                  Entrada: {formatLaborTimestamp(attendance.hora_entrada_real)}
+                </p>
+              ) : null}
+              {attendance?.hora_salida_real ? (
+                <p className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm font-medium text-sand sm:col-span-2">
+                  Salida registrada: {formatLaborTimestamp(attendance.hora_salida_real)}
+                </p>
+              ) : null}
+              {!attendance?.hora_entrada_real ? (
+                <button
+                  type="button"
+                  onClick={() => void markAttendance("check_in")}
+                  disabled={marking !== null}
+                  className="rounded-2xl bg-accent px-4 py-3 text-sm font-bold text-ink disabled:opacity-60 sm:col-span-2"
+                >
+                  {marking === "check_in" ? "Registrando..." : "Marcar entrada"}
+                </button>
+              ) : null}
+              {attendance?.hora_entrada_real && !attendance.hora_salida_real ? (
+                <button
+                  type="button"
+                  onClick={() => void markAttendance("check_out")}
+                  disabled={marking !== null}
+                  className="rounded-2xl bg-accent px-4 py-3 text-sm font-bold text-ink disabled:opacity-60 sm:col-span-2"
+                >
+                  {marking === "check_out" ? "Registrando..." : "Marcar salida"}
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
       <section className="mt-8 glass rounded-[2rem] p-4 sm:p-6">
         <button
           type="button"
