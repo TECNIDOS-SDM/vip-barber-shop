@@ -271,7 +271,7 @@ export function BarberTodaySchedule() {
                     Observaciones {data.observationsCount}
                   </div>
                   <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-sand">
-                    Debe: {formatLaborPenalty(data.weeklyPenaltyTotal)}
+                    Fondo: {formatLaborPenalty(data.weeklyPenaltyTotal)}
                   </div>
                 </div>
                 {data.observationsPenalty ? (

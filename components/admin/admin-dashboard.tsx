@@ -1120,7 +1120,7 @@ export function AdminDashboard({
       return;
     }
 
-    if (!window.confirm(`¿Agregar este punto negativo a ${activeBarber.nombre}?\n\n${justificacion}`)) {
+    if (!window.confirm(`¿Agregar esta observacion a ${activeBarber.nombre}?\n\n${justificacion}`)) {
       return;
     }
 
@@ -1139,7 +1139,7 @@ export function AdminDashboard({
       const payload = await response.json();
 
       if (!response.ok) {
-        throw new Error(payload.error ?? "No fue posible agregar el punto negativo.");
+        throw new Error(payload.error ?? "No fue posible agregar la observacion.");
       }
 
       setObservationCounts((current) => ({
@@ -1169,9 +1169,9 @@ export function AdminDashboard({
         };
       });
       closeAgendaObservationModal();
-      toast.success("Punto negativo agregado.");
+      toast.success("Observacion agregada.");
     } catch (error) {
-      toast.error(getUiErrorMessage(error, "No fue posible agregar el punto negativo."));
+      toast.error(getUiErrorMessage(error, "No fue posible agregar la observacion."));
     } finally {
       setSavingAgendaObservation(false);
     }
@@ -1293,7 +1293,7 @@ export function AdminDashboard({
                       <p>Observaciones {activeBarberLaborSummary?.observationsCount ?? 0}</p>
                       <p>Penalidades {activeBarberLaborSummary?.penaltiesCount ?? 0}</p>
                       <p>
-                        Debe: {new Intl.NumberFormat("es-CO", {
+                        Fondo: {new Intl.NumberFormat("es-CO", {
                           style: "currency",
                           currency: "COP",
                           maximumFractionDigits: 0
@@ -1642,7 +1642,7 @@ export function AdminDashboard({
                                 onClick={() => setShowAgendaObservationModal(true)}
                                 className="w-full rounded-2xl border border-accent/40 px-4 py-3 text-sm font-semibold text-accent transition hover:bg-accent/10"
                               >
-                                Punto negativo
+                                Observaciones
                               </button>
                             ) : (
                               <p className="rounded-2xl border border-amber-300/30 bg-amber-300/10 px-4 py-3 text-sm font-semibold text-amber-200">
@@ -2231,7 +2231,7 @@ export function AdminDashboard({
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent/80">
-                  Punto negativo
+                  Observaciones
                 </p>
                 <h3 className="mt-2 text-2xl font-semibold text-sand">{activeBarber.nombre}</h3>
                 <p className="mt-2 text-sm text-sand/70">
@@ -2271,7 +2271,7 @@ export function AdminDashboard({
                   onClick={() => void saveAgendaObservation()}
                   className="flex-1 rounded-2xl bg-accent px-4 py-3 text-sm font-bold text-ink disabled:opacity-60"
                 >
-                  {savingAgendaObservation ? "Guardando..." : "Confirmar punto negativo"}
+                  {savingAgendaObservation ? "Guardando..." : "Confirmar observacion"}
                 </button>
               </div>
             </div>
