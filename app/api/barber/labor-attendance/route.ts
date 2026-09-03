@@ -137,8 +137,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "La hora de salida ya fue registrada." }, { status: 409 });
   }
 
+  // Ensure the exit remains after the database-recorded entry even if clocks differ slightly.
+  const exitTimestamp = new Date(
+    Math.max(Date.now(), new Date(currentAttendance.hora_entrada_real).getTime() + 1)
+  ).toISOString();
   const { data: attendance, error } = await attendanceTable
-    .update({ hora_salida_real: now.toISOString() })
+    .update({ hora_salida_real: exitTimestamp })
     .eq("id", currentAttendance.id)
     .is("hora_salida_real", null)
     .select(laborAttendanceColumns)
