@@ -62,7 +62,7 @@ async function requireAdmin() {
     return { error: NextResponse.json({ error: "No autorizado." }, { status: 403 }) };
   }
 
-  return { supabase: adminSupabase as any };
+  return { supabase: adminSupabase as any, userId: user.id };
 }
 
 function rpcError(error: { code?: string; message: string }) {
@@ -121,7 +121,8 @@ export async function DELETE(request: Request) {
           p_observacion_id: parsed.data.record_id
         })
       : await access.supabase.rpc("eliminar_recargo_laboral", {
-          p_penalidad_id: parsed.data.record_id
+          p_penalidad_id: parsed.data.record_id,
+          p_eliminado_por: access.userId
         });
 
   if (error) {
