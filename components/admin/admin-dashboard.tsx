@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import { Clock3, Plus, Trash2, Upload, UserRoundCheck } from "lucide-react";
@@ -196,7 +196,6 @@ export function AdminDashboard({
   const [barbers, setBarbers] = useState(initialData.barbers);
   const [reservations, setReservations] = useState(initialData.reservations);
   const [profiles, setProfiles] = useState(initialData.profiles);
-  const [observationCounts, setObservationCounts] = useState<Record<string, number>>({});
   const [laborSummaries, setLaborSummaries] = useState<Record<string, LaborSummary>>({});
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -247,8 +246,6 @@ export function AdminDashboard({
   const isRefreshingRef = useRef(false);
   const shouldRefreshAgainRef = useRef(false);
   const refreshTimeoutRef = useRef<number | null>(null);
-  const observationCountWeekStartRef = useRef(initialData.currentWeek[0]?.isoDate ?? "");
-  const loadedObservationCountsRef = useRef(new Set<string>());
 
   async function refreshData() {
     if (isRefreshingRef.current) {
@@ -271,10 +268,7 @@ export function AdminDashboard({
       setReservations(payload.reservations ?? []);
       setProfiles(payload.profiles ?? []);
       const nextWeekStart = payload.currentWeek?.[0]?.isoDate ?? "";
-      if (nextWeekStart && nextWeekStart !== observationCountWeekStartRef.current) {
-        observationCountWeekStartRef.current = nextWeekStart;
-        loadedObservationCountsRef.current.clear();
-        setObservationCounts({});
+      if (nextWeekStart && nextWeekStart !== dashboardWeek[0]?.isoDate) {
         setLaborSummaries({});
       }
 
@@ -961,55 +955,40 @@ export function AdminDashboard({
     [activeBarberId, barbers]
   );
 
+  const refreshLaborSummary = useCallback(async (barberId: string) => {
+    try {
+      const response = await fetch(
+        `/api/admin/labor-observations?barbero_id=${encodeURIComponent(barberId)}&summary=count`,
+        { cache: "no-store" }
+      );
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? "No fue posible consultar las observaciones.");
+      }
+
+      setLaborSummaries((current) => ({
+        ...current,
+        [barberId]: {
+          observationsCount: payload.observationsCount ?? 0,
+          penaltiesCount: payload.penaltiesCount ?? 0,
+          penaltiesTotal: payload.penaltiesTotal ?? 0
+        }
+      }));
+    } catch {
+      // Preserve the last confirmed server summary if this compact refresh fails.
+    }
+  }, []);
+
+  const currentLaborWeekStart = dashboardWeek[0]?.isoDate ?? "";
+
   useEffect(() => {
     if (!activeBarber || activeBarberView === "list") {
       return;
     }
 
-    if (loadedObservationCountsRef.current.has(activeBarber.id)) {
-      return;
-    }
-
-    let cancelled = false;
-
-    async function loadObservationCount() {
-      try {
-        const response = await fetch(
-          `/api/admin/labor-observations?barbero_id=${encodeURIComponent(activeBarber.id)}&summary=count`,
-          { cache: "no-store" }
-        );
-        const payload = await response.json();
-
-        if (!response.ok) {
-          throw new Error(payload.error ?? "No fue posible consultar las observaciones.");
-        }
-
-        if (!cancelled) {
-          setObservationCounts((current) => ({
-            ...current,
-            [activeBarber.id]: Math.min(5, payload.observationsCount ?? 0)
-          }));
-          setLaborSummaries((current) => ({
-            ...current,
-            [activeBarber.id]: {
-              observationsCount: Math.min(5, payload.observationsCount ?? 0),
-              penaltiesCount: payload.penaltiesCount ?? 0,
-              penaltiesTotal: payload.penaltiesTotal ?? 0
-            }
-          }));
-          loadedObservationCountsRef.current.add(activeBarber.id);
-        }
-      } catch {
-        // Preserve an already loaded value if this small secondary request fails.
-      }
-    }
-
-    void loadObservationCount();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [activeBarber, activeBarberView]);
+    void refreshLaborSummary(activeBarber.id);
+  }, [activeBarber?.id, activeBarberView, currentLaborWeekStart, refreshLaborSummary]);
 
   useEffect(() => {
     if (activeBarberView !== "agenda" || !activeBarber) {
@@ -1092,12 +1071,9 @@ export function AdminDashboard({
     );
   }
 
-  const activeBarberObservationCount = activeBarber
-    ? observationCounts[activeBarber.id] ?? 0
-    : 0;
   const activeBarberLaborSummary = activeBarber
     ? laborSummaries[activeBarber.id] ?? {
-        observationsCount: activeBarberObservationCount,
+        observationsCount: 0,
         penaltiesCount: 0,
         penaltiesTotal: 0
       }
@@ -1142,32 +1118,7 @@ export function AdminDashboard({
         throw new Error(payload.error ?? "No fue posible agregar la observacion.");
       }
 
-      setObservationCounts((current) => ({
-        ...current,
-        [activeBarber.id]: Math.min(5, payload.observationsCount ?? activeBarberObservationCount)
-      }));
-      setLaborSummaries((current) => {
-        const currentSummary = current[activeBarber.id] ?? {
-          observationsCount: activeBarberObservationCount,
-          penaltiesCount: 0,
-          penaltiesTotal: 0
-        };
-        const observationPenalty = payload.observationsPenalty as { valor?: number } | null;
-
-        return {
-          ...current,
-          [activeBarber.id]: {
-            observationsCount: Math.min(
-              5,
-              payload.observationsCount ?? currentSummary.observationsCount
-            ),
-            penaltiesCount:
-              currentSummary.penaltiesCount + (observationPenalty?.valor !== undefined ? 1 : 0),
-            penaltiesTotal:
-              currentSummary.penaltiesTotal + (observationPenalty?.valor ?? 0)
-          }
-        };
-      });
+      await refreshLaborSummary(activeBarber.id);
       closeAgendaObservationModal();
       toast.success("Observacion agregada.");
     } catch (error) {
@@ -1207,6 +1158,7 @@ export function AdminDashboard({
                 <AdminLaborSchedules
                   barbers={barbers}
                   onClose={() => setShowLaborSchedules(false)}
+                  onLaborSummaryChange={refreshLaborSummary}
                 />
               ) : (
               <>
@@ -1636,7 +1588,7 @@ export function AdminDashboard({
                             ))}
                           </div>
                           <div className="mt-4">
-                            {activeBarberObservationCount < 5 ? (
+                            {(activeBarberLaborSummary?.observationsCount ?? 0) < 5 ? (
                               <button
                                 type="button"
                                 onClick={() => setShowAgendaObservationModal(true)}

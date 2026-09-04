@@ -53,10 +53,12 @@ function toScheduleForm(schedule: LaborSchedule | null): ScheduleForm {
 
 export function AdminLaborSchedules({
   barbers,
-  onClose
+  onClose,
+  onLaborSummaryChange
 }: {
   barbers: LaborBarber[];
   onClose: () => void;
+  onLaborSummaryChange: (barberId: string) => Promise<void>;
 }) {
   const [view, setView] = useState<"barbers" | "days" | "editor">("barbers");
   const [selectedBarber, setSelectedBarber] = useState<LaborBarber | null>(null);
@@ -193,6 +195,7 @@ export function AdminLaborSchedules({
       setObservations((current) => current.map((observation) =>
         observation.id === observationId ? (payload.observation as LaborObservation) : observation
       ));
+      await onLaborSummaryChange(selectedBarber!.id);
       setEditingObservationId(null);
       toast.success("Observacion actualizada.");
     } catch (error) {
@@ -216,6 +219,7 @@ export function AdminLaborSchedules({
       if (!response.ok) throw new Error(payload.error ?? "No fue posible eliminar la observacion.");
 
       await loadObservations(selectedBarber.id, selectedDate ?? undefined);
+      await onLaborSummaryChange(selectedBarber.id);
       toast.success("Observacion eliminada.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "No fue posible eliminar la observacion.");
@@ -251,6 +255,9 @@ export function AdminLaborSchedules({
       if (!response.ok) throw new Error(payload.error ?? "No fue posible editar el recargo.");
 
       replacePenalty(payload.penalty as LaborPenalty);
+      if (selectedBarber) {
+        await onLaborSummaryChange(selectedBarber.id);
+      }
       setEditingPenaltyId(null);
       toast.success("Recargo actualizado.");
     } catch (error) {
@@ -275,6 +282,9 @@ export function AdminLaborSchedules({
 
       setPenalty((current) => (current?.id === penaltyId ? null : current));
       setObservationsPenalty((current) => (current?.id === penaltyId ? null : current));
+      if (selectedBarber) {
+        await onLaborSummaryChange(selectedBarber.id);
+      }
       setEditingPenaltyId(null);
       toast.success("Recargo eliminado.");
     } catch (error) {
