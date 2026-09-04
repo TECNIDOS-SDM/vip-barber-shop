@@ -5,10 +5,10 @@ export const laborAttendanceColumns =
   "id, barbero_id, fecha, semana_inicio, hora_entrada_real, hora_salida_real, created_at, updated_at";
 
 export const laborPenaltyColumns =
-  "id, barbero_id, asistencia_id, fecha, semana_inicio, tipo, motivo, valor, created_at";
+  "id, barbero_id, asistencia_id, fecha, semana_inicio, tipo, motivo, valor, created_at, updated_at";
 
 export const laborObservationColumns =
-  "id, barbero_id, fecha, semana_inicio, justificacion, creado_por, created_at";
+  "id, barbero_id, fecha, semana_inicio, justificacion, creado_por, created_at, updated_at";
 
 export const laborNotificationColumns =
   "id, barbero_id, semana_inicio, fecha, tipo, titulo, mensaje, valor_penalidad, leida, created_at";

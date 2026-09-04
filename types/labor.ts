@@ -45,6 +45,7 @@ export type LaborPenalty = {
   motivo: string;
   valor: number;
   created_at: string;
+  updated_at: string;
 };
 
 export type LaborObservation = {
@@ -55,6 +56,7 @@ export type LaborObservation = {
   justificacion: string;
   creado_por: string | null;
   created_at: string;
+  updated_at: string;
 };
 
 export type LaborConfiguration = {

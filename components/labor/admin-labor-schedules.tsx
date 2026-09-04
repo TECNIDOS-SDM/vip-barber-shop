@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowLeft, Clock3, Save } from "lucide-react";
+import { ArrowLeft, Clock3, Pencil, Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { WEEK_DAYS } from "@/lib/constants";
 import { formatHourDisplay } from "@/lib/date";
@@ -61,6 +61,7 @@ export function AdminLaborSchedules({
   const [view, setView] = useState<"barbers" | "days" | "editor">("barbers");
   const [selectedBarber, setSelectedBarber] = useState<LaborBarber | null>(null);
   const [selectedDay, setSelectedDay] = useState<LaborDayOfWeek | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [form, setForm] = useState<ScheduleForm>(emptyScheduleForm);
   const [attendance, setAttendance] = useState<LaborAttendance | null>(null);
   const [penalty, setPenalty] = useState<LaborPenalty | null>(null);
@@ -72,6 +73,11 @@ export function AdminLaborSchedules({
   const [showPenaltyEditor, setShowPenaltyEditor] = useState(false);
   const [savingConfiguration, setSavingConfiguration] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [recordSaving, setRecordSaving] = useState(false);
+  const [editingObservationId, setEditingObservationId] = useState<string | null>(null);
+  const [observationDraft, setObservationDraft] = useState("");
+  const [editingPenaltyId, setEditingPenaltyId] = useState<string | null>(null);
+  const [penaltyDraft, setPenaltyDraft] = useState({ valor: "", motivo: "" });
 
   useEffect(() => {
     let active = true;
@@ -139,6 +145,7 @@ export function AdminLaborSchedules({
       }
 
       setSelectedDay(day);
+      setSelectedDate(payload.date);
       setForm(toScheduleForm(payload.schedule ?? null));
       setAttendance(payload.attendance ?? null);
       setPenalty(payload.penalty ?? null);
@@ -156,7 +163,159 @@ export function AdminLaborSchedules({
     setObservations([]);
     setObservationsCount(0);
     setObservationsPenalty(null);
+    setSelectedDate(null);
     setView("days");
+  }
+
+  function replacePenalty(updatedPenalty: LaborPenalty) {
+    setPenalty((current) => (current?.id === updatedPenalty.id ? updatedPenalty : current));
+    setObservationsPenalty((current) =>
+      current?.id === updatedPenalty.id ? updatedPenalty : current
+    );
+  }
+
+  async function saveObservation(observationId: string) {
+    if (!observationDraft.trim()) {
+      toast.error("Escribe una justificacion.");
+      return;
+    }
+
+    setRecordSaving(true);
+    try {
+      const response = await fetch("/api/admin/labor-records", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "update_observation", record_id: observationId, justificacion: observationDraft })
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error ?? "No fue posible editar la observacion.");
+
+      setObservations((current) => current.map((observation) =>
+        observation.id === observationId ? (payload.observation as LaborObservation) : observation
+      ));
+      setEditingObservationId(null);
+      toast.success("Observacion actualizada.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "No fue posible editar la observacion.");
+    } finally {
+      setRecordSaving(false);
+    }
+  }
+
+  async function deleteObservation(observationId: string) {
+    if (!selectedBarber || !window.confirm("¿Eliminar esta observacion?")) return;
+
+    setRecordSaving(true);
+    try {
+      const response = await fetch("/api/admin/labor-records", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "delete_observation", record_id: observationId })
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error ?? "No fue posible eliminar la observacion.");
+
+      await loadObservations(selectedBarber.id, selectedDate ?? undefined);
+      toast.success("Observacion eliminada.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "No fue posible eliminar la observacion.");
+    } finally {
+      setRecordSaving(false);
+    }
+  }
+
+  async function savePenalty(penaltyId: string) {
+    const value = Number(penaltyDraft.valor);
+    if (!Number.isInteger(value) || value < 0 || value > 1000000) {
+      toast.error("Ingresa un valor entero entre 0 y 1.000.000.");
+      return;
+    }
+    if (penaltyDraft.motivo.trim() && penaltyDraft.motivo.trim().length < 3) {
+      toast.error("El motivo debe tener al menos 3 caracteres.");
+      return;
+    }
+
+    setRecordSaving(true);
+    try {
+      const response = await fetch("/api/admin/labor-records", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "update_penalty",
+          record_id: penaltyId,
+          valor: value,
+          motivo: penaltyDraft.motivo.trim() || undefined
+        })
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error ?? "No fue posible editar el recargo.");
+
+      replacePenalty(payload.penalty as LaborPenalty);
+      setEditingPenaltyId(null);
+      toast.success("Recargo actualizado.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "No fue posible editar el recargo.");
+    } finally {
+      setRecordSaving(false);
+    }
+  }
+
+  async function deletePenalty(penaltyId: string) {
+    if (!window.confirm("¿Eliminar este recargo?")) return;
+
+    setRecordSaving(true);
+    try {
+      const response = await fetch("/api/admin/labor-records", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "delete_penalty", record_id: penaltyId })
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error ?? "No fue posible eliminar el recargo.");
+
+      setPenalty((current) => (current?.id === penaltyId ? null : current));
+      setObservationsPenalty((current) => (current?.id === penaltyId ? null : current));
+      setEditingPenaltyId(null);
+      toast.success("Recargo eliminado.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "No fue posible eliminar el recargo.");
+    } finally {
+      setRecordSaving(false);
+    }
+  }
+
+  function renderPenaltyActions(currentPenalty: LaborPenalty) {
+    if (editingPenaltyId === currentPenalty.id) {
+      return (
+        <div className="mt-3 space-y-2">
+          <input type="number" min="0" max="1000000" step="1" value={penaltyDraft.valor}
+            onChange={(event) => setPenaltyDraft((current) => ({ ...current, valor: event.target.value }))}
+            className="w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-sand outline-none" />
+          <input type="text" maxLength={500} value={penaltyDraft.motivo}
+            onChange={(event) => setPenaltyDraft((current) => ({ ...current, motivo: event.target.value }))}
+            placeholder="Motivo opcional"
+            className="w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-sand outline-none" />
+          <div className="flex flex-wrap gap-2">
+            <button type="button" disabled={recordSaving} onClick={() => void savePenalty(currentPenalty.id)} className="rounded-xl bg-accent px-3 py-2 text-xs font-bold text-ink disabled:opacity-60">Guardar</button>
+            <button type="button" disabled={recordSaving} onClick={() => setEditingPenaltyId(null)} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-semibold text-sand/80">Cancelar</button>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button type="button" disabled={recordSaving} onClick={() => {
+          setEditingPenaltyId(currentPenalty.id);
+          setPenaltyDraft({ valor: String(currentPenalty.valor), motivo: currentPenalty.motivo });
+        }} className="inline-flex items-center gap-1 rounded-xl border border-white/10 px-3 py-2 text-xs font-semibold text-sand/80 disabled:opacity-60">
+          <Pencil className="h-3.5 w-3.5" /> Editar
+        </button>
+        <button type="button" disabled={recordSaving} onClick={() => void deletePenalty(currentPenalty.id)} className="inline-flex items-center gap-1 rounded-xl border border-red-300/25 px-3 py-2 text-xs font-semibold text-red-100 disabled:opacity-60">
+          <Trash2 className="h-3.5 w-3.5" /> Eliminar
+        </button>
+      </div>
+    );
   }
 
   async function savePenaltyConfiguration() {
@@ -482,9 +641,12 @@ export function AdminLaborSchedules({
             {penalty ? `Tardanza — ${formatLaborPenalty(penalty.valor)}` : "Sin recargo"}
           </p>
           {penalty ? (
-            <p className="mt-1 text-xs text-sand/60">
-              {formatLaborDate(penalty.fecha)} · {formatLaborTimestamp(penalty.created_at)}
-            </p>
+            <>
+              <p className="mt-1 text-xs text-sand/60">
+                {formatLaborDate(penalty.fecha)} · {formatLaborTimestamp(penalty.created_at)}
+              </p>
+              {renderPenaltyActions(penalty)}
+            </>
           ) : null}
         </div>
 
@@ -502,22 +664,61 @@ export function AdminLaborSchedules({
 
           <div className="mt-4 space-y-2 text-sm text-sand/75">
             {observations.length ? (
-              observations.map((observation) => (
-                <p key={observation.id}>
-                  {formatLaborDate(observation.fecha)} - {observation.justificacion}
-                </p>
-              ))
+              observations.map((observation) => {
+                const isEditing = editingObservationId === observation.id;
+
+                return (
+                  <div key={observation.id} className="rounded-xl border border-white/10 px-3 py-2">
+                    <p className="text-xs text-sand/55">{formatLaborDate(observation.fecha)}</p>
+                    {isEditing ? (
+                      <div className="mt-2 space-y-2">
+                        <input
+                          type="text"
+                          maxLength={500}
+                          value={observationDraft}
+                          onChange={(event) => setObservationDraft(event.target.value)}
+                          className="w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-sand outline-none"
+                        />
+                        <div className="flex flex-wrap gap-2">
+                          <button type="button" disabled={recordSaving} onClick={() => void saveObservation(observation.id)} className="rounded-xl bg-accent px-3 py-2 text-xs font-bold text-ink disabled:opacity-60">
+                            Guardar
+                          </button>
+                          <button type="button" disabled={recordSaving} onClick={() => setEditingObservationId(null)} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-semibold text-sand/80">
+                            Cancelar
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <p className="mt-1">{observation.justificacion}</p>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          <button type="button" disabled={recordSaving} onClick={() => {
+                            setEditingObservationId(observation.id);
+                            setObservationDraft(observation.justificacion);
+                          }} className="inline-flex items-center gap-1 text-xs font-semibold text-sand/80 disabled:opacity-60">
+                            <Pencil className="h-3.5 w-3.5" /> Editar
+                          </button>
+                          <button type="button" disabled={recordSaving} onClick={() => void deleteObservation(observation.id)} className="inline-flex items-center gap-1 text-xs font-semibold text-red-100 disabled:opacity-60">
+                            <Trash2 className="h-3.5 w-3.5" /> Eliminar
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                );
+              })
             ) : (
               <p>Sin observaciones</p>
             )}
           </div>
           {observationsPenalty ? (
-            <p className="mt-4 rounded-xl border border-amber-300/30 bg-amber-300/10 px-3 py-2 text-sm font-semibold text-sand">
-              Recargo por 5 observaciones: {formatLaborPenalty(observationsPenalty.valor)}
+            <div className="mt-4 rounded-xl border border-amber-300/30 bg-amber-300/10 px-3 py-2 text-sm font-semibold text-sand">
+              <p>Recargo por 5 observaciones: {formatLaborPenalty(observationsPenalty.valor)}</p>
               <span className="mt-1 block text-xs font-medium text-sand/70">
                 {formatLaborDate(observationsPenalty.fecha)} · {formatLaborTimestamp(observationsPenalty.created_at)}
               </span>
-            </p>
+              {renderPenaltyActions(observationsPenalty)}
+            </div>
           ) : null}
         </div>
 
