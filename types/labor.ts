@@ -87,5 +87,6 @@ export type LaborTodayResponse = {
   observationsCount: number;
   observationsPenalty: LaborPenalty | null;
   weeklyAttendance: LaborWeeklyAttendance[];
+  weeklyPenaltyCount: number;
   weeklyPenaltyTotal: number;
 };

@@ -152,14 +152,13 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: attendanceError.message }, { status: 400 });
   }
 
-  const { data: penalty, error: penaltyError } = attendance
-    ? await access.supabase
-        .from("penalidades_laborales")
-        .select(laborPenaltyColumns)
-        .eq("asistencia_id", attendance.id)
-        .eq("tipo", "tardanza")
-        .maybeSingle()
-    : { data: null, error: null };
+  const { data: penalty, error: penaltyError } = await access.supabase
+    .from("penalidades_laborales")
+    .select(laborPenaltyColumns)
+    .eq("barbero_id", parsedBarberId.data)
+    .eq("fecha", date)
+    .eq("tipo", "tardanza")
+    .maybeSingle();
 
   if (penaltyError) {
     return NextResponse.json({ error: penaltyError.message }, { status: 400 });

@@ -4,13 +4,19 @@ import { useEffect, useState } from "react";
 import { ChevronDown, Clock3 } from "lucide-react";
 import { toast } from "sonner";
 import { formatHourDisplay, getCurrentWeek } from "@/lib/date";
-import { formatLaborPenalty, formatLaborTimestamp } from "@/lib/labor/week";
+import { formatLaborDate, formatLaborPenalty, formatLaborTimestamp } from "@/lib/labor/week";
 import type {
   LaborAttendance,
   LaborNotification,
   LaborPenalty,
   LaborTodayResponse
 } from "@/types/labor";
+
+function formatRecargoText(value: string) {
+  return value
+    .replace(/penalidad informativa/gi, "recargo informativo")
+    .replace(/penalidades?/gi, "Recargo");
+}
 
 export function BarberTodaySchedule() {
   const [data, setData] = useState<LaborTodayResponse | null>(null);
@@ -58,6 +64,17 @@ export function BarberTodaySchedule() {
         }
 
         setData((await response.json()) as LaborTodayResponse);
+
+        // The server may create one late-arrival notification during this lazy load.
+        const notificationsResponse = await fetch("/api/barber/labor-notifications?summary=count", {
+          cache: "no-store"
+        });
+        if (notificationsResponse.ok && active) {
+          const notificationsPayload = (await notificationsResponse.json()) as {
+            unreadCount: number;
+          };
+          setUnreadCount(notificationsPayload.unreadCount ?? 0);
+        }
       } finally {
         if (active) {
           setLoaded(true);
@@ -238,7 +255,10 @@ export function BarberTodaySchedule() {
           ) : null}
           {data?.penalty ? (
             <div className="rounded-2xl border border-amber-300/30 bg-amber-300/10 px-4 py-3 text-sm font-semibold text-sand sm:col-span-2">
-              Penalidad por tardanza: {formatLaborPenalty(data.penalty.valor)}
+              <p>Recargo por tardanza: {formatLaborPenalty(data.penalty.valor)}</p>
+              <p className="mt-1 text-xs font-medium text-sand/70">
+                {formatLaborDate(data.penalty.fecha)} · {formatLaborTimestamp(data.penalty.created_at)}
+              </p>
             </div>
           ) : null}
           {!attendance?.hora_entrada_real ? (
@@ -265,9 +285,12 @@ export function BarberTodaySchedule() {
             ) : null}
             {loaded && data ? (
               <div className="mt-4 space-y-3">
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid gap-3 sm:grid-cols-3">
                   <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-sand">
                     Observaciones {data.observationsCount}
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-sand">
+                    Recargo {data.weeklyPenaltyCount}
                   </div>
                   <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-sand">
                     Fondo: {formatLaborPenalty(data.weeklyPenaltyTotal)}
@@ -275,7 +298,10 @@ export function BarberTodaySchedule() {
                 </div>
                 {data.observationsPenalty ? (
                   <div className="rounded-2xl border border-amber-300/30 bg-amber-300/10 px-4 py-3 text-sm font-semibold text-sand">
-                    Penalidad por 5 observaciones: {formatLaborPenalty(data.observationsPenalty.valor)}
+                    Recargo por 5 observaciones: {formatLaborPenalty(data.observationsPenalty.valor)}
+                    <span className="mt-1 block text-xs font-medium text-sand/70">
+                      {formatLaborDate(data.observationsPenalty.fecha)} · {formatLaborTimestamp(data.observationsPenalty.created_at)}
+                    </span>
                   </div>
                 ) : null}
               </div>
@@ -329,8 +355,13 @@ export function BarberTodaySchedule() {
                     key={notification.id}
                     className="rounded-xl border border-white/10 bg-black/15 px-3 py-3 text-sm text-sand/75"
                   >
-                    <p className="font-semibold text-sand">{notification.titulo}</p>
-                    <p className="mt-1">{notification.mensaje}</p>
+                    <p className="font-semibold text-sand">{formatRecargoText(notification.titulo)}</p>
+                    <p className="mt-1">{formatRecargoText(notification.mensaje)}</p>
+                    {notification.valor_penalidad !== null ? (
+                      <p className="mt-2 text-xs text-sand/60">
+                        {formatLaborDate(notification.fecha)} · {formatLaborTimestamp(notification.created_at)}
+                      </p>
+                    ) : null}
                   </div>
                 ))
               ) : (

@@ -167,7 +167,7 @@ export function AdminLaborSchedules({
       return;
     }
 
-    if (!window.confirm(`Nuevo valor informativo de penalidad: ${formatLaborPenalty(value)}`)) {
+    if (!window.confirm(`Nuevo valor informativo de recargo: ${formatLaborPenalty(value)}`)) {
       return;
     }
 
@@ -182,16 +182,16 @@ export function AdminLaborSchedules({
       const payload = await response.json();
 
       if (!response.ok) {
-        throw new Error(payload.error ?? "No fue posible guardar el valor de penalidad.");
+        throw new Error(payload.error ?? "No fue posible guardar el valor de recargo.");
       }
 
       setConfiguration(payload.configuration as LaborConfiguration);
       setPenaltyValue(String(payload.configuration.valor_penalidad));
       setShowPenaltyEditor(false);
-      toast.success(`Nuevo valor informativo de penalidad: ${formatLaborPenalty(value)}`);
+      toast.success(`Nuevo valor informativo de recargo: ${formatLaborPenalty(value)}`);
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "No fue posible guardar el valor de penalidad."
+        error instanceof Error ? error.message : "No fue posible guardar el valor de recargo."
       );
     } finally {
       setSavingConfiguration(false);
@@ -277,7 +277,7 @@ export function AdminLaborSchedules({
 
         <div className="mt-5 rounded-2xl border border-white/10 bg-white/5 px-4 py-4">
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sand/55">
-            Configuracion de penalidades
+            Configuracion de recargo
           </p>
           {showPenaltyEditor ? (
             <div className="mt-3 flex flex-wrap items-center gap-3">
@@ -476,11 +476,16 @@ export function AdminLaborSchedules({
 
         <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sand/55">
-            Penalidad
+            Recargo
           </p>
           <p className="mt-2 font-semibold text-sand">
-            {penalty ? `Tardanza — ${formatLaborPenalty(penalty.valor)}` : "Sin penalidad"}
+            {penalty ? `Tardanza — ${formatLaborPenalty(penalty.valor)}` : "Sin recargo"}
           </p>
+          {penalty ? (
+            <p className="mt-1 text-xs text-sand/60">
+              {formatLaborDate(penalty.fecha)} · {formatLaborTimestamp(penalty.created_at)}
+            </p>
+          ) : null}
         </div>
 
         <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
@@ -508,7 +513,10 @@ export function AdminLaborSchedules({
           </div>
           {observationsPenalty ? (
             <p className="mt-4 rounded-xl border border-amber-300/30 bg-amber-300/10 px-3 py-2 text-sm font-semibold text-sand">
-              Penalidad por 5 observaciones: {formatLaborPenalty(observationsPenalty.valor)}
+              Recargo por 5 observaciones: {formatLaborPenalty(observationsPenalty.valor)}
+              <span className="mt-1 block text-xs font-medium text-sand/70">
+                {formatLaborDate(observationsPenalty.fecha)} · {formatLaborTimestamp(observationsPenalty.created_at)}
+              </span>
             </p>
           ) : null}
         </div>

@@ -6,9 +6,11 @@ import {
   laborPenaltyColumns
 } from "@/lib/labor/attendance";
 import { getCurrentLaborDay } from "@/lib/labor/week";
+import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
 type WeeklyPenalty = {
+  fecha: string;
   asistencia_id: string | null;
   tipo: "tardanza" | "cinco_observaciones";
   valor: number;
@@ -46,16 +48,38 @@ export async function GET() {
     );
   }
 
+  const { data: schedule, error: scheduleError } = await supabase
+    .from("horarios_laborales_barberos")
+    .select("id, barbero_id, dia_semana, hora_entrada, hora_salida, trabaja, created_at, updated_at")
+    .eq("barbero_id", profile.barbero_id)
+    .eq("dia_semana", today.dayOfWeek)
+    .maybeSingle();
+
+  if (scheduleError) {
+    return NextResponse.json({ error: scheduleError.message }, { status: 400 });
+  }
+
+  // Evaluate exactly once when the barber requests the labor panel; no polling is used.
+  if (schedule?.trabaja && schedule.hora_entrada) {
+    const adminSupabase = getSupabaseAdminClient();
+
+    if (!adminSupabase) {
+      return NextResponse.json({ error: "Supabase no configurado." }, { status: 500 });
+    }
+
+    const { error } = await (adminSupabase as any).rpc("evaluar_tardanza_laboral", {
+      p_barbero_id: profile.barbero_id
+    });
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+  }
+
   const observationsTable = supabase.from("observaciones_laborales") as any;
   const penaltiesTable = supabase.from("penalidades_laborales") as any;
-  const [scheduleResult, attendanceResult, weeklyAttendanceResult, observationsCountResult, penaltiesResult] =
+  const [attendanceResult, weeklyAttendanceResult, observationsCountResult, penaltiesResult] =
     await Promise.all([
-      supabase
-        .from("horarios_laborales_barberos")
-        .select("id, barbero_id, dia_semana, hora_entrada, hora_salida, trabaja, created_at, updated_at")
-        .eq("barbero_id", profile.barbero_id)
-        .eq("dia_semana", today.dayOfWeek)
-        .maybeSingle(),
       supabase
         .from("asistencias_laborales")
         .select(laborAttendanceColumns)
@@ -79,7 +103,6 @@ export async function GET() {
     ]);
 
   const requestError =
-    scheduleResult.error ??
     attendanceResult.error ??
     weeklyAttendanceResult.error ??
     observationsCountResult.error ??
@@ -91,11 +114,8 @@ export async function GET() {
 
   const attendance = attendanceResult.data;
   const weeklyPenalties = (penaltiesResult.data ?? []) as WeeklyPenalty[];
-  const penalty = attendance
-    ? weeklyPenalties.find(
-        (item) => item.asistencia_id === attendance.id && item.tipo === "tardanza"
-      ) ?? null
-    : null;
+  const penalty =
+    weeklyPenalties.find((item) => item.fecha === today.date && item.tipo === "tardanza") ?? null;
   const observationsPenalty =
     weeklyPenalties.find((item) => item.tipo === "cinco_observaciones") ?? null;
   const weeklyPenaltyTotal = weeklyPenalties.reduce((total, item) => total + item.valor, 0);
@@ -103,13 +123,14 @@ export async function GET() {
   return NextResponse.json({
     dayOfWeek: today.dayOfWeek,
     date: today.date,
-    schedule: scheduleResult.data ?? null,
+    schedule: schedule ?? null,
     attendance: attendance ?? null,
     penalty: penalty ?? null,
     observations: [],
     observationsCount: observationsCountResult.count ?? 0,
     observationsPenalty,
     weeklyAttendance: weeklyAttendanceResult.data ?? [],
+    weeklyPenaltyCount: weeklyPenalties.length,
     weeklyPenaltyTotal
   });
 }

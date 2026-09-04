@@ -1291,7 +1291,7 @@ export function AdminDashboard({
                     </h3>
                     <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-sm font-semibold text-sand/60">
                       <p>Observaciones {activeBarberLaborSummary?.observationsCount ?? 0}</p>
-                      <p>Penalidades {activeBarberLaborSummary?.penaltiesCount ?? 0}</p>
+                      <p>Recargo {activeBarberLaborSummary?.penaltiesCount ?? 0}</p>
                       <p>
                         Fondo: {new Intl.NumberFormat("es-CO", {
                           style: "currency",
