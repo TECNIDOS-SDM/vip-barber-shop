@@ -4,7 +4,10 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { adminIdentifierToEmail } from "@/lib/admin-auth";
-import { ADMIN_DASHBOARD_VIEW_COOKIE } from "@/lib/dashboard-view-state";
+import {
+  ADMIN_DASHBOARD_VIEW_COOKIE,
+  BARBER_DASHBOARD_VIEW_COOKIE
+} from "@/lib/dashboard-view-state";
 import {
   createSessionLockKey,
   setSessionLockCookie
@@ -70,6 +73,15 @@ export function AdminLoginForm({
           activeBarberId: null,
           activeBarberView: "list",
           scheduleDate: ""
+        })
+      )}; path=/; max-age=86400; samesite=lax`;
+
+      // A successful sign-in starts the barber flow from today's server-calculated
+      // Colombia date, instead of carrying a day selected in a previous session.
+      document.cookie = `${BARBER_DASHBOARD_VIEW_COOKIE}=${encodeURIComponent(
+        JSON.stringify({
+          panelView: "hours",
+          selectedDate: ""
         })
       )}; path=/; max-age=86400; samesite=lax`;
 

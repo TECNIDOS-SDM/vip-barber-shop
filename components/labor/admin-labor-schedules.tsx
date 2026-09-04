@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Clock3, Pencil, Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { WEEK_DAYS } from "@/lib/constants";
@@ -80,6 +80,7 @@ export function AdminLaborSchedules({
   const [observationDraft, setObservationDraft] = useState("");
   const [editingPenaltyId, setEditingPenaltyId] = useState<string | null>(null);
   const [penaltyDraft, setPenaltyDraft] = useState({ valor: "", motivo: "" });
+  const recordActionInFlightRef = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -206,8 +207,15 @@ export function AdminLaborSchedules({
   }
 
   async function deleteObservation(observationId: string) {
-    if (!selectedBarber || !window.confirm("¿Eliminar esta observacion?")) return;
+    if (
+      !selectedBarber ||
+      recordActionInFlightRef.current ||
+      !window.confirm("¿Eliminar esta observacion?")
+    ) {
+      return;
+    }
 
+    recordActionInFlightRef.current = true;
     setRecordSaving(true);
     try {
       const response = await fetch("/api/admin/labor-records", {
@@ -218,12 +226,21 @@ export function AdminLaborSchedules({
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error ?? "No fue posible eliminar la observacion.");
 
-      await loadObservations(selectedBarber.id, selectedDate ?? undefined);
+      // The RPC removes exactly the supplied ID. Reflect that result locally so a
+      // second fetch cannot briefly apply stale list state after a delete.
+      setObservations((current) =>
+        current.filter((observation) => observation.id !== observationId)
+      );
+      setObservationsCount(payload.observationsCount ?? 0);
+      if (payload.removedFiveObservationsPenalty) {
+        setObservationsPenalty(null);
+      }
       await onLaborSummaryChange(selectedBarber.id);
       toast.success("Observacion eliminada.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "No fue posible eliminar la observacion.");
     } finally {
+      recordActionInFlightRef.current = false;
       setRecordSaving(false);
     }
   }

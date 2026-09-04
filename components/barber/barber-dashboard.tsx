@@ -54,8 +54,10 @@ function getCurrentIsoDateForDashboard(
   });
 
   return (
-    week.find((item) => item.isoDate === todayIso)?.isoDate ??
+    // `isToday` comes from the server week, which is already resolved in
+    // America/Bogota. Prefer it so agenda and labor scheduling share one day.
     week.find((item) => item.isToday)?.isoDate ??
+    week.find((item) => item.isoDate === todayIso)?.isoDate ??
     week[0]?.isoDate ??
     ""
   );
