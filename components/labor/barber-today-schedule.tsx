@@ -138,12 +138,16 @@ export function BarberTodaySchedule() {
           {attendance?.hora_salida_real ? (
             <p className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm font-medium text-sand sm:col-span-2">Salida registrada: {formatLaborTimestamp(attendance.hora_salida_real)}</p>
           ) : null}
-          {data?.penalty ? (
-            <div className="rounded-2xl border border-amber-300/30 bg-amber-300/10 px-4 py-3 text-sm font-semibold text-sand sm:col-span-2">
-              <p>Recargo por tardanza: {formatLaborPenalty(data.penalty.valor)}</p>
-              <p className="mt-1 text-xs font-medium text-sand/70">{formatLaborDate(data.penalty.fecha)} · {formatLaborTimestamp(data.penalty.created_at)}</p>
+          {data?.penaltiesToday.map((penalty) => (
+            <div key={penalty.id} className="rounded-2xl border border-amber-300/30 bg-amber-300/10 px-4 py-3 text-sm font-semibold text-sand sm:col-span-2">
+              <p>
+                {penalty.tipo === "sin_marcacion"
+                  ? "Recargo por no marcar entrada"
+                  : "Recargo por tardanza"}: {formatLaborPenalty(penalty.valor)}
+              </p>
+              <p className="mt-1 text-xs font-medium text-sand/70">{formatLaborDate(penalty.fecha)} · {formatLaborTimestamp(penalty.created_at)}</p>
             </div>
-          ) : null}
+          ))}
           {!attendance?.hora_entrada_real ? (
             <button type="button" onClick={() => void markAttendance("check_in")} disabled={marking !== null} className="rounded-2xl bg-accent px-4 py-3 text-sm font-bold text-ink disabled:opacity-60 sm:col-span-2">
               {marking === "check_in" ? "Registrando..." : "Marcar entrada"}

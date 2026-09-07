@@ -12,7 +12,7 @@ import { getSupabaseServerClient } from "@/lib/supabase/server";
 type WeeklyPenalty = {
   fecha: string;
   asistencia_id: string | null;
-  tipo: "tardanza" | "cinco_observaciones";
+  tipo: "tardanza" | "sin_marcacion" | "cinco_observaciones";
   valor: number;
 };
 
@@ -116,6 +116,9 @@ export async function GET() {
   const weeklyPenalties = (penaltiesResult.data ?? []) as WeeklyPenalty[];
   const penalty =
     weeklyPenalties.find((item) => item.fecha === today.date && item.tipo === "tardanza") ?? null;
+  const penaltiesToday = weeklyPenalties.filter(
+    (item) => item.fecha === today.date && item.tipo !== "cinco_observaciones"
+  );
   const observationsPenalty =
     weeklyPenalties.find((item) => item.tipo === "cinco_observaciones") ?? null;
   const weeklyPenaltyTotal = weeklyPenalties.reduce((total, item) => total + item.valor, 0);
@@ -126,6 +129,7 @@ export async function GET() {
     schedule: schedule ?? null,
     attendance: attendance ?? null,
     penalty: penalty ?? null,
+    penaltiesToday,
     observations: [],
     observationsCount: observationsCountResult.count ?? 0,
     observationsPenalty,

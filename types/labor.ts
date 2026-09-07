@@ -41,7 +41,7 @@ export type LaborPenalty = {
   asistencia_id: string | null;
   fecha: string;
   semana_inicio: string;
-  tipo: "tardanza" | "cinco_observaciones";
+  tipo: "tardanza" | "sin_marcacion" | "cinco_observaciones";
   motivo: string;
   valor: number;
   created_at: string;
@@ -71,7 +71,11 @@ export type LaborNotification = {
   barbero_id: string;
   semana_inicio: string;
   fecha: string;
-  tipo: "observacion" | "penalidad_tardanza" | "penalidad_cinco_observaciones";
+  tipo:
+    | "observacion"
+    | "penalidad_tardanza"
+    | "penalidad_sin_marcacion"
+    | "penalidad_cinco_observaciones";
   titulo: string;
   mensaje: string;
   valor_penalidad: number | null;
@@ -85,6 +89,7 @@ export type LaborTodayResponse = {
   schedule: LaborSchedule | null;
   attendance: LaborAttendance | null;
   penalty: LaborPenalty | null;
+  penaltiesToday: LaborPenalty[];
   observations: LaborObservation[];
   observationsCount: number;
   observationsPenalty: LaborPenalty | null;

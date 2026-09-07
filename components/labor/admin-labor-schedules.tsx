@@ -66,7 +66,7 @@ export function AdminLaborSchedules({
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [form, setForm] = useState<ScheduleForm>(emptyScheduleForm);
   const [attendance, setAttendance] = useState<LaborAttendance | null>(null);
-  const [penalty, setPenalty] = useState<LaborPenalty | null>(null);
+  const [penalties, setPenalties] = useState<LaborPenalty[]>([]);
   const [observations, setObservations] = useState<LaborObservation[]>([]);
   const [observationsCount, setObservationsCount] = useState(0);
   const [observationsPenalty, setObservationsPenalty] = useState<LaborPenalty | null>(null);
@@ -151,7 +151,7 @@ export function AdminLaborSchedules({
       setSelectedDate(payload.date);
       setForm(toScheduleForm(payload.schedule ?? null));
       setAttendance(payload.attendance ?? null);
-      setPenalty(payload.penalty ?? null);
+      setPenalties((payload.penalties as LaborPenalty[] | undefined) ?? []);
       await loadObservations(selectedBarber.id, payload.date);
       setView("editor");
     } catch (error) {
@@ -171,7 +171,9 @@ export function AdminLaborSchedules({
   }
 
   function replacePenalty(updatedPenalty: LaborPenalty) {
-    setPenalty((current) => (current?.id === updatedPenalty.id ? updatedPenalty : current));
+    setPenalties((current) =>
+      current.map((penalty) => (penalty.id === updatedPenalty.id ? updatedPenalty : penalty))
+    );
     setObservationsPenalty((current) =>
       current?.id === updatedPenalty.id ? updatedPenalty : current
     );
@@ -297,7 +299,7 @@ export function AdminLaborSchedules({
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error ?? "No fue posible eliminar el recargo.");
 
-      setPenalty((current) => (current?.id === penaltyId ? null : current));
+      setPenalties((current) => current.filter((penalty) => penalty.id !== penaltyId));
       setObservationsPenalty((current) => (current?.id === penaltyId ? null : current));
       if (selectedBarber) {
         await onLaborSummaryChange(selectedBarber.id);
@@ -664,17 +666,17 @@ export function AdminLaborSchedules({
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sand/55">
             Recargo
           </p>
-          <p className="mt-2 font-semibold text-sand">
-            {penalty ? `Tardanza — ${formatLaborPenalty(penalty.valor)}` : "Sin recargo"}
-          </p>
-          {penalty ? (
-            <>
+          {penalties.length ? penalties.map((penalty) => (
+            <div key={penalty.id} className="mt-2">
+              <p className="font-semibold text-sand">
+                {penalty.tipo === "sin_marcacion" ? "No marcar entrada" : "Tardanza"} — {formatLaborPenalty(penalty.valor)}
+              </p>
               <p className="mt-1 text-xs text-sand/60">
                 {formatLaborDate(penalty.fecha)} · {formatLaborTimestamp(penalty.created_at)}
               </p>
               {renderPenaltyActions(penalty)}
-            </>
-          ) : null}
+            </div>
+          )) : <p className="mt-2 font-semibold text-sand">Sin recargo</p>}
         </div>
 
         <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
