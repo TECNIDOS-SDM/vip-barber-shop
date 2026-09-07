@@ -1,28 +1,41 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { formatHourDisplay, getCurrentWeek } from "@/lib/date";
 import { formatLaborDate, formatLaborPenalty, formatLaborTimestamp } from "@/lib/labor/week";
-import type { LaborAttendance, LaborPenalty, LaborTodayResponse } from "@/types/labor";
+import type { LaborTodayResponse } from "@/types/labor";
 
 export function BarberTodaySchedule() {
   const [data, setData] = useState<LaborTodayResponse | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [marking, setMarking] = useState<"check_in" | "check_out" | null>(null);
+  const scheduleRequestId = useRef(0);
+
+  const refreshSchedule = useCallback(async () => {
+    const requestId = ++scheduleRequestId.current;
+    const response = await fetch("/api/barber/labor-schedule", { cache: "no-store" });
+
+    if (!response.ok) {
+      throw new Error("No fue posible actualizar el horario laboral.");
+    }
+
+    const nextData = (await response.json()) as LaborTodayResponse;
+
+    // A delayed initial request must not overwrite a newer post-attendance refresh.
+    if (requestId === scheduleRequestId.current) {
+      setData(nextData);
+    }
+  }, []);
 
   useEffect(() => {
     let active = true;
 
     async function loadSchedule() {
       try {
-        const response = await fetch("/api/barber/labor-schedule", { cache: "no-store" });
-
-        if (!response.ok || !active) {
-          return;
-        }
-
-        setData((await response.json()) as LaborTodayResponse);
+        await refreshSchedule();
+      } catch {
+        // Keep the existing empty-state behavior when the first load is unavailable.
       } finally {
         if (active) {
           setLoaded(true);
@@ -35,7 +48,7 @@ export function BarberTodaySchedule() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [refreshSchedule]);
 
   const schedule = data?.schedule;
   const attendance = data?.attendance;
@@ -59,45 +72,8 @@ export function BarberTodaySchedule() {
         throw new Error(payload.error ?? "No fue posible registrar la asistencia.");
       }
 
-      setData((current) => {
-        if (!current) {
-          return current;
-        }
-
-        const nextAttendance = payload.attendance as LaborAttendance;
-        const penalty = (payload.penalty as LaborPenalty | null | undefined) ?? current.penalty;
-        const existingDay = current.weeklyAttendance.find(
-          (item) => item.fecha === nextAttendance.fecha
-        );
-        const weeklyAttendance = existingDay
-          ? current.weeklyAttendance.map((item) =>
-              item.fecha === nextAttendance.fecha
-                ? {
-                    fecha: nextAttendance.fecha,
-                    hora_entrada_real: nextAttendance.hora_entrada_real,
-                    hora_salida_real: nextAttendance.hora_salida_real
-                  }
-                : item
-            )
-          : [
-              ...current.weeklyAttendance,
-              {
-                fecha: nextAttendance.fecha,
-                hora_entrada_real: nextAttendance.hora_entrada_real,
-                hora_salida_real: nextAttendance.hora_salida_real
-              }
-            ];
-
-        return {
-          ...current,
-          attendance: nextAttendance,
-          penalty,
-          weeklyAttendance,
-          weeklyPenaltyTotal:
-            current.weeklyPenaltyTotal +
-            (action === "check_in" && payload.penalty ? (payload.penalty as LaborPenalty).valor : 0)
-        };
-      });
+      // The schedule endpoint owns all totals. One compact refresh avoids stale or duplicated sums.
+      await refreshSchedule();
       toast.success(action === "check_in" ? "Entrada registrada." : "Salida registrada.");
     } catch (error) {
       toast.error(
