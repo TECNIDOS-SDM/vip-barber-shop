@@ -1,14 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CalendarClock, Scissors } from "lucide-react";
+import { CalendarClock, ChevronRight, Clock3, Scissors } from "lucide-react";
 import { TIME_SLOTS } from "@/lib/constants";
 import { formatHourDisplay } from "@/lib/date";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/shared/logo";
 import { SignOutButton } from "@/components/shared/sign-out-button";
-import { BarberTodaySchedule } from "@/components/labor/barber-today-schedule";
-import { BarberWeeklyWorkSchedule } from "@/components/labor/barber-weekly-work-schedule";
+import { BarberLaborCenter } from "@/components/labor/barber-labor-center";
 import {
   BARBER_DASHBOARD_VIEW_COOKIE,
   type BarberDashboardViewState
@@ -84,6 +83,7 @@ export function BarberDashboard({
         ? "hours"
         : "days"
   );
+  const [isLaborViewOpen, setIsLaborViewOpen] = useState(false);
   const isRefreshingRef = useRef(false);
   const shouldRefreshAgainRef = useRef(false);
   const refreshTimeoutRef = useRef<number | null>(null);
@@ -262,6 +262,14 @@ export function BarberDashboard({
     return [TIME_SLOTS.slice(0, 10), TIME_SLOTS.slice(10)];
   }, []);
 
+  if (isLaborViewOpen) {
+    return (
+      <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
+        <BarberLaborCenter onExit={() => setIsLaborViewOpen(false)} />
+      </main>
+    );
+  }
+
   return (
     <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
       <section className="rounded-[2rem] border border-white/10 bg-grain p-6 sm:p-8">
@@ -276,8 +284,19 @@ export function BarberDashboard({
         </div>
       </section>
 
-      <BarberTodaySchedule />
-      <BarberWeeklyWorkSchedule />
+      <section className="mt-4 glass rounded-[2rem] p-4 sm:p-6">
+        <button
+          type="button"
+          onClick={() => setIsLaborViewOpen(true)}
+          className="flex w-full items-center justify-between gap-4 rounded-2xl px-2 py-2 text-left transition hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        >
+          <span className="flex items-center gap-2">
+            <Clock3 className="h-5 w-5 shrink-0 text-accent" />
+            <span className="text-xl font-semibold">Horario laboral</span>
+          </span>
+          <ChevronRight className="h-5 w-5 shrink-0 text-accent" aria-hidden="true" />
+        </button>
+      </section>
 
       <section className="mt-8">
         <div className="glass rounded-[2rem] p-6">
