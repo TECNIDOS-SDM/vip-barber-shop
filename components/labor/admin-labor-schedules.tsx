@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowLeft, Clock3, Pencil, Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { WEEK_DAYS } from "@/lib/constants";
@@ -11,6 +11,7 @@ import {
   formatLaborTimestamp
 } from "@/lib/labor/week";
 import { cn } from "@/lib/utils";
+import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 import type {
   LaborAttendance,
   LaborConfiguration,
@@ -81,6 +82,18 @@ export function AdminLaborSchedules({
   const [editingPenaltyId, setEditingPenaltyId] = useState<string | null>(null);
   const [penaltyDraft, setPenaltyDraft] = useState({ valor: "", motivo: "" });
   const recordActionInFlightRef = useRef(false);
+  const realtimeRefreshTimeoutRef = useRef<number | null>(null);
+  const realtimeEditorStateRef = useRef<{
+    barberId: string | null;
+    day: LaborDayOfWeek | null;
+    view: "barbers" | "days" | "editor";
+  }>({ barberId: null, day: null, view: "barbers" });
+
+  realtimeEditorStateRef.current = {
+    barberId: selectedBarber?.id ?? null,
+    day: selectedDay,
+    view
+  };
 
   useEffect(() => {
     let active = true;
@@ -130,6 +143,85 @@ export function AdminLaborSchedules({
     setObservations((payload.observations as LaborObservation[] | undefined) ?? []);
     setObservationsPenalty((payload.observationsPenalty as LaborPenalty | null | undefined) ?? null);
   }
+
+  const refreshEditorFromRealtime = useCallback(async () => {
+    const { barberId, day, view: currentView } = realtimeEditorStateRef.current;
+
+    if (!barberId || !day || currentView !== "editor") {
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `/api/admin/labor-schedules?barbero_id=${barberId}&dia_semana=${day}`,
+        { cache: "no-store" }
+      );
+      const payload = await response.json();
+
+      if (!response.ok) {
+        return;
+      }
+
+      setSelectedDate(payload.date);
+      setForm(toScheduleForm(payload.schedule ?? null));
+      setAttendance(payload.attendance ?? null);
+      setPenalties((payload.penalties as LaborPenalty[] | undefined) ?? []);
+      await loadObservations(barberId, payload.date);
+      await onLaborSummaryChange(barberId);
+    } catch {
+      // Keep the last confirmed labor state if a realtime follow-up fails.
+    }
+  }, [onLaborSummaryChange]);
+
+  useEffect(() => {
+    const supabase = getSupabaseBrowserClient();
+
+    const queueEditorRefresh = (payload: { new: { barbero_id?: string } | null; old: { barbero_id?: string } | null }) => {
+      const affectedBarberId = payload.new?.barbero_id ?? payload.old?.barbero_id;
+      const currentBarberId = realtimeEditorStateRef.current.barberId;
+
+      if (!affectedBarberId || affectedBarberId !== currentBarberId || realtimeRefreshTimeoutRef.current) {
+        return;
+      }
+
+      realtimeRefreshTimeoutRef.current = window.setTimeout(() => {
+        realtimeRefreshTimeoutRef.current = null;
+        void refreshEditorFromRealtime();
+      }, 75);
+    };
+
+    const channel = supabase
+      .channel("admin-labor-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "horarios_laborales_barberos" },
+        queueEditorRefresh
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "asistencias_laborales" },
+        queueEditorRefresh
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "observaciones_laborales" },
+        queueEditorRefresh
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "penalidades_laborales" },
+        queueEditorRefresh
+      )
+      .subscribe();
+
+    return () => {
+      if (realtimeRefreshTimeoutRef.current) {
+        window.clearTimeout(realtimeRefreshTimeoutRef.current);
+        realtimeRefreshTimeoutRef.current = null;
+      }
+      void supabase.removeChannel(channel);
+    };
+  }, [refreshEditorFromRealtime]);
 
   async function openDay(day: LaborDayOfWeek) {
     if (!selectedBarber) {

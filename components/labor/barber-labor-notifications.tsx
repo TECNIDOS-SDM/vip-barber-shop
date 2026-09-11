@@ -6,6 +6,7 @@ import type { LaborNotification } from "@/types/labor";
 
 type BarberLaborNotificationsProps = {
   active: boolean;
+  revision: number;
   onUnreadCount: (count: number) => void;
 };
 
@@ -15,11 +16,19 @@ function formatRecargoText(value: string) {
     .replace(/penalidades?/gi, "Recargo");
 }
 
-export function BarberLaborNotifications({ active, onUnreadCount }: BarberLaborNotificationsProps) {
+export function BarberLaborNotifications({ active, revision, onUnreadCount }: BarberLaborNotificationsProps) {
   const [notifications, setNotifications] = useState<LaborNotification[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [isStale, setIsStale] = useState(true);
   const isRefreshingRef = useRef(false);
+  const observedRevisionRef = useRef(revision);
+
+  useEffect(() => {
+    if (revision !== observedRevisionRef.current) {
+      observedRevisionRef.current = revision;
+      setIsStale(true);
+    }
+  }, [revision]);
 
   useEffect(() => {
     const markStaleWhenVisible = () => {

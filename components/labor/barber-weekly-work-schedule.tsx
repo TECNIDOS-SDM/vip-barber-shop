@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { formatHourDisplay } from "@/lib/date";
 
 type WorkSchedule = {
@@ -12,12 +12,17 @@ type WorkSchedule = {
 
 const WEEK_DAYS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
 
-export function BarberWeeklyWorkSchedule() {
+export function BarberWeeklyWorkSchedule({ active, revision }: { active: boolean; revision: number }) {
   const [schedules, setSchedules] = useState<WorkSchedule[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const loadedRevisionRef = useRef<number | null>(null);
 
   useEffect(() => {
-    let active = true;
+    if (!active || loadedRevisionRef.current === revision) {
+      return;
+    }
+
+    let isMounted = true;
 
     async function loadSchedule() {
       try {
@@ -28,11 +33,12 @@ export function BarberWeeklyWorkSchedule() {
           throw new Error(payload.error ?? "No fue posible cargar el horario semanal.");
         }
 
-        if (active) {
+        if (isMounted) {
           setSchedules(payload.schedules as WorkSchedule[]);
+          loadedRevisionRef.current = revision;
         }
       } catch (requestError) {
-        if (active) {
+        if (isMounted) {
           setError(
             requestError instanceof Error
               ? requestError.message
@@ -45,9 +51,9 @@ export function BarberWeeklyWorkSchedule() {
     void loadSchedule();
 
     return () => {
-      active = false;
+      isMounted = false;
     };
-  }, []);
+  }, [active, revision]);
 
   const schedulesByDay = new Map(schedules?.map((schedule) => [schedule.dia_semana, schedule]));
 

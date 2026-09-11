@@ -6,11 +6,12 @@ import { formatHourDisplay, getCurrentWeek } from "@/lib/date";
 import { formatLaborDate, formatLaborPenalty, formatLaborTimestamp } from "@/lib/labor/week";
 import type { LaborTodayResponse } from "@/types/labor";
 
-export function BarberTodaySchedule() {
+export function BarberTodaySchedule({ active, revision }: { active: boolean; revision: number }) {
   const [data, setData] = useState<LaborTodayResponse | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [marking, setMarking] = useState<"check_in" | "check_out" | null>(null);
   const scheduleRequestId = useRef(0);
+  const loadedRevisionRef = useRef<number | null>(null);
 
   const refreshSchedule = useCallback(async () => {
     const requestId = ++scheduleRequestId.current;
@@ -29,15 +30,20 @@ export function BarberTodaySchedule() {
   }, []);
 
   useEffect(() => {
-    let active = true;
+    if (!active || loadedRevisionRef.current === revision) {
+      return;
+    }
+
+    let isMounted = true;
 
     async function loadSchedule() {
       try {
         await refreshSchedule();
+        loadedRevisionRef.current = revision;
       } catch {
         // Keep the existing empty-state behavior when the first load is unavailable.
       } finally {
-        if (active) {
+        if (isMounted) {
           setLoaded(true);
         }
       }
@@ -46,9 +52,9 @@ export function BarberTodaySchedule() {
     void loadSchedule();
 
     return () => {
-      active = false;
+      isMounted = false;
     };
-  }, [refreshSchedule]);
+  }, [active, refreshSchedule, revision]);
 
   const schedule = data?.schedule;
   const attendance = data?.attendance;
