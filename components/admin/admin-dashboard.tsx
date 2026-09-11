@@ -291,16 +291,6 @@ export function AdminDashboard({
   }
 
   useEffect(() => {
-    const interval = window.setInterval(() => {
-      void refreshData().catch(() => {
-        // Keep current dashboard data if a background refresh fails.
-      });
-    }, 120000);
-
-    return () => window.clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
     let lastSeenDate = new Date().toLocaleDateString("en-CA", {
       timeZone: "America/Bogota"
     });
