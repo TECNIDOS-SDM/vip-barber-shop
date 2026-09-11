@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { formatLaborDate, formatLaborTimestamp } from "@/lib/labor/week";
 import type { LaborNotification } from "@/types/labor";
 
@@ -18,13 +18,30 @@ function formatRecargoText(value: string) {
 export function BarberLaborNotifications({ active, onUnreadCount }: BarberLaborNotificationsProps) {
   const [notifications, setNotifications] = useState<LaborNotification[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [isStale, setIsStale] = useState(true);
+  const isRefreshingRef = useRef(false);
 
   useEffect(() => {
-    if (!active) {
+    const markStaleWhenVisible = () => {
+      if (document.visibilityState === "visible") {
+        setIsStale(true);
+      }
+    };
+
+    document.addEventListener("visibilitychange", markStaleWhenVisible);
+
+    return () => {
+      document.removeEventListener("visibilitychange", markStaleWhenVisible);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!active || !isStale || isRefreshingRef.current) {
       return;
     }
 
     let mounted = true;
+    isRefreshingRef.current = true;
 
     async function loadNotifications() {
       try {
@@ -37,7 +54,10 @@ export function BarberLaborNotifications({ active, onUnreadCount }: BarberLaborN
 
         setNotifications(payload.notifications as LaborNotification[]);
         onUnreadCount(payload.unreadCount ?? 0);
+        setIsStale(false);
       } finally {
+        isRefreshingRef.current = false;
+
         if (mounted) {
           setLoaded(true);
         }
@@ -49,7 +69,7 @@ export function BarberLaborNotifications({ active, onUnreadCount }: BarberLaborN
     return () => {
       mounted = false;
     };
-  }, [active, onUnreadCount]);
+  }, [active, isStale, onUnreadCount]);
 
   if (!loaded) {
     return <div className="h-24 rounded-2xl bg-white/5" />;
