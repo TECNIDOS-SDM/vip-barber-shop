@@ -20,7 +20,8 @@ type AdminLoginFormProps = {
 };
 
 export function AdminLoginForm({
-  nextPath = "/admin-vip"
+  nextPath = "/admin-vip",
+  isBarberSwitch = false
 }: AdminLoginFormProps) {
   const router = useRouter();
   const [identifier, setIdentifier] = useState("");
@@ -36,7 +37,11 @@ export function AdminLoginForm({
     setLoading(true);
 
     try {
-      const supabase = getSupabaseBrowserClient();
+      const context =
+        isBarberSwitch || nextPath.startsWith("/gestion-equipo")
+          ? "barber"
+          : "admin";
+      const supabase = getSupabaseBrowserClient(context);
       const email = adminIdentifierToEmail(identifier);
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -64,29 +69,28 @@ export function AdminLoginForm({
           );
 
         if (!lockError) {
-          setSessionLockCookie(sessionKey);
+          setSessionLockCookie(context, sessionKey);
         }
       }
 
-      document.cookie = `${ADMIN_DASHBOARD_VIEW_COOKIE}=${encodeURIComponent(
-        JSON.stringify({
-          activeBarberId: null,
-          activeBarberView: "list",
-          scheduleDate: ""
-        })
-      )}; path=/; max-age=86400; samesite=lax`;
-
-      // A successful sign-in starts the barber flow from today's server-calculated
-      // Colombia date, instead of carrying a day selected in a previous session.
-      document.cookie = `${BARBER_DASHBOARD_VIEW_COOKIE}=${encodeURIComponent(
-        JSON.stringify({
-          panelView: "hours",
-          selectedDate: ""
-        })
-      )}; path=/; max-age=86400; samesite=lax`;
-
-      if (nextPath.startsWith("/gestion-equipo")) {
+      if (context === "barber") {
+        // A successful sign-in starts the barber flow from today's server-calculated
+        // Colombia date, instead of carrying a day selected in a previous session.
+        document.cookie = `${BARBER_DASHBOARD_VIEW_COOKIE}=${encodeURIComponent(
+          JSON.stringify({
+            panelView: "hours",
+            selectedDate: ""
+          })
+        )}; path=/; max-age=86400; samesite=lax`;
         sessionStorage.setItem("vipBarberOpenTodayScheduleOnce", "true");
+      } else {
+        document.cookie = `${ADMIN_DASHBOARD_VIEW_COOKIE}=${encodeURIComponent(
+          JSON.stringify({
+            activeBarberId: null,
+            activeBarberView: "list",
+            scheduleDate: ""
+          })
+        )}; path=/; max-age=86400; samesite=lax`;
       }
 
       window.location.assign(nextPath);

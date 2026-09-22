@@ -1,13 +1,19 @@
 "use client";
 
 import { createBrowserClient } from "@supabase/ssr";
+import {
+  type BrowserClientContext,
+  getAuthCookieOptions
+} from "@/lib/supabase/auth-context";
 import { getSupabaseEnv } from "@/lib/supabase/config";
 
-let client: ReturnType<typeof createBrowserClient> | null = null;
+const clients = new Map<BrowserClientContext, ReturnType<typeof createBrowserClient>>();
 
-export function getSupabaseBrowserClient() {
-  if (client) {
-    return client;
+export function getSupabaseBrowserClient(context: BrowserClientContext) {
+  const existingClient = clients.get(context);
+
+  if (existingClient) {
+    return existingClient;
   }
 
   const { url, anonKey } = getSupabaseEnv();
@@ -16,12 +22,16 @@ export function getSupabaseBrowserClient() {
     throw new Error("Supabase no está configurado.");
   }
 
-  client = createBrowserClient(url, anonKey, {
+  const isPublicClient = context === "public";
+  const client = createBrowserClient(url, anonKey, {
+    cookieOptions: getAuthCookieOptions(context),
     auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: true
+      persistSession: !isPublicClient,
+      autoRefreshToken: !isPublicClient,
+      detectSessionInUrl: !isPublicClient
     }
   });
+
+  clients.set(context, client);
   return client;
 }

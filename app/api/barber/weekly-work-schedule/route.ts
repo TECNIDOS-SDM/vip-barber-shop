@@ -3,7 +3,7 @@ import { getCurrentUserRole } from "@/lib/auth";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
 export async function GET() {
-  const supabase = await getSupabaseServerClient();
+  const supabase = await getSupabaseServerClient("barber");
 
   if (!supabase) {
     return NextResponse.json({ error: "Supabase no configurado." }, { status: 500 });

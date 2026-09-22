@@ -99,7 +99,7 @@ export function AdminLaborSchedules({
   async function getAdminLaborRequestHeaders(contentType = false) {
     const {
       data: { session }
-    } = await getSupabaseBrowserClient().auth.getSession();
+    } = await getSupabaseBrowserClient("admin").auth.getSession();
 
     return {
       ...(contentType ? { "Content-Type": "application/json" } : {}),
@@ -191,7 +191,7 @@ export function AdminLaborSchedules({
   }, [onLaborSummaryChange]);
 
   useEffect(() => {
-    const supabase = getSupabaseBrowserClient();
+    const supabase = getSupabaseBrowserClient("admin");
 
     const queueEditorRefresh = (payload: { new: { barbero_id?: string } | null; old: { barbero_id?: string } | null }) => {
       const affectedBarberId = payload.new?.barbero_id ?? payload.old?.barbero_id;

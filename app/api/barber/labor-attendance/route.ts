@@ -15,7 +15,7 @@ const actionSchema = z.object({
 });
 
 async function requireBarber() {
-  const supabase = await getSupabaseServerClient();
+  const supabase = await getSupabaseServerClient("barber");
 
   if (!supabase) {
     return { error: NextResponse.json({ error: "Supabase no configurado." }, { status: 500 }) };

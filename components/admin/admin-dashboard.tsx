@@ -312,7 +312,7 @@ export function AdminDashboard({
   }, []);
 
   useEffect(() => {
-    const supabase = getSupabaseBrowserClient();
+    const supabase = getSupabaseBrowserClient("admin");
 
     const queueRefresh = () => {
       if (refreshTimeoutRef.current) {
@@ -402,7 +402,7 @@ export function AdminDashboard({
       return;
     }
 
-    const supabase = getSupabaseBrowserClient();
+    const supabase = getSupabaseBrowserClient("admin");
     await supabase.storage.from("barber-photos").remove([path]);
   }
 
@@ -410,7 +410,7 @@ export function AdminDashboard({
     setSaving(true);
 
     try {
-      const supabase = getSupabaseBrowserClient();
+      const supabase = getSupabaseBrowserClient("admin");
       const extension = file.name.split(".").pop() || "jpg";
       const path = `barberos/${crypto.randomUUID()}.${extension}`;
       const { error } = await supabase.storage
@@ -466,7 +466,7 @@ export function AdminDashboard({
           throw new Error(payload.error ?? "No fue posible guardar el barbero.");
         }
       } catch (apiError) {
-        const supabase = getSupabaseBrowserClient();
+        const supabase = getSupabaseBrowserClient("admin");
         const normalizedBarberForm = {
           nombre: barberForm.nombre.trim(),
           foto: barberForm.foto.trim() || null,
@@ -590,7 +590,7 @@ export function AdminDashboard({
   async function getAdminScheduleRequestHeaders() {
     const {
       data: { session }
-    } = await getSupabaseBrowserClient().auth.getSession();
+    } = await getSupabaseBrowserClient("admin").auth.getSession();
 
     return {
       "Content-Type": "application/json",
@@ -1135,7 +1135,7 @@ export function AdminDashboard({
             <p className="mt-3 text-sm text-sand/70">{adminEmail}</p>
           </div>
           <div className="flex flex-wrap gap-3">
-            <SignOutButton redirectTo="/auth/login?next=/admin-vip" />
+            <SignOutButton context="admin" redirectTo="/auth/login?next=/admin-vip" />
           </div>
         </div>
       </section>

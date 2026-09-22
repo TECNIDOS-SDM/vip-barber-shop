@@ -28,7 +28,7 @@ async function getAdministratorRoleFallback(
 }
 
 export async function requireAdministrator(request: Request) {
-  const supabase = await getSupabaseServerClient();
+  const supabase = await getSupabaseServerClient("admin");
   const adminSupabase = getSupabaseAdminClient();
 
   if (!supabase || !adminSupabase) {

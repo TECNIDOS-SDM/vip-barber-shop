@@ -55,7 +55,7 @@ function getReadableErrorMessage(error: unknown, fallback: string) {
 }
 
 async function requireAdmin() {
-  const supabase = await getSupabaseServerClient();
+  const supabase = await getSupabaseServerClient("admin");
 
   if (!supabase) {
     return { error: NextResponse.json({ error: "Supabase no configurado." }, { status: 500 }) };

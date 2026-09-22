@@ -174,7 +174,7 @@ export function BarberDashboard({
   }, [dashboardData.currentWeek, panelView, selectedDate]);
 
   useEffect(() => {
-    const supabase = getSupabaseBrowserClient();
+    const supabase = getSupabaseBrowserClient("barber");
 
     const queueRefresh = () => {
       if (refreshTimeoutRef.current) {
@@ -282,7 +282,7 @@ export function BarberDashboard({
             <p className="mt-3 text-sm text-sand/70">{barberEmail}</p>
           </div>
           <div className="flex flex-wrap gap-3">
-            <SignOutButton redirectTo="/auth/login?next=/gestion-equipo" />
+            <SignOutButton context="barber" redirectTo="/auth/login?next=/gestion-equipo" />
           </div>
         </div>
       </section>

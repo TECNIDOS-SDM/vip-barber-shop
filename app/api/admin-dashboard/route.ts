@@ -4,7 +4,7 @@ import { getAdminDashboardData } from "@/lib/queries";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
 export async function GET() {
-  const supabase = await getSupabaseServerClient();
+  const supabase = await getSupabaseServerClient("admin");
 
   if (!supabase) {
     return NextResponse.json({ error: "Supabase no configurado." }, { status: 500 });
@@ -24,5 +24,5 @@ export async function GET() {
     return NextResponse.json({ error: "No autorizado." }, { status: 403 });
   }
 
-  return NextResponse.json(await getAdminDashboardData());
+  return NextResponse.json(await getAdminDashboardData(supabase));
 }

@@ -61,7 +61,7 @@ export async function getPublicBookingData() {
 }
 
 export async function getAdminDashboardData(existingSupabase?: SupabaseClient) {
-  const supabase = existingSupabase ?? (await getSupabaseServerClient());
+  const supabase = existingSupabase ?? (await getSupabaseServerClient("admin"));
 
   if (!supabase) {
     return {
@@ -128,7 +128,7 @@ export async function getAdminDashboardData(existingSupabase?: SupabaseClient) {
 }
 
 export async function getAdminDashboardShellData() {
-  const supabase = await getSupabaseServerClient();
+  const supabase = await getSupabaseServerClient("admin");
 
   if (!supabase) {
     return {
@@ -168,7 +168,7 @@ export async function getAdminDashboardShellData() {
 }
 
 export async function getBarberDashboardData(barberoId: string) {
-  const supabase = await getSupabaseServerClient();
+  const supabase = await getSupabaseServerClient("barber");
 
   if (!supabase) {
     return {

@@ -51,7 +51,7 @@ export function BarberLaborCenter({ barberId, onExit }: BarberLaborCenterProps) 
       return;
     }
 
-    const supabase = getSupabaseBrowserClient();
+    const supabase = getSupabaseBrowserClient("barber");
 
     const queueLaborRefresh = (includesSchedule = false) => {
       scheduleRefreshPendingRef.current ||= includesSchedule;

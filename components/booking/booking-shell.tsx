@@ -142,7 +142,7 @@ export function BookingShell({
   }, [liveBarbers, selectedBarber]);
 
   useEffect(() => {
-    const supabase = getSupabaseBrowserClient();
+    const supabase = getSupabaseBrowserClient("public");
 
     const queueRefresh = () => {
       if (refreshTimeoutRef.current) {

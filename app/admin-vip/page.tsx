@@ -13,7 +13,7 @@ import { getSupabaseServerClient } from "@/lib/supabase/server";
 export const dynamic = "force-dynamic";
 
 export default async function AdminVipPage() {
-  const supabase = await getSupabaseServerClient();
+  const supabase = await getSupabaseServerClient("admin");
 
   if (!supabase) {
     redirect("/auth/login?next=/admin-vip");
@@ -30,7 +30,7 @@ export default async function AdminVipPage() {
   const { role } = await getCurrentUserRole(supabase, user);
 
   if (role !== "administrador") {
-    redirect(role === "barbero" ? "/gestion-equipo" : "/");
+    redirect("/auth/login?next=/admin-vip");
   }
 
   const data = await getAdminDashboardData(supabase);
