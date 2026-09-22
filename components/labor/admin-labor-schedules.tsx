@@ -65,6 +65,7 @@ export function AdminLaborSchedules({
   const [selectedBarber, setSelectedBarber] = useState<LaborBarber | null>(barber);
   const [selectedDay, setSelectedDay] = useState<LaborDayOfWeek | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [effectiveEntry, setEffectiveEntry] = useState<string | null>(null);
   const [form, setForm] = useState<ScheduleForm>(emptyScheduleForm);
   const [attendance, setAttendance] = useState<LaborAttendance | null>(null);
   const [penalties, setPenalties] = useState<LaborPenalty[]>([]);
@@ -178,6 +179,7 @@ export function AdminLaborSchedules({
       }
 
       setSelectedDate(payload.date);
+      setEffectiveEntry(payload.effectiveEntry ?? null);
       setForm(toScheduleForm(payload.schedule ?? null));
       setAttendance(payload.attendance ?? null);
       setPenalties((payload.penalties as LaborPenalty[] | undefined) ?? []);
@@ -210,6 +212,11 @@ export function AdminLaborSchedules({
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "horarios_laborales_barberos" },
+        queueEditorRefresh
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "reservas" },
         queueEditorRefresh
       )
       .on(
@@ -256,6 +263,7 @@ export function AdminLaborSchedules({
 
       setSelectedDay(day);
       setSelectedDate(payload.date);
+      setEffectiveEntry(payload.effectiveEntry ?? null);
       setForm(toScheduleForm(payload.schedule ?? null));
       setAttendance(payload.attendance ?? null);
       setPenalties((payload.penalties as LaborPenalty[] | undefined) ?? []);
@@ -693,6 +701,22 @@ export function AdminLaborSchedules({
         ) : (
           <p className="text-sm text-sand/65">No tiene jornada programada este dia.</p>
         )}
+
+        {form.trabaja ? (
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sand/55">Horario base</p>
+              <p className="mt-1 font-semibold text-sand">{formatHourDisplay(form.hora_entrada)}</p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sand/55">Entrada efectiva</p>
+              <p className="mt-1 font-semibold text-sand">
+                {effectiveEntry ? formatHourDisplay(effectiveEntry.slice(0, 5)) : "—"}
+              </p>
+              {!effectiveEntry ? <p className="mt-1 text-xs text-sand/60">Dia bloqueado por Administracion.</p> : null}
+            </div>
+          </div>
+        ) : null}
 
         <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sand/55">

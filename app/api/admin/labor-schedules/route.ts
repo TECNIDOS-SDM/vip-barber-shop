@@ -7,6 +7,7 @@ import {
 } from "@/lib/labor/attendance";
 import { requireAdministrator } from "@/lib/admin-labor-access";
 import { getLaborDateForDay } from "@/lib/labor/week";
+import { getEffectiveLaborEntry } from "@/lib/labor/effective-entry";
 import type { LaborDayOfWeek } from "@/types/labor";
 
 const timeSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
@@ -88,6 +89,19 @@ export async function GET(request: Request) {
   }
 
   const date = getLaborDateForDay(parsedDay.data as LaborDayOfWeek);
+  let effectiveEntry: string | null = null;
+
+  try {
+    effectiveEntry = data
+      ? await getEffectiveLaborEntry({ ...data, date })
+      : null;
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "No fue posible calcular la entrada efectiva." },
+      { status: 500 }
+    );
+  }
+
   const { data: attendance, error: attendanceError } = await access.supabase
     .from("asistencias_laborales")
     .select(laborAttendanceColumns)
@@ -114,6 +128,7 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     schedule: data ?? null,
+    effectiveEntry,
     attendance: attendance ?? null,
     penalty: dailyPenalties.find((item: { tipo: string }) => item.tipo === "tardanza") ?? null,
     penalties: dailyPenalties,

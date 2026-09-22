@@ -92,6 +92,11 @@ export function BarberLaborCenter({ barberId, onExit }: BarberLaborCenterProps) 
       )
       .on(
         "postgres_changes",
+        { event: "*", schema: "public", table: "reservas", filter },
+        () => queueLaborRefresh()
+      )
+      .on(
+        "postgres_changes",
         { event: "*", schema: "public", table: "asistencias_laborales", filter },
         () => queueLaborRefresh()
       )

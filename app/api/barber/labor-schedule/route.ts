@@ -6,6 +6,7 @@ import {
   laborPenaltyColumns
 } from "@/lib/labor/attendance";
 import { getCurrentLaborDay } from "@/lib/labor/week";
+import { getEffectiveLaborEntry } from "@/lib/labor/effective-entry";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -59,8 +60,21 @@ export async function GET() {
     return NextResponse.json({ error: scheduleError.message }, { status: 400 });
   }
 
+  let effectiveEntry: string | null = null;
+
+  try {
+    effectiveEntry = schedule
+      ? await getEffectiveLaborEntry({ ...schedule, date: today.date })
+      : null;
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "No fue posible calcular el horario de hoy." },
+      { status: 500 }
+    );
+  }
+
   // Evaluate exactly once when the barber requests the labor panel; no polling is used.
-  if (schedule?.trabaja && schedule.hora_entrada) {
+  if (effectiveEntry) {
     const adminSupabase = getSupabaseAdminClient();
 
     if (!adminSupabase) {
@@ -127,6 +141,7 @@ export async function GET() {
     dayOfWeek: today.dayOfWeek,
     date: today.date,
     schedule: schedule ?? null,
+    effectiveEntry,
     attendance: attendance ?? null,
     penalty: penalty ?? null,
     penaltiesToday,

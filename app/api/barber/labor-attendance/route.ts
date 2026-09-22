@@ -6,6 +6,7 @@ import {
   laborAttendanceColumns
 } from "@/lib/labor/attendance";
 import { getCurrentLaborDay } from "@/lib/labor/week";
+import { getEffectiveLaborEntry } from "@/lib/labor/effective-entry";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -54,7 +55,7 @@ export async function POST(request: Request) {
   const today = getCurrentLaborDay(now);
   const { data: schedule, error: scheduleError } = await access.supabase
     .from("horarios_laborales_barberos")
-    .select("id, trabaja, hora_entrada")
+    .select("id, barbero_id, trabaja, hora_entrada, hora_salida, dia_semana, created_at, updated_at")
     .eq("barbero_id", access.barberoId)
     .eq("dia_semana", today.dayOfWeek)
     .maybeSingle();
@@ -74,9 +75,27 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Hoy no tienes jornada programada." }, { status: 409 });
   }
 
-  if (!schedule.hora_entrada) {
+  if (!schedule.hora_entrada || !schedule.hora_salida) {
     return NextResponse.json(
       { error: "No tienes horario laboral configurado para hoy." },
+      { status: 409 }
+    );
+  }
+
+  let effectiveEntry: string | null;
+
+  try {
+    effectiveEntry = await getEffectiveLaborEntry({ ...schedule, date: today.date });
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "No fue posible calcular el horario de hoy." },
+      { status: 500 }
+    );
+  }
+
+  if (parsed.data.action === "check_in" && !effectiveEntry) {
+    return NextResponse.json(
+      { error: "Hoy no tienes un turno de agenda disponible para marcar entrada." },
       { status: 409 }
     );
   }
@@ -102,7 +121,7 @@ export async function POST(request: Request) {
   if (parsed.data.action === "check_in") {
     const { data, error } = await (adminSupabase as any).rpc("registrar_llegada_laboral", {
       p_barbero_id: access.barberoId,
-      p_hora_programada: schedule.hora_entrada
+      p_hora_programada: effectiveEntry ?? schedule.hora_entrada
     });
 
     if (error) {

@@ -57,6 +57,7 @@ export function BarberTodaySchedule({ active, revision }: { active: boolean; rev
   }, [active, refreshSchedule, revision]);
 
   const schedule = data?.schedule;
+  const effectiveEntry = data?.effectiveEntry ?? null;
   const attendance = data?.attendance;
   const weeklyDays = getCurrentWeek();
   const weeklyAttendanceByDate = new Map(
@@ -105,8 +106,12 @@ export function BarberTodaySchedule({ active, revision }: { active: boolean; rev
           <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sand/55">Entrada programada</p>
             <p className="mt-1 font-semibold text-sand">
-              {schedule.hora_entrada ? formatHourDisplay(schedule.hora_entrada.slice(0, 5)) : "-"}
+              {effectiveEntry ? formatHourDisplay(effectiveEntry.slice(0, 5)) : "—"}
             </p>
+            {effectiveEntry && schedule.hora_entrada && effectiveEntry.slice(0, 5) !== schedule.hora_entrada.slice(0, 5) ? (
+              <p className="mt-1 text-xs text-sand/60">Horario ajustado por Administracion.</p>
+            ) : null}
+            {!effectiveEntry ? <p className="mt-1 text-xs text-sand/60">Dia bloqueado por Administracion.</p> : null}
           </div>
           <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sand/55">Salida programada</p>
@@ -130,7 +135,7 @@ export function BarberTodaySchedule({ active, revision }: { active: boolean; rev
               <p className="mt-1 text-xs font-medium text-sand/70">{formatLaborDate(penalty.fecha)} · {formatLaborTimestamp(penalty.created_at)}</p>
             </div>
           ))}
-          {!attendance?.hora_entrada_real ? (
+          {!attendance?.hora_entrada_real && effectiveEntry ? (
             <button type="button" onClick={() => void markAttendance("check_in")} disabled={marking !== null} className="rounded-2xl bg-accent px-4 py-3 text-sm font-bold text-ink disabled:opacity-60 sm:col-span-2">
               {marking === "check_in" ? "Registrando..." : "Marcar entrada"}
             </button>

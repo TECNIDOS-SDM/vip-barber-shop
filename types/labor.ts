@@ -87,6 +87,7 @@ export type LaborTodayResponse = {
   dayOfWeek: LaborDayOfWeek;
   date: string;
   schedule: LaborSchedule | null;
+  effectiveEntry: string | null;
   attendance: LaborAttendance | null;
   penalty: LaborPenalty | null;
   penaltiesToday: LaborPenalty[];
