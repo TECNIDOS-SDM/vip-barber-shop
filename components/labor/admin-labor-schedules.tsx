@@ -95,12 +95,26 @@ export function AdminLaborSchedules({
     view
   };
 
+  async function getAdminLaborRequestHeaders(contentType = false) {
+    const {
+      data: { session }
+    } = await getSupabaseBrowserClient().auth.getSession();
+
+    return {
+      ...(contentType ? { "Content-Type": "application/json" } : {}),
+      ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {})
+    };
+  }
+
   useEffect(() => {
     let active = true;
 
     async function loadConfiguration() {
       try {
-        const response = await fetch("/api/admin/labor-observations", { cache: "no-store" });
+        const response = await fetch("/api/admin/labor-observations", {
+          cache: "no-store",
+          headers: await getAdminLaborRequestHeaders()
+        });
         const payload = await response.json();
 
         if (response.ok && active && payload.configuration) {
@@ -127,7 +141,8 @@ export function AdminLaborSchedules({
     }
 
     const response = await fetch(`/api/admin/labor-observations?${query.toString()}`, {
-      cache: "no-store"
+      cache: "no-store",
+      headers: await getAdminLaborRequestHeaders()
     });
     const payload = await response.json();
 
@@ -154,7 +169,7 @@ export function AdminLaborSchedules({
     try {
       const response = await fetch(
         `/api/admin/labor-schedules?barbero_id=${barberId}&dia_semana=${day}`,
-        { cache: "no-store" }
+        { cache: "no-store", headers: await getAdminLaborRequestHeaders() }
       );
       const payload = await response.json();
 
@@ -231,7 +246,7 @@ export function AdminLaborSchedules({
     try {
       const response = await fetch(
         `/api/admin/labor-schedules?barbero_id=${selectedBarber.id}&dia_semana=${day}`,
-        { cache: "no-store" }
+        { cache: "no-store", headers: await getAdminLaborRequestHeaders() }
       );
       const payload = await response.json();
 
@@ -272,7 +287,7 @@ export function AdminLaborSchedules({
     try {
       const response = await fetch("/api/admin/labor-records", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: await getAdminLaborRequestHeaders(true),
         body: JSON.stringify({ action: "update_observation", record_id: observationId, justificacion: observationDraft })
       });
       const payload = await response.json();
@@ -305,7 +320,7 @@ export function AdminLaborSchedules({
     try {
       const response = await fetch("/api/admin/labor-records", {
         method: "DELETE",
-        headers: { "Content-Type": "application/json" },
+        headers: await getAdminLaborRequestHeaders(true),
         body: JSON.stringify({ action: "delete_observation", record_id: observationId })
       });
       const payload = await response.json();
@@ -345,7 +360,7 @@ export function AdminLaborSchedules({
     try {
       const response = await fetch("/api/admin/labor-records", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: await getAdminLaborRequestHeaders(true),
         body: JSON.stringify({
           action: "update_penalty",
           record_id: penaltyId,
@@ -376,7 +391,7 @@ export function AdminLaborSchedules({
     try {
       const response = await fetch("/api/admin/labor-records", {
         method: "DELETE",
-        headers: { "Content-Type": "application/json" },
+        headers: await getAdminLaborRequestHeaders(true),
         body: JSON.stringify({ action: "delete_penalty", record_id: penaltyId })
       });
       const payload = await response.json();
@@ -447,7 +462,7 @@ export function AdminLaborSchedules({
     try {
       const response = await fetch("/api/admin/labor-observations", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: await getAdminLaborRequestHeaders(true),
         body: JSON.stringify({ valor_penalidad: value })
       });
       const payload = await response.json();
@@ -484,7 +499,7 @@ export function AdminLaborSchedules({
     try {
       const response = await fetch("/api/admin/labor-schedules", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: await getAdminLaborRequestHeaders(true),
         body: JSON.stringify({
           barbero_id: selectedBarber.id,
           dia_semana: selectedDay,

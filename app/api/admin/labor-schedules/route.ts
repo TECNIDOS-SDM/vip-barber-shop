@@ -5,10 +5,9 @@ import {
   laborAttendanceColumns,
   laborPenaltyColumns
 } from "@/lib/labor/attendance";
+import { requireAdministrator } from "@/lib/admin-labor-access";
 import { getLaborDateForDay } from "@/lib/labor/week";
-import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { LaborDayOfWeek } from "@/types/labor";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
 
 const timeSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
 const daySchema = z.coerce.number().int().min(1).max(7);
@@ -48,60 +47,8 @@ const scheduleSchema = z
     }
   });
 
-async function hasAdministratorRole(
-  adminSupabase: NonNullable<ReturnType<typeof getSupabaseAdminClient>>,
-  userId: string
-) {
-  const [profileResult, administratorResult] = await Promise.all([
-    adminSupabase
-      .from("perfiles_usuario")
-      .select("rol")
-      .eq("user_id", userId)
-      .maybeSingle(),
-    adminSupabase
-      .from("administradores")
-      .select("id")
-      .eq("id", userId)
-      .maybeSingle()
-  ]);
-
-  if ((profileResult.data as { rol?: string } | null)?.rol === "administrador") {
-    return true;
-  }
-
-  return Boolean(administratorResult.data);
-}
-
-async function requireAdmin() {
-  const supabase = await getSupabaseServerClient();
-
-  if (!supabase) {
-    return { error: NextResponse.json({ error: "Supabase no configurado." }, { status: 500 }) };
-  }
-
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return { error: NextResponse.json({ error: "No autorizado." }, { status: 401 }) };
-  }
-
-  const adminSupabase = getSupabaseAdminClient();
-
-  if (!adminSupabase) {
-    return { error: NextResponse.json({ error: "Supabase no configurado." }, { status: 500 }) };
-  }
-
-  if (!(await hasAdministratorRole(adminSupabase, user.id))) {
-    return { error: NextResponse.json({ error: "No autorizado." }, { status: 403 }) };
-  }
-
-  return { supabase: adminSupabase as any };
-}
-
 export async function GET(request: Request) {
-  const access = await requireAdmin();
+  const access = await requireAdministrator(request);
 
   if ("error" in access) {
     return access.error;
@@ -175,7 +122,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const access = await requireAdmin();
+  const access = await requireAdministrator(request);
 
   if ("error" in access) {
     return access.error;
