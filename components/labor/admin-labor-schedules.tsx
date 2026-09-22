@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowLeft, Clock3, Pencil, Save, Trash2 } from "lucide-react";
+import { ArrowLeft, Pencil, Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { WEEK_DAYS } from "@/lib/constants";
 import { formatHourDisplay } from "@/lib/date";
@@ -53,16 +53,16 @@ function toScheduleForm(schedule: LaborSchedule | null): ScheduleForm {
 }
 
 export function AdminLaborSchedules({
-  barbers,
+  barber,
   onClose,
   onLaborSummaryChange
 }: {
-  barbers: LaborBarber[];
+  barber: LaborBarber;
   onClose: () => void;
   onLaborSummaryChange: (barberId: string) => Promise<void>;
 }) {
-  const [view, setView] = useState<"barbers" | "days" | "editor">("barbers");
-  const [selectedBarber, setSelectedBarber] = useState<LaborBarber | null>(null);
+  const [view, setView] = useState<"days" | "editor">("days");
+  const [selectedBarber, setSelectedBarber] = useState<LaborBarber | null>(barber);
   const [selectedDay, setSelectedDay] = useState<LaborDayOfWeek | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [form, setForm] = useState<ScheduleForm>(emptyScheduleForm);
@@ -86,8 +86,8 @@ export function AdminLaborSchedules({
   const realtimeEditorStateRef = useRef<{
     barberId: string | null;
     day: LaborDayOfWeek | null;
-    view: "barbers" | "days" | "editor";
-  }>({ barberId: null, day: null, view: "barbers" });
+    view: "days" | "editor";
+  }>({ barberId: barber.id, day: null, view: "days" });
 
   realtimeEditorStateRef.current = {
     barberId: selectedBarber?.id ?? null,
@@ -251,15 +251,6 @@ export function AdminLaborSchedules({
         error instanceof Error ? error.message : "No fue posible cargar el horario."
       );
     }
-  }
-
-  async function selectBarber(barber: LaborBarber) {
-    setSelectedBarber(barber);
-    setObservations([]);
-    setObservationsCount(0);
-    setObservationsPenalty(null);
-    setSelectedDate(null);
-    setView("days");
   }
 
   function replacePenalty(updatedPenalty: LaborPenalty) {
@@ -519,38 +510,35 @@ export function AdminLaborSchedules({
     }
   }
 
-  if (view === "barbers") {
+  if (view === "days" && selectedBarber) {
     return (
       <div className="rounded-[1.75rem] border border-accent/20 bg-black/10 p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <Clock3 className="h-5 w-5 text-accent" />
-            <div>
-              <h2 className="text-xl font-semibold text-sand">Horarios</h2>
-              <p className="mt-1 text-sm text-sand/65">Selecciona un barbero</p>
-            </div>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent/80">
+              Horarios de
+            </p>
+            <h2 className="mt-2 text-xl font-semibold text-sand">{selectedBarber.nombre}</h2>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-sand/80"
+            className="inline-flex items-center gap-2 rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-sand/80"
           >
-            Inicio
+            <ArrowLeft className="h-4 w-4" />
+            Regresar
           </button>
         </div>
 
-        <div className="mt-5 grid gap-3 sm:grid-cols-2">
-          {barbers.map((barber) => (
+        <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {WEEK_DAYS.map((day, index) => (
             <button
-              key={barber.id}
+              key={day}
               type="button"
-              onClick={() => void selectBarber(barber)}
-              className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-left transition hover:border-accent/40"
+              onClick={() => void openDay((index + 1) as LaborDayOfWeek)}
+              className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-left text-sm font-semibold uppercase text-sand/80 transition hover:border-accent/40 hover:text-accent"
             >
-              <p className="font-semibold text-sand">{barber.nombre}</p>
-              <p className="mt-1 text-sm text-sand/60">
-                {barber.activo === false ? "Inactivo" : "Configurar horario semanal"}
-              </p>
+              {day}
             </button>
           ))}
         </div>
@@ -603,45 +591,6 @@ export function AdminLaborSchedules({
               </button>
             </div>
           )}
-        </div>
-      </div>
-    );
-  }
-
-  if (view === "days" && selectedBarber) {
-    return (
-      <div className="rounded-[1.75rem] border border-accent/20 bg-black/10 p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent/80">
-              Horarios de
-            </p>
-            <h2 className="mt-2 text-xl font-semibold text-sand">{selectedBarber.nombre}</h2>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              setSelectedBarber(null);
-              setView("barbers");
-            }}
-            className="inline-flex items-center gap-2 rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-sand/80"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Barberos
-          </button>
-        </div>
-
-        <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {WEEK_DAYS.map((day, index) => (
-            <button
-              key={day}
-              type="button"
-              onClick={() => void openDay((index + 1) as LaborDayOfWeek)}
-              className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-left text-sm font-semibold uppercase text-sand/80 transition hover:border-accent/40 hover:text-accent"
-            >
-              {day}
-            </button>
-          ))}
         </div>
       </div>
     );

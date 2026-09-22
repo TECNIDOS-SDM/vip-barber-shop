@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import dynamic from "next/dynamic";
 import Image from "next/image";
-import { Clock3, Plus, Trash2, Upload, UserRoundCheck } from "lucide-react";
+import { Plus, Trash2, Upload, UserRoundCheck } from "lucide-react";
 import { toast } from "sonner";
 import { TIME_SLOTS } from "@/lib/constants";
 import { adminIdentifierToEmail } from "@/lib/admin-auth";
@@ -1143,23 +1143,15 @@ export function AdminDashboard({
       <section className="mt-8 space-y-8">
         <div className="space-y-8">
           <section className="glass rounded-[2rem] p-6">
-            {activeBarberView === "list" || !activeBarber ? (
-              showLaborSchedules ? (
+            {showLaborSchedules && activeBarber ? (
                 <AdminLaborSchedules
-                  barbers={barbers}
+                  key={activeBarber.id}
+                  barber={activeBarber}
                   onClose={() => setShowLaborSchedules(false)}
                   onLaborSummaryChange={refreshLaborSummary}
                 />
-              ) : (
+            ) : activeBarberView === "list" || !activeBarber ? (
               <>
-                <button
-                  type="button"
-                  onClick={() => setShowLaborSchedules(true)}
-                  className="mb-5 inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-sand/80 transition hover:border-accent/40 hover:text-accent"
-                >
-                  <Clock3 className="h-4 w-4 text-accent" />
-                  Horarios
-                </button>
                 <div className="grid gap-4 md:grid-cols-2">
                   {barbers.map((barber) => (
                     <button
@@ -1220,7 +1212,6 @@ export function AdminDashboard({
                   </div>
                 ) : null}
               </>
-              )
             ) : (
               <div className="mt-5 rounded-[1.75rem] border border-accent/20 bg-black/10 p-5">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -1255,23 +1246,23 @@ export function AdminDashboard({
                     ) : null}
                     <button
                       type="button"
+                      onClick={() => setShowLaborSchedules(true)}
+                      className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-sand/80"
+                    >
+                      Horarios
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => {
-                        if (activeBarberView === "agenda") {
-                          setActiveBarberView("list");
-                          setSelectedAction("confirmada");
-                          setScheduleMode("confirmada");
-                          updateScheduleForBarber(
-                            activeBarber.id,
-                            { fecha: "", cliente_nombre: "", cliente_whatsapp: "" },
-                            true
-                          );
-                          return;
-                        }
-
-                        if (activeBarberView === "perfil") {
-                          setActiveBarberView("agenda");
-                          return;
-                        }
+                        setShowLaborSchedules(false);
+                        setActiveBarberView("list");
+                        setSelectedAction("confirmada");
+                        setScheduleMode("confirmada");
+                        updateScheduleForBarber(
+                          activeBarber.id,
+                          { fecha: "", cliente_nombre: "", cliente_whatsapp: "" },
+                          true
+                        );
                       }}
                       className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-sand/80"
                     >
