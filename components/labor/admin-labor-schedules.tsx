@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowLeft, Pencil, Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { AdminAttentionConfiguration } from "@/components/admin/attention-configuration";
 import { WEEK_DAYS } from "@/lib/constants";
 import { formatHourDisplay } from "@/lib/date";
 import {
@@ -552,6 +553,8 @@ export function AdminLaborSchedules({
             Regresar
           </button>
         </div>
+
+        <AdminAttentionConfiguration key={selectedBarber.id} barberId={selectedBarber.id} />
 
         <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
           {WEEK_DAYS.map((day, index) => (
