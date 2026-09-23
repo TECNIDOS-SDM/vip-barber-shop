@@ -84,44 +84,45 @@ grant select, insert, update, delete on table public.notificaciones_laborales to
 revoke all on table public.recargos_laborales_anulados from anon, authenticated;
 grant select, insert, update, delete on table public.recargos_laborales_anulados to service_role;
 
--- Explicit function exposure. Public helper functions are callable only where
--- an existing RLS policy needs them; labor mutations remain backend-only.
-revoke all on function public.lookup_barbero_id_by_email(text) from public, anon, authenticated;
-revoke all on function public.current_user_role() from public, anon, authenticated;
-revoke all on function public.is_admin() from public, anon, authenticated;
-revoke all on function public.is_barbero() from public, anon, authenticated;
-revoke all on function public.current_barbero_id() from public, anon, authenticated;
-revoke all on function public.get_barbero_agenda() from public, anon, authenticated;
-revoke all on function public.limpiar_reservas_vencidas() from public, anon, authenticated;
-
-grant execute on function public.lookup_barbero_id_by_email(text) to anon, authenticated, service_role;
-grant execute on function public.current_user_role() to anon, authenticated, service_role;
-grant execute on function public.is_admin() to anon, authenticated, service_role;
-grant execute on function public.is_barbero() to authenticated, service_role;
-grant execute on function public.current_barbero_id() to authenticated, service_role;
-grant execute on function public.get_barbero_agenda() to authenticated, service_role;
-grant execute on function public.limpiar_reservas_vencidas() to service_role;
-
-revoke all on function public.obtener_entrada_efectiva_laboral(uuid, date, time, time) from public, anon, authenticated;
-revoke all on function public.procesar_recargos_laborales(uuid) from public, anon, authenticated;
-revoke all on function public.procesar_tardanzas_laborales(uuid) from public, anon, authenticated;
-revoke all on function public.evaluar_tardanza_laboral(uuid) from public, anon, authenticated;
-revoke all on function public.registrar_llegada_laboral(uuid, time) from public, anon, authenticated;
-revoke all on function public.registrar_observacion_laboral(uuid, date, text, uuid) from public, anon, authenticated;
-revoke all on function public.actualizar_observacion_laboral(uuid, text) from public, anon, authenticated;
-revoke all on function public.eliminar_observacion_laboral(uuid) from public, anon, authenticated;
-revoke all on function public.actualizar_recargo_laboral(uuid, integer, text) from public, anon, authenticated;
-revoke all on function public.eliminar_recargo_laboral(uuid, uuid) from public, anon, authenticated;
-revoke all on function public.limpiar_datos_laborales_anteriores() from public, anon, authenticated;
-
-grant execute on function public.obtener_entrada_efectiva_laboral(uuid, date, time, time) to service_role;
-grant execute on function public.procesar_recargos_laborales(uuid) to service_role;
-grant execute on function public.procesar_tardanzas_laborales(uuid) to service_role;
-grant execute on function public.evaluar_tardanza_laboral(uuid) to service_role;
-grant execute on function public.registrar_llegada_laboral(uuid, time) to service_role;
-grant execute on function public.registrar_observacion_laboral(uuid, date, text, uuid) to service_role;
-grant execute on function public.actualizar_observacion_laboral(uuid, text) to service_role;
-grant execute on function public.eliminar_observacion_laboral(uuid) to service_role;
-grant execute on function public.actualizar_recargo_laboral(uuid, integer, text) to service_role;
-grant execute on function public.eliminar_recargo_laboral(uuid, uuid) to service_role;
-grant execute on function public.limpiar_datos_laborales_anteriores() to service_role;
+-- Explicit function exposure. A few historical installs do not have every
+-- helper below, so permissions are applied only to routines that exist.
+do $$
+declare
+  routine record;
+begin
+  for routine in
+    select * from (values
+      ('lookup_barbero_id_by_email(text)', 'anon, authenticated, service_role'),
+      ('current_user_role()', 'anon, authenticated, service_role'),
+      ('is_admin()', 'anon, authenticated, service_role'),
+      ('is_barbero()', 'authenticated, service_role'),
+      ('current_barbero_id()', 'authenticated, service_role'),
+      ('get_barbero_agenda()', 'authenticated, service_role'),
+      ('limpiar_reservas_vencidas()', 'service_role'),
+      ('obtener_entrada_efectiva_laboral(uuid, date, time, time)', 'service_role'),
+      ('procesar_recargos_laborales(uuid)', 'service_role'),
+      ('procesar_tardanzas_laborales(uuid)', 'service_role'),
+      ('evaluar_tardanza_laboral(uuid)', 'service_role'),
+      ('registrar_llegada_laboral(uuid, time)', 'service_role'),
+      ('registrar_observacion_laboral(uuid, date, text, uuid)', 'service_role'),
+      ('actualizar_observacion_laboral(uuid, text)', 'service_role'),
+      ('eliminar_observacion_laboral(uuid)', 'service_role'),
+      ('actualizar_recargo_laboral(uuid, integer, text)', 'service_role'),
+      ('eliminar_recargo_laboral(uuid, uuid)', 'service_role'),
+      ('limpiar_datos_laborales_anteriores()', 'service_role')
+    ) as configured(signature, roles)
+  loop
+    if to_regprocedure('public.' || routine.signature) is not null then
+      execute format(
+        'revoke all on function public.%s from public, anon, authenticated',
+        routine.signature
+      );
+      execute format(
+        'grant execute on function public.%s to %s',
+        routine.signature,
+        routine.roles
+      );
+    end if;
+  end loop;
+end;
+$$;
