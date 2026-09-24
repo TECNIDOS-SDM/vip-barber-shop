@@ -322,7 +322,9 @@ export function AdminDashboard({
   }, []);
 
   useEffect(() => {
-    const supabase = getSupabaseBrowserClient("admin");
+    // Realtime invalidation uses the public barber feed so customer data never
+    // needs to be exposed to anonymous clients.
+    const supabase = getSupabaseBrowserClient("public");
 
     const queueRefresh = () => {
       if (refreshTimeoutRef.current) {
@@ -341,17 +343,7 @@ export function AdminDashboard({
       .channel("admin-dashboard-realtime")
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "reservas" },
-        queueRefresh
-      )
-      .on(
-        "postgres_changes",
         { event: "*", schema: "public", table: "barberos" },
-        queueRefresh
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "perfiles_usuario" },
         queueRefresh
       )
       .subscribe();

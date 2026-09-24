@@ -182,7 +182,9 @@ export function BarberDashboard({
   }, [dashboardData.currentWeek, panelView, selectedDate]);
 
   useEffect(() => {
-    const supabase = getSupabaseBrowserClient("barber");
+    // Agenda changes are signaled through the public barber feed without
+    // exposing reservation details on Realtime.
+    const supabase = getSupabaseBrowserClient("public");
 
     const queueRefresh = () => {
       if (refreshTimeoutRef.current) {
@@ -199,11 +201,6 @@ export function BarberDashboard({
 
     const channel = supabase
       .channel("barber-dashboard-realtime")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "reservas" },
-        queueRefresh
-      )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "barberos" },

@@ -168,11 +168,6 @@ export function BookingShell({
       .channel("public-booking-realtime")
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "reservas" },
-        queueRefresh
-      )
-      .on(
-        "postgres_changes",
         { event: "*", schema: "public", table: "barberos" },
         queueRefresh
       )

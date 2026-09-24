@@ -105,3 +105,23 @@ test('Realtime publishes barbers without exposing the private configuration tabl
   assert.match(migration, /alter publication supabase_realtime add table public\.barberos/i);
   assert.doesNotMatch(migration, /add table public\.configuracion_atencion_barberos/i);
 });
+
+test('reservation changes invalidate every agenda through the public barber feed', () => {
+  const migration = fs.readFileSync(
+    'supabase/migrations/20260924092718_notify_schedule_changes_realtime.sql',
+    'utf8'
+  );
+  const dashboards = [
+    'components/admin/admin-dashboard.tsx',
+    'components/barber/barber-dashboard.tsx',
+    'components/booking/booking-shell.tsx'
+  ].map(file => fs.readFileSync(file, 'utf8'));
+
+  assert.match(migration, /after insert or update or delete on public\.reservas/i);
+  assert.match(migration, /update public\.barberos[\s\S]*set activo = activo/i);
+  assert.doesNotMatch(migration, /grant select[\s\S]*public\.reservas[\s\S]*to anon/i);
+  for (const source of dashboards) {
+    assert.match(source, /getSupabaseBrowserClient\("public"\)/);
+    assert.match(source, /table: "barberos"/);
+  }
+});
