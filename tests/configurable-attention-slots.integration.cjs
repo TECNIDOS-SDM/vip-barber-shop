@@ -11,6 +11,8 @@ const service = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.S
 const client = () => createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY, options);
 const barberIds = [];
 const authIds = [];
+let independenceRealtime = null;
+let independenceChannel = null;
 const ok = result => { if (result.error) throw new Error(result.error.message); return result.data; };
 
 async function api(path, { method = 'GET', token, body, planToken } = {}) {
@@ -261,8 +263,149 @@ async function main() {
       p_barbero_id: a, p_fecha: date, p_hora_base: '08:00', p_hora_salida: '20:00'
     }));
     assert.equal(effective.slice(0, 5), '09:00');
-    console.log('PASS: exact intervals, nearest ordered relocation, per-day extension, atomic rollback, effective entry and Realtime');
+
+    const independenceDate = publicData.body.week.at(-1).isoDate;
+    const baseline = { hora_inicio_atencion: '09:20', hora_fin_atencion: '21:20', intervalo_citas: 40 };
+    let currentConfiguration = baseline;
+    let independenceEvents = 0;
+    let resolveIndependenceEvent = null;
+    ok(await service.from('barberos').update({ activo: true }).eq('id', b));
+    independenceRealtime = client();
+    independenceChannel = independenceRealtime.channel(`phase2-independence-${b}`).on(
+      'postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'barberos', filter: `id=eq.${b}` },
+      () => {
+        independenceEvents += 1;
+        resolveIndependenceEvent?.();
+      }
+    );
+    await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('Independence Realtime subscription timeout')), 10000);
+      independenceChannel.subscribe(status => {
+        if (status === 'SUBSCRIBED') { clearTimeout(timeout); resolve(); }
+        if (status === 'CHANNEL_ERROR') { clearTimeout(timeout); reject(new Error('Independence Realtime channel error')); }
+      });
+    });
+    await updateConfiguration(b, adminToken, baseline);
+    ok(await service.from('horarios_laborales_barberos').insert({
+      barbero_id: b, dia_semana: 1, trabaja: true, hora_entrada: '08:00', hora_salida: '18:00'
+    }));
+    const laborBefore = ok(await service.from('horarios_laborales_barberos')
+      .select('barbero_id,dia_semana,trabaja,hora_entrada,hora_salida').eq('barbero_id', b).order('dia_semana'));
+    const independenceRecords = ok(await service.from('reservas').insert([
+      {
+        barbero_id: b, fecha: independenceDate, hora: '10:00', estado: 'confirmada',
+        cliente_nombre: 'PRUEBA INDEPENDENCIA RESERVA', cliente_whatsapp: '3000000010'
+      },
+      {
+        barbero_id: b, fecha: independenceDate, hora: '10:40', estado: 'cita_fijada',
+        cliente_nombre: 'PRUEBA INDEPENDENCIA FIJADA', cliente_whatsapp: '3000000011'
+      },
+      {
+        barbero_id: b, fecha: independenceDate, hora: '11:20', estado: 'bloqueado',
+        cliente_nombre: 'Horario bloqueado', cliente_whatsapp: 'N/A'
+      }
+    ]).select('id,barbero_id,cliente_nombre,cliente_whatsapp,fecha,hora,estado,created_at').order('id'));
+
+    async function assertPreservedIndependenceRecords() {
+      const after = ok(await service.from('reservas')
+        .select('id,barbero_id,cliente_nombre,cliente_whatsapp,fecha,hora,estado,created_at')
+        .in('id', independenceRecords.map(item => item.id)).order('id'));
+      assert.equal(after.length, independenceRecords.length);
+      assert.equal(new Set(after.map(item => item.hora.slice(0, 5))).size, after.length);
+      for (let index = 0; index < after.length; index++) {
+        const { hora: beforeHour, ...beforeData } = independenceRecords[index];
+        const { hora: afterHour, ...afterData } = after[index];
+        assert.deepEqual(afterData, beforeData);
+        assert.ok(afterHour);
+        assert.ok(beforeHour);
+      }
+    }
+
+    async function assertConfigurationChange(label, next, changedFields, realtime = true) {
+      for (const field of ['hora_inicio_atencion', 'hora_fin_atencion', 'intervalo_citas']) {
+        assert.equal(
+          next[field] === currentConfiguration[field],
+          !changedFields.includes(field),
+          `${label}: unexpected change in ${field}`
+        );
+      }
+      const auditBefore = ok(await service.from('auditoria_configuracion_atencion').select('id').eq('barbero_id', b)).length;
+      let flow;
+      const apply = async () => { flow = await updateConfiguration(b, adminToken, next); };
+      if (realtime) {
+        const eventsBefore = independenceEvents;
+        const event = new Promise(resolve => { resolveIndependenceEvent = resolve; });
+        await apply();
+        if (independenceEvents === eventsBefore) {
+          await Promise.race([
+            event,
+            new Promise((_, reject) => setTimeout(() => reject(new Error(`${label}: Realtime timeout`)), 15000))
+          ]);
+        }
+        resolveIndependenceEvent = null;
+        assert.ok(independenceEvents > eventsBefore, `${label}: missing Realtime event`);
+      } else await apply();
+      assert.deepEqual(flow.preview.configuration, { barbero_id: b, ...next });
+      assert.deepEqual(flow.applied.configuration, { barbero_id: b, ...next });
+      assert.equal(flow.applied.applied, true);
+      assert.deepEqual((await api(`/api/admin/attention-configuration?barbero_id=${b}`, { token: adminToken })).body.configuration, { barbero_id: b, ...next });
+      const audits = ok(await service.from('auditoria_configuracion_atencion')
+        .select('configuracion_anterior,configuracion_nueva').eq('barbero_id', b)
+        .order('created_at', { ascending: false }).limit(1));
+      assert.deepEqual(audits[0].configuracion_anterior, currentConfiguration);
+      assert.deepEqual(audits[0].configuracion_nueva, next);
+      assert.equal(ok(await service.from('auditoria_configuracion_atencion').select('id').eq('barbero_id', b)).length, auditBefore + 1);
+      await assertPreservedIndependenceRecords();
+      assert.deepEqual(ok(await service.from('horarios_laborales_barberos')
+        .select('barbero_id,dia_semana,trabaja,hora_entrada,hora_salida').eq('barbero_id', b).order('dia_semana')), laborBefore);
+      currentConfiguration = next;
+    }
+
+    await assertConfigurationChange('interval-only',
+      { ...baseline, intervalo_citas: 60 }, ['intervalo_citas']);
+    await assertConfigurationChange('reset interval', baseline, ['intervalo_citas'], false);
+    await assertConfigurationChange('start-only',
+      { ...baseline, hora_inicio_atencion: '08:30' }, ['hora_inicio_atencion']);
+    await assertConfigurationChange('reset start', baseline, ['hora_inicio_atencion'], false);
+    await assertConfigurationChange('end-only',
+      { ...baseline, hora_fin_atencion: '22:20' }, ['hora_fin_atencion']);
+    await assertConfigurationChange('end-only backwards',
+      { ...baseline, hora_fin_atencion: '18:20' }, ['hora_fin_atencion']);
+    await assertConfigurationChange('reset end', baseline, ['hora_fin_atencion'], false);
+    await assertConfigurationChange('start+interval',
+      { ...baseline, hora_inicio_atencion: '08:30', intervalo_citas: 60 },
+      ['hora_inicio_atencion', 'intervalo_citas']);
+    await assertConfigurationChange('reset start+interval', baseline,
+      ['hora_inicio_atencion', 'intervalo_citas'], false);
+    await assertConfigurationChange('end+interval',
+      { ...baseline, hora_fin_atencion: '22:20', intervalo_citas: 60 },
+      ['hora_fin_atencion', 'intervalo_citas']);
+    await assertConfigurationChange('reset end+interval', baseline,
+      ['hora_fin_atencion', 'intervalo_citas'], false);
+    await assertConfigurationChange('start+end',
+      { ...baseline, hora_inicio_atencion: '08:30', hora_fin_atencion: '20:20' },
+      ['hora_inicio_atencion', 'hora_fin_atencion']);
+    await assertConfigurationChange('all-fields',
+      { hora_inicio_atencion: '09:00', hora_fin_atencion: '22:00', intervalo_citas: 60 },
+      ['hora_inicio_atencion', 'hora_fin_atencion', 'intervalo_citas']);
+
+    const auditBeforeNoChange = ok(await service.from('auditoria_configuracion_atencion').select('id').eq('barbero_id', b)).length;
+    const noChange = await updateConfiguration(b, adminToken, currentConfiguration);
+    assert.equal(noChange.preview.plan.total, 0);
+    assert.equal(noChange.applied.applied, false);
+    assert.equal(ok(await service.from('auditoria_configuracion_atencion').select('id').eq('barbero_id', b)).length, auditBeforeNoChange);
+    await assertPreservedIndependenceRecords();
+    assert.deepEqual(ok(await service.from('horarios_laborales_barberos')
+      .select('barbero_id,dia_semana,trabaja,hora_entrada,hora_salida').eq('barbero_id', b).order('dia_semana')), laborBefore);
+
+    console.log('PASS: exact intervals, nearest ordered relocation, per-day extension, atomic rollback, effective entry, independent parameters, no-op and Realtime');
   } finally {
+    if (independenceRealtime && independenceChannel) {
+      await independenceRealtime.removeChannel(independenceChannel);
+      independenceChannel = null;
+      independenceRealtime = null;
+    }
     await admin.auth.signOut();
     for (const id of authIds) ok(await service.auth.admin.deleteUser(id));
     for (const id of barberIds) ok(await service.from('barberos').delete().eq('id', id));
