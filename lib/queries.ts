@@ -4,7 +4,32 @@ import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabasePublicClient } from "@/lib/supabase/public";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { cleanupExpiredReservations } from "@/lib/reservation-cleanup";
+import type { AttentionConfiguration } from "@/lib/attention-configuration";
 import type { Barber, ReservationSlot } from "@/types";
+
+const attentionConfigurationColumns =
+  "barbero_id,hora_inicio_atencion,hora_fin_atencion,intervalo_citas";
+
+async function fetchAttentionConfigurations(barberIds?: string[]) {
+  const supabase = getSupabaseAdminClient();
+
+  if (!supabase || barberIds?.length === 0) return [] as AttentionConfiguration[];
+
+  let query = supabase
+    .from("configuracion_atencion_barberos")
+    .select(attentionConfigurationColumns);
+
+  if (barberIds) query = query.in("barbero_id", barberIds);
+
+  const { data, error } = await query;
+  if (error) return [] as AttentionConfiguration[];
+
+  return (data ?? []).map((row: any) => ({
+    ...row,
+    hora_inicio_atencion: row.hora_inicio_atencion.slice(0, 5),
+    hora_fin_atencion: row.hora_fin_atencion.slice(0, 5)
+  })) as AttentionConfiguration[];
+}
 
 async function fetchAdminBarbers(supabase: any) {
   const withPassword = await supabase
@@ -32,6 +57,7 @@ export async function getPublicBookingData() {
       isConfigured: false,
       barbers: [] as Barber[],
       reservations: [] as ReservationSlot[],
+      attentionConfigurations: [] as AttentionConfiguration[],
       week: getCurrentWeek()
     };
   }
@@ -40,7 +66,7 @@ export async function getPublicBookingData() {
   const weekDates = week.map((item) => item.isoDate);
   await cleanupExpiredReservations();
 
-  const [barbersResult, reservationsResult] = await Promise.all([
+  const [barbersResult, reservationsResult, attentionConfigurations] = await Promise.all([
     supabase
       .from("barberos")
       .select("id, nombre, foto, whatsapp, telefono, activo, created_at")
@@ -48,14 +74,21 @@ export async function getPublicBookingData() {
       .order("created_at", { ascending: true }),
     supabase
       .from("reservas_publicas")
-      .select("id, barbero_id, fecha, hora, estado")
-      .in("fecha", weekDates)
+      .select("id, barbero_id, fecha, hora, estado, bloqueo_dia_completo")
+      .in("fecha", weekDates),
+    fetchAttentionConfigurations()
   ]);
+
+  const publicBarbers = (barbersResult.data ?? []) as Barber[];
+  const publicBarberIds = new Set(publicBarbers.map(barber => barber.id));
 
   return {
     isConfigured: true,
-    barbers: (barbersResult.data ?? []) as Barber[],
+    barbers: publicBarbers,
     reservations: (reservationsResult.data ?? []) as ReservationSlot[],
+    attentionConfigurations: attentionConfigurations.filter(configuration =>
+      publicBarberIds.has(configuration.barbero_id)
+    ),
     week
   };
 }
@@ -68,6 +101,7 @@ export async function getAdminDashboardData(existingSupabase?: SupabaseClient) {
       barbers: [] as Barber[],
       reservations: [] as any[],
       todayReservations: [] as any[],
+      attentionConfigurations: [] as AttentionConfiguration[],
       profiles: [] as any[],
       currentWeek: getCurrentWeek(),
       weeklyStats: {
@@ -84,7 +118,7 @@ export async function getAdminDashboardData(existingSupabase?: SupabaseClient) {
   const today = week.find((item) => item.isToday)?.isoDate ?? week[0].isoDate;
   await cleanupExpiredReservations();
 
-  const [barbersResult, reservationsResult, profilesResult] =
+  const [barbersResult, reservationsResult, profilesResult, attentionConfigurations] =
     await Promise.all([
       fetchAdminBarbers(supabase),
       supabase
@@ -98,7 +132,8 @@ export async function getAdminDashboardData(existingSupabase?: SupabaseClient) {
       supabase
         .from("perfiles_usuario")
         .select("user_id, rol, barbero_id, barberos(nombre)")
-        .order("created_at", { ascending: true })
+        .order("created_at", { ascending: true }),
+      fetchAttentionConfigurations()
     ]);
 
   const reservations = reservationsResult.data ?? [];
@@ -110,6 +145,7 @@ export async function getAdminDashboardData(existingSupabase?: SupabaseClient) {
     barbers: (barbersResult.data ?? []) as Barber[],
     reservations,
     todayReservations,
+    attentionConfigurations,
     profiles: profilesResult.error ? [] : profilesResult.data ?? [],
     currentWeek: week,
     weeklyStats: {
@@ -135,6 +171,7 @@ export async function getAdminDashboardShellData() {
       barbers: [] as Barber[],
       reservations: [] as any[],
       todayReservations: [] as any[],
+      attentionConfigurations: [] as AttentionConfiguration[],
       profiles: [] as any[],
       currentWeek: getCurrentWeek(),
       weeklyStats: {
@@ -148,7 +185,10 @@ export async function getAdminDashboardShellData() {
 
   await cleanupExpiredReservations();
 
-  const { data: barbers } = await fetchAdminBarbers(supabase);
+  const [{ data: barbers }, attentionConfigurations] = await Promise.all([
+    fetchAdminBarbers(supabase),
+    fetchAttentionConfigurations()
+  ]);
 
   const barberList = (barbers ?? []) as Barber[];
 
@@ -156,6 +196,7 @@ export async function getAdminDashboardShellData() {
     barbers: barberList,
     reservations: [] as any[],
     todayReservations: [] as any[],
+    attentionConfigurations,
     profiles: [] as any[],
     currentWeek: getCurrentWeek(),
     weeklyStats: {
@@ -174,6 +215,7 @@ export async function getBarberDashboardData(barberoId: string) {
     return {
       barber: null,
       reservations: [] as any[],
+      attentionConfigurations: [] as AttentionConfiguration[],
       currentWeek: getCurrentWeek(),
       todayTotal: 0
     };
@@ -184,10 +226,10 @@ export async function getBarberDashboardData(barberoId: string) {
   const today = week.find((item) => item.isToday)?.isoDate ?? week[0].isoDate;
   await cleanupExpiredReservations();
 
-  const [{ data: reservations }, { data: barber }] = await Promise.all([
+  const [{ data: reservations }, { data: barber }, attentionConfigurations] = await Promise.all([
     supabase
       .from("reservas")
-      .select("id, cliente_nombre, fecha, hora, estado")
+      .select("id, cliente_nombre, cliente_whatsapp, fecha, hora, estado")
       .eq("barbero_id", barberoId)
       .in("fecha", weekDates)
       .neq("estado", "cancelada")
@@ -197,7 +239,8 @@ export async function getBarberDashboardData(barberoId: string) {
       .from("barberos")
       .select("id, nombre, foto")
       .eq("id", barberoId)
-      .maybeSingle()
+      .maybeSingle(),
+    fetchAttentionConfigurations([barberoId])
   ]);
 
   const filteredReservations = reservations ?? [];
@@ -205,6 +248,7 @@ export async function getBarberDashboardData(barberoId: string) {
   return {
     barber,
     reservations: filteredReservations,
+    attentionConfigurations,
     currentWeek: week,
     todayTotal:
       filteredReservations.filter((reservation: any) => reservation.fecha === today)

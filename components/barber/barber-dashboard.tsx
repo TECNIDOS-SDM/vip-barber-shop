@@ -2,7 +2,14 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CalendarClock, ChevronRight, Clock3, Scissors } from "lucide-react";
-import { TIME_SLOTS } from "@/lib/constants";
+import {
+  DAY_FULL_BLOCK_MARKER,
+  extendAttentionSlots,
+  getAttentionConfiguration,
+  mergeAttentionSlots,
+  splitAttentionSlots,
+  type AttentionConfiguration
+} from "@/lib/attention-configuration";
 import { formatHourDisplay } from "@/lib/date";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/shared/logo";
@@ -30,6 +37,7 @@ type BarberDashboardProps = {
       estado: string;
       cliente_whatsapp?: string | null;
     }[];
+    attentionConfigurations: AttentionConfiguration[];
     currentWeek: {
       key: string;
       label: string;
@@ -251,16 +259,33 @@ export function BarberDashboard({
   }, [dashboardData.reservations, selectedDate]);
   const reservationMap = useMemo(() => {
     return new Map(
-      selectedDayReservations.map((reservation) => [
+      selectedDayReservations.filter(
+        reservation => reservation.cliente_whatsapp !== DAY_FULL_BLOCK_MARKER
+      ).map((reservation) => [
         normalizeHourKey(reservation.hora),
         reservation
       ])
     );
   }, [selectedDayReservations]);
+  const dayFullBlock = useMemo(
+    () => selectedDayReservations.find(
+      reservation => reservation.estado === "bloqueado" &&
+        reservation.cliente_whatsapp === DAY_FULL_BLOCK_MARKER
+    ),
+    [selectedDayReservations]
+  );
 
+  const currentSlots = useMemo(() => {
+    const configuration = getAttentionConfiguration(
+      dashboardData.attentionConfigurations,
+      dashboardData.barber?.id
+    );
+    const configured = extendAttentionSlots(configuration, Array.from(reservationMap.keys()));
+    return mergeAttentionSlots(configured, Array.from(reservationMap.keys()));
+  }, [dashboardData.attentionConfigurations, dashboardData.barber?.id, reservationMap]);
   const hourColumns = useMemo(() => {
-    return [TIME_SLOTS.slice(0, 10), TIME_SLOTS.slice(10)];
-  }, []);
+    return splitAttentionSlots(currentSlots);
+  }, [currentSlots]);
 
   if (isLaborViewOpen) {
     return (
@@ -367,7 +392,7 @@ export function BarberDashboard({
                 {hourColumns.map((column, columnIndex) => (
                   <div key={`column-${columnIndex}`} className="space-y-3">
                     {column.map((hour) => {
-                      const reservation = reservationMap.get(hour);
+                      const reservation = reservationMap.get(hour) ?? dayFullBlock;
                       const status = reservation?.estado;
 
                       return (

@@ -29,27 +29,18 @@ export async function POST(request: Request) {
       );
     }
 
-    const { data: existingSlot } = await supabase
-      .from("reservas_publicas")
-      .select("estado")
-      .eq("barbero_id", values.barbero_id)
-      .eq("fecha", values.fecha)
-      .eq("hora", values.hora)
-      .maybeSingle();
-
-    const existingSlotState = (existingSlot as { estado?: string } | null)?.estado;
-
-    if (existingSlotState) {
-      return NextResponse.json({ error: SLOT_TAKEN_MESSAGE }, { status: 409 });
-    }
-
-    const { error } = await (supabase.from("reservas") as any).insert({
-      ...values,
-      estado: "confirmada"
+    const { error } = await (supabase as any).rpc("crear_turnos_agenda_seguros", {
+      p_barbero_id: values.barbero_id,
+      p_fecha: values.fecha,
+      p_horas: [values.hora],
+      p_estado: "confirmada",
+      p_cliente_nombre: values.cliente_nombre,
+      p_cliente_whatsapp: values.cliente_whatsapp,
+      p_requerir_activo: true
     });
 
     if (error) {
-      if (error.code === "23505") {
+      if (error.code === "23505" || error.code === "22023") {
         return NextResponse.json({ error: SLOT_TAKEN_MESSAGE }, { status: 409 });
       }
 

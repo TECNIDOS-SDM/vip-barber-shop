@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 };
 
 export default async function HomePage() {
-  const { isConfigured, barbers, reservations, week } =
+  const { isConfigured, barbers, reservations, attentionConfigurations, week } =
     await getPublicBookingData();
 
   return (
@@ -27,6 +27,7 @@ export default async function HomePage() {
           isConfigured={isConfigured}
           barbers={barbers}
           reservations={reservations}
+          attentionConfigurations={attentionConfigurations}
           week={week}
         />
       </section>

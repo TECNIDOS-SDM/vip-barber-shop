@@ -5,7 +5,14 @@ import dynamic from "next/dynamic";
 import Image from "next/image";
 import { Plus, Trash2, Upload, UserRoundCheck } from "lucide-react";
 import { toast } from "sonner";
-import { TIME_SLOTS } from "@/lib/constants";
+import {
+  DAY_FULL_BLOCK_MARKER,
+  extendAttentionSlots,
+  getAttentionConfiguration,
+  mergeAttentionSlots,
+  splitAttentionSlots,
+  type AttentionConfiguration
+} from "@/lib/attention-configuration";
 import { adminIdentifierToEmail } from "@/lib/admin-auth";
 import {
   ADMIN_DASHBOARD_VIEW_COOKIE,
@@ -32,6 +39,7 @@ type DashboardProps = {
     barbers: any[];
     reservations: any[];
     todayReservations: any[];
+    attentionConfigurations: AttentionConfiguration[];
     profiles: any[];
     currentWeek: {
       key: string;
@@ -55,8 +63,6 @@ type LaborSummary = {
   penaltiesCount: number;
   penaltiesTotal: number;
 };
-
-const DAY_FULL_BLOCK_MARKER = "__vip_barber_top_day_full_block__";
 
 type CollapsibleSectionProps = {
   title: string;
@@ -195,6 +201,9 @@ export function AdminDashboard({
       : initialData.barbers[0]?.id ?? null;
   const [barbers, setBarbers] = useState(initialData.barbers);
   const [reservations, setReservations] = useState(initialData.reservations);
+  const [attentionConfigurations, setAttentionConfigurations] = useState(
+    initialData.attentionConfigurations
+  );
   const [profiles, setProfiles] = useState(initialData.profiles);
   const [laborSummaries, setLaborSummaries] = useState<Record<string, LaborSummary>>({});
   const [saving, setSaving] = useState(false);
@@ -266,6 +275,7 @@ export function AdminDashboard({
 
       setBarbers(payload.barbers ?? []);
       setReservations(payload.reservations ?? []);
+      setAttentionConfigurations(payload.attentionConfigurations ?? []);
       setProfiles(payload.profiles ?? []);
       const nextWeekStart = payload.currentWeek?.[0]?.isoDate ?? "";
       if (nextWeekStart && nextWeekStart !== dashboardWeek[0]?.isoDate) {
@@ -924,20 +934,44 @@ export function AdminDashboard({
     }
   }
 
-  const scheduleSlotMap = useMemo(() => {
+  const selectedScheduleReservations = useMemo(() => reservations.filter(
+    reservation =>
+      reservation.barbero_id === scheduleForm.barbero_id &&
+      reservation.fecha === scheduleForm.fecha
+  ), [reservations, scheduleForm.barbero_id, scheduleForm.fecha]);
+  const dayFullBlockReservation = useMemo(
+    () => selectedScheduleReservations.find(
+      reservation => reservation.estado === "bloqueado" &&
+        reservation.cliente_whatsapp === DAY_FULL_BLOCK_MARKER
+    ),
+    [selectedScheduleReservations]
+  );
+  const operationalScheduleSlotMap = useMemo(() => {
     return new Map(
-      reservations
-        .filter(
-          (reservation) =>
-            reservation.barbero_id === scheduleForm.barbero_id &&
-            reservation.fecha === scheduleForm.fecha
-        )
+      selectedScheduleReservations
+        .filter(reservation => reservation.cliente_whatsapp !== DAY_FULL_BLOCK_MARKER)
         .map((reservation) => [normalizeHourKey(reservation.hora), reservation])
     );
-  }, [reservations, scheduleForm.barbero_id, scheduleForm.fecha]);
+  }, [selectedScheduleReservations]);
+  const configuredScheduleSlots = useMemo(() => {
+    const configuration = getAttentionConfiguration(attentionConfigurations, scheduleForm.barbero_id);
+    return extendAttentionSlots(configuration, Array.from(operationalScheduleSlotMap.keys()));
+  }, [attentionConfigurations, operationalScheduleSlotMap, scheduleForm.barbero_id]);
+  const currentScheduleSlots = useMemo(
+    () => mergeAttentionSlots(configuredScheduleSlots, Array.from(operationalScheduleSlotMap.keys())),
+    [configuredScheduleSlots, operationalScheduleSlotMap]
+  );
+  const scheduleSlotMap = useMemo(() => {
+    if (!dayFullBlockReservation) return operationalScheduleSlotMap;
+    const map = new Map(operationalScheduleSlotMap);
+    for (const hour of currentScheduleSlots) {
+      if (!map.has(hour)) map.set(hour, dayFullBlockReservation);
+    }
+    return map;
+  }, [currentScheduleSlots, dayFullBlockReservation, operationalScheduleSlotMap]);
   const availableScheduleHours = useMemo(
-    () => TIME_SLOTS.filter((hour) => !scheduleSlotMap.get(hour)),
-    [scheduleSlotMap]
+    () => currentScheduleSlots.filter((hour) => !scheduleSlotMap.get(hour)),
+    [currentScheduleSlots, scheduleSlotMap]
   );
 
   const activeBarber = useMemo(
@@ -1042,8 +1076,12 @@ export function AdminDashboard({
       selectedReleaseReservations.length > 0
   );
   const scheduleHourColumns = useMemo(() => {
-    return [TIME_SLOTS.slice(0, 10), TIME_SLOTS.slice(10)];
-  }, []);
+    return splitAttentionSlots(currentScheduleSlots);
+  }, [currentScheduleSlots]);
+
+  useEffect(() => {
+    setSelectedHours((current) => current.filter(hour => configuredScheduleSlots.includes(hour)));
+  }, [configuredScheduleSlots]);
 
   function openCurrentDayAgenda(barberId: string) {
     setActiveBarberId(barberId);
@@ -1390,7 +1428,7 @@ export function AdminDashboard({
                             <button
                               type="button"
                               onClick={() => {
-                                const blockedHours = TIME_SLOTS.filter(
+                                const blockedHours = currentScheduleSlots.filter(
                                   (hour) =>
                                     scheduleSlotMap.get(hour)?.estado === "bloqueado" &&
                                     scheduleSlotMap.get(hour)?.cliente_whatsapp ===

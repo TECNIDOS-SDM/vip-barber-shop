@@ -14,7 +14,13 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { formatHourDisplay, formatReservationDate } from "@/lib/date";
-import { TIME_SLOTS } from "@/lib/constants";
+import {
+  extendAttentionSlots,
+  getAttentionConfiguration,
+  mergeAttentionSlots,
+  splitAttentionSlots,
+  type AttentionConfiguration
+} from "@/lib/attention-configuration";
 import { buildWhatsAppUrl } from "@/lib/whatsapp";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 import type { Barber, ReservationSlot } from "@/types";
@@ -25,6 +31,7 @@ type BookingShellProps = {
   isConfigured: boolean;
   barbers: Barber[];
   reservations: ReservationSlot[];
+  attentionConfigurations: AttentionConfiguration[];
   week: {
     key: string;
     label: string;
@@ -65,6 +72,7 @@ export function BookingShell({
   isConfigured,
   barbers,
   reservations,
+  attentionConfigurations,
   week
 }: BookingShellProps) {
   const todayIso = new Date().toLocaleDateString("en-CA", {
@@ -72,6 +80,7 @@ export function BookingShell({
   });
   const [liveBarbers, setLiveBarbers] = useState(barbers);
   const [liveReservations, setLiveReservations] = useState(reservations);
+  const [liveAttentionConfigurations, setLiveAttentionConfigurations] = useState(attentionConfigurations);
   const [liveWeek, setLiveWeek] = useState(week);
   const [selectedBarber, setSelectedBarber] = useState<Barber | null>(null);
   const [selectedDate, setSelectedDate] = useState("");
@@ -83,10 +92,6 @@ export function BookingShell({
   const isRefreshingRef = useRef(false);
   const shouldRefreshAgainRef = useRef(false);
   const refreshTimeoutRef = useRef<number | null>(null);
-  const hourColumns = useMemo(() => {
-    return [TIME_SLOTS.slice(0, 10), TIME_SLOTS.slice(10)];
-  }, []);
-
   async function refreshData() {
     if (isRefreshingRef.current) {
       shouldRefreshAgainRef.current = true;
@@ -107,6 +112,7 @@ export function BookingShell({
 
       setLiveBarbers(payload.barbers ?? []);
       setLiveReservations(payload.reservations ?? []);
+      setLiveAttentionConfigurations(payload.attentionConfigurations ?? []);
       setLiveWeek(payload.week ?? []);
     } finally {
       isRefreshingRef.current = false;
@@ -121,8 +127,9 @@ export function BookingShell({
   useEffect(() => {
     setLiveBarbers(barbers);
     setLiveReservations(reservations);
+    setLiveAttentionConfigurations(attentionConfigurations);
     setLiveWeek(week);
-  }, [barbers, reservations, week]);
+  }, [attentionConfigurations, barbers, reservations, week]);
 
   useEffect(() => {
     if (!selectedBarber) {
@@ -225,13 +232,46 @@ export function BookingShell({
           (item) =>
             item.barbero_id === selectedBarber?.id &&
             item.fecha === selectedDate &&
-            item.estado !== "cancelada"
+            item.estado !== "cancelada" &&
+            !item.bloqueo_dia_completo
         )
         .map((item) => [item.hora.slice(0, 5), item.estado])
     );
   }, [liveReservations, selectedBarber, selectedDate]);
+  const isDayFullyBlocked = useMemo(
+    () => liveReservations.some(item =>
+      item.barbero_id === selectedBarber?.id &&
+      item.fecha === selectedDate &&
+      item.estado === "bloqueado" &&
+      item.bloqueo_dia_completo
+    ),
+    [liveReservations, selectedBarber, selectedDate]
+  );
+  const configuredSlots = useMemo(() => {
+    const configuration = getAttentionConfiguration(liveAttentionConfigurations, selectedBarber?.id);
+    return extendAttentionSlots(configuration, Array.from(slotMap.keys()));
+  }, [liveAttentionConfigurations, selectedBarber?.id, slotMap]);
+  const currentSlots = useMemo(
+    () => mergeAttentionSlots(configuredSlots, Array.from(slotMap.keys())),
+    [configuredSlots, slotMap]
+  );
+  const hourColumns = useMemo(() => splitAttentionSlots(currentSlots), [currentSlots]);
+
+  useEffect(() => {
+    if (!selectedHour || currentStep !== 4) return;
+    if (!isDayFullyBlocked && configuredSlots.includes(selectedHour) && !slotMap.has(selectedHour)) return;
+    setSelectedHour("");
+    setCurrentStep(3);
+  }, [configuredSlots, currentStep, isDayFullyBlocked, selectedHour, slotMap]);
 
   function getPublicSlotState(hour: string) {
+    if (isDayFullyBlocked) {
+      return {
+        busy: true,
+        label: "OCUPADO",
+        className: "bg-danger text-white"
+      };
+    }
     const status = slotMap.get(hour);
 
     if (!status) {
@@ -539,7 +579,7 @@ export function BookingShell({
                         })}
                       </div>
                     ))}
-                    {TIME_SLOTS.every((hour) => slotMap.has(hour)) ? (
+                    {isDayFullyBlocked || currentSlots.every((hour) => slotMap.has(hour)) ? (
                       <div className="col-span-full rounded-2xl border border-white/10 bg-white/[0.03] p-5 text-center text-sm font-semibold uppercase tracking-[0.18em] text-sand/70">
                         NO HAY HORARIOS DISPONIBLES PARA ESTE DIA
                       </div>

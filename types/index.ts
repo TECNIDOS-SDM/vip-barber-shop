@@ -25,6 +25,7 @@ export type ReservationSlot = {
   estado: ReservationStatus;
   cliente_nombre?: string | null;
   cliente_whatsapp?: string | null;
+  bloqueo_dia_completo?: boolean;
   barberos?: {
     nombre: string;
   } | null;

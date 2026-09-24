@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getCurrentUserRole } from "@/lib/auth";
+import { DAY_FULL_BLOCK_MARKER } from "@/lib/attention-configuration";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -36,8 +37,6 @@ const updateStatusSchema = z.object({
 const schema = z.union([createSchema, unblockSchema, releaseSchema, updateStatusSchema]);
 const SLOT_TAKEN_MESSAGE =
   "Este horario ya no está disponible. Por favor selecciona otro.";
-
-const DAY_FULL_BLOCK_MARKER = "__vip_barber_top_day_full_block__";
 
 async function getAdminRoleFallback(
   adminSupabase: NonNullable<ReturnType<typeof getSupabaseAdminClient>>,
@@ -164,8 +163,7 @@ export async function POST(request: Request) {
           .eq("barbero_id", payload.barbero_id)
           .eq("fecha", payload.fecha)
           .eq("estado", "bloqueado")
-          .eq("cliente_whatsapp", DAY_FULL_BLOCK_MARKER)
-          .in("hora", payload.horas);
+          .eq("cliente_whatsapp", DAY_FULL_BLOCK_MARKER);
 
       if (blockedReservationsError) {
         throw blockedReservationsError;
@@ -181,8 +179,7 @@ export async function POST(request: Request) {
         .eq("barbero_id", payload.barbero_id)
         .eq("fecha", payload.fecha)
         .eq("estado", "bloqueado")
-        .eq("cliente_whatsapp", DAY_FULL_BLOCK_MARKER)
-        .in("hora", payload.horas);
+        .eq("cliente_whatsapp", DAY_FULL_BLOCK_MARKER);
 
       if (error) {
         throw error;
@@ -195,70 +192,49 @@ export async function POST(request: Request) {
       });
     }
 
-    const existingResult = await adminSupabase
-      .from("reservas")
-      .select("hora, estado")
-      .eq("barbero_id", payload.barbero_id)
-      .eq("fecha", payload.fecha)
-      .in("hora", payload.horas)
-      .neq("estado", "cancelada");
+    const clienteNombre = payload.estado === "bloqueado"
+      ? "Horario bloqueado"
+      : payload.estado === "cita_fijada"
+        ? payload.cliente_nombre?.trim() || "Cliente fijo"
+        : payload.cliente_nombre?.trim() || "Reserva manual";
+    const clienteWhatsapp = payload.estado === "bloqueado"
+      ? payload.bloqueo_origen === "dia_completo" ? DAY_FULL_BLOCK_MARKER : "N/A"
+      : payload.cliente_whatsapp?.trim() || "N/A";
 
-    if (existingResult.error) {
-      throw existingResult.error;
-    }
-
-    const conflicts = (existingResult.data ?? []) as Array<{
-      hora: string;
-      estado: string;
-    }>;
-
-    if (conflicts.length > 0) {
-      return NextResponse.json(
-        { error: SLOT_TAKEN_MESSAGE },
-        { status: 409 }
-      );
-    }
-
-    const rows = payload.horas.map((hora) => ({
-      barbero_id: payload.barbero_id,
-      fecha: payload.fecha,
-      hora,
-      estado: payload.estado,
-      cliente_nombre:
-        payload.estado === "bloqueado"
-          ? "Horario bloqueado"
-          : payload.estado === "cita_fijada"
-          ? payload.cliente_nombre?.trim() || "Cliente fijo"
-          : payload.cliente_nombre?.trim() || "Reserva manual",
-      cliente_whatsapp:
-        payload.estado === "bloqueado"
-          ? payload.bloqueo_origen === "dia_completo"
-            ? DAY_FULL_BLOCK_MARKER
-            : "N/A"
-          : payload.estado === "cita_fijada"
-          ? payload.cliente_whatsapp?.trim() || "N/A"
-          : payload.cliente_whatsapp?.trim() || "N/A"
-    }));
-
-    const { data: createdReservations, error } = await (adminSupabase
-      .from("reservas") as any)
-      .insert(rows)
-      .select(
-        "id, barbero_id, cliente_nombre, cliente_whatsapp, fecha, hora, estado, created_at, barberos(nombre)"
-      );
+    const { data: insertedReservations, error } = await (adminSupabase as any).rpc(
+      "crear_turnos_agenda_seguros",
+      {
+        p_barbero_id: payload.barbero_id,
+        p_fecha: payload.fecha,
+        p_horas: payload.horas,
+        p_estado: payload.estado,
+        p_cliente_nombre: clienteNombre,
+        p_cliente_whatsapp: clienteWhatsapp,
+        p_requerir_activo: false
+      }
+    );
 
     if (error) {
       if (
         typeof error === "object" &&
         error &&
         "code" in error &&
-        (error as { code?: string }).code === "23505"
+        ["23505", "22023"].includes((error as { code?: string }).code ?? "")
       ) {
         return NextResponse.json({ error: SLOT_TAKEN_MESSAGE }, { status: 409 });
       }
 
       throw error;
     }
+
+    const insertedIds = ((insertedReservations ?? []) as Array<{ id: string }>).map(item => item.id);
+    const { data: createdReservations, error: createdReservationsError } = insertedIds.length
+      ? await adminSupabase.from("reservas").select(
+        "id, barbero_id, cliente_nombre, cliente_whatsapp, fecha, hora, estado, created_at, barberos(nombre)"
+      ).in("id", insertedIds)
+      : { data: [], error: null };
+
+    if (createdReservationsError) throw createdReservationsError;
 
     return NextResponse.json({
       success: true,
