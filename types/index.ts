@@ -17,6 +17,17 @@ export type Barber = {
   activo: boolean;
 };
 
+export type BarberService = {
+  id: string;
+  barbero_id: string;
+  nombre: string;
+  precio: number;
+  activo: boolean;
+  created_at?: string;
+  updated_at?: string;
+  usado?: boolean;
+};
+
 export type ReservationSlot = {
   id?: string;
   barbero_id: string;
@@ -25,6 +36,9 @@ export type ReservationSlot = {
   estado: ReservationStatus;
   cliente_nombre?: string | null;
   cliente_whatsapp?: string | null;
+  servicio_id?: string | null;
+  servicio_nombre_snapshot?: string | null;
+  servicio_precio_snapshot?: number | null;
   bloqueo_dia_completo?: boolean;
   barberos?: {
     nombre: string;

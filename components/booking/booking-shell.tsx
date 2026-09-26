@@ -23,7 +23,8 @@ import {
 } from "@/lib/attention-configuration";
 import { buildWhatsAppUrl } from "@/lib/whatsapp";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
-import type { Barber, ReservationSlot } from "@/types";
+import { formatCop } from "@/lib/currency";
+import type { Barber, BarberService, ReservationSlot } from "@/types";
 
 const BARBER_FALLBACK_IMAGE = "/vip-barbertop-logo.jpeg";
 
@@ -31,6 +32,7 @@ type BookingShellProps = {
   isConfigured: boolean;
   barbers: Barber[];
   reservations: ReservationSlot[];
+  services: BarberService[];
   attentionConfigurations: AttentionConfiguration[];
   week: {
     key: string;
@@ -72,6 +74,7 @@ export function BookingShell({
   isConfigured,
   barbers,
   reservations,
+  services,
   attentionConfigurations,
   week
 }: BookingShellProps) {
@@ -80,14 +83,16 @@ export function BookingShell({
   });
   const [liveBarbers, setLiveBarbers] = useState(barbers);
   const [liveReservations, setLiveReservations] = useState(reservations);
+  const [liveServices, setLiveServices] = useState(services);
   const [liveAttentionConfigurations, setLiveAttentionConfigurations] = useState(attentionConfigurations);
   const [liveWeek, setLiveWeek] = useState(week);
   const [selectedBarber, setSelectedBarber] = useState<Barber | null>(null);
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedHour, setSelectedHour] = useState("");
+  const [selectedService, setSelectedService] = useState<BarberService | null>(null);
   const [clienteNombre, setClienteNombre] = useState("");
   const [clienteWhatsapp, setClienteWhatsapp] = useState("");
-  const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1);
+  const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4 | 5>(1);
   const [loading, setLoading] = useState(false);
   const isRefreshingRef = useRef(false);
   const shouldRefreshAgainRef = useRef(false);
@@ -112,6 +117,7 @@ export function BookingShell({
 
       setLiveBarbers(payload.barbers ?? []);
       setLiveReservations(payload.reservations ?? []);
+      setLiveServices(payload.services ?? []);
       setLiveAttentionConfigurations(payload.attentionConfigurations ?? []);
       setLiveWeek(payload.week ?? []);
     } finally {
@@ -127,9 +133,47 @@ export function BookingShell({
   useEffect(() => {
     setLiveBarbers(barbers);
     setLiveReservations(reservations);
+    setLiveServices(services);
     setLiveAttentionConfigurations(attentionConfigurations);
     setLiveWeek(week);
-  }, [attentionConfigurations, barbers, reservations, week]);
+  }, [attentionConfigurations, barbers, reservations, services, week]);
+
+  const selectedBarberServices = useMemo(
+    () => liveServices.filter(
+      (service) => service.barbero_id === selectedBarber?.id && service.activo
+    ),
+    [liveServices, selectedBarber?.id]
+  );
+  const hasServices = selectedBarberServices.length > 0;
+  const serviceStep = hasServices ? 2 : null;
+  const dateStep = hasServices ? 3 : 2;
+  const hourStep = hasServices ? 4 : 3;
+  const detailsStep = hasServices ? 5 : 4;
+  const totalSteps = hasServices ? 5 : 4;
+
+  useEffect(() => {
+    if (!selectedBarber || !hasServices) {
+      if (selectedService) {
+        setSelectedService(null);
+        setSelectedDate("");
+        setSelectedHour("");
+        setCurrentStep(2);
+      }
+      return;
+    }
+
+    const currentService = selectedService
+      ? selectedBarberServices.find((service) => service.id === selectedService.id)
+      : null;
+    if (!currentService) {
+      setSelectedService(null);
+      setSelectedDate("");
+      setSelectedHour("");
+      setCurrentStep(2);
+    } else if (currentService !== selectedService) {
+      setSelectedService(currentService);
+    }
+  }, [hasServices, selectedBarber, selectedBarberServices, selectedService]);
 
   useEffect(() => {
     if (!selectedBarber) {
@@ -257,11 +301,11 @@ export function BookingShell({
   const hourColumns = useMemo(() => splitAttentionSlots(currentSlots), [currentSlots]);
 
   useEffect(() => {
-    if (!selectedHour || currentStep !== 4) return;
+    if (!selectedHour || currentStep !== detailsStep) return;
     if (!isDayFullyBlocked && configuredSlots.includes(selectedHour) && !slotMap.has(selectedHour)) return;
     setSelectedHour("");
-    setCurrentStep(3);
-  }, [configuredSlots, currentStep, isDayFullyBlocked, selectedHour, slotMap]);
+    setCurrentStep(hourStep);
+  }, [configuredSlots, currentStep, detailsStep, hourStep, isDayFullyBlocked, selectedHour, slotMap]);
 
   function getPublicSlotState(hour: string) {
     if (isDayFullyBlocked) {
@@ -292,6 +336,7 @@ export function BookingShell({
     setSelectedBarber(null);
     setSelectedDate("");
     setSelectedHour("");
+    setSelectedService(null);
     setClienteNombre("");
     setClienteWhatsapp("");
     setCurrentStep(1);
@@ -301,6 +346,7 @@ export function BookingShell({
     setSelectedBarber(barber);
     setSelectedDate("");
     setSelectedHour("");
+    setSelectedService(null);
     setClienteNombre("");
     setClienteWhatsapp("");
     setCurrentStep(2);
@@ -316,15 +362,15 @@ export function BookingShell({
       return;
     }
 
-    if (currentStep === 3) {
+    if (currentStep === dateStep) {
       setSelectedDate("");
     }
 
-    if (currentStep === 4) {
+    if (currentStep === detailsStep) {
       setSelectedHour("");
     }
 
-    setCurrentStep((current) => (current - 1) as 1 | 2 | 3 | 4);
+    setCurrentStep((current) => (current - 1) as 1 | 2 | 3 | 4 | 5);
   }
 
   async function confirmReservation() {
@@ -333,15 +379,21 @@ export function BookingShell({
       return;
     }
 
+    if (hasServices && !selectedService) {
+      toast.error("Selecciona un servicio antes de confirmar.");
+      setCurrentStep(2);
+      return;
+    }
+
     if (clienteNombre.trim().length < 3) {
       toast.error("Ingresa tu nombre completo.");
-      setCurrentStep(4);
+      setCurrentStep(detailsStep);
       return;
     }
 
     if (clienteWhatsapp.trim().length < 7) {
       toast.error("Ingresa un WhatsApp valido.");
-      setCurrentStep(4);
+      setCurrentStep(detailsStep);
       return;
     }
 
@@ -358,7 +410,8 @@ export function BookingShell({
           fecha: selectedDate,
           hora: selectedHour,
           cliente_nombre: clienteNombre,
-          cliente_whatsapp: clienteWhatsapp
+          cliente_whatsapp: clienteWhatsapp,
+          servicio_id: selectedService?.id ?? null
         })
       });
 
@@ -462,7 +515,7 @@ export function BookingShell({
                 </div>
                 <div>
                   <p className="text-xs uppercase tracking-[0.25em] text-accent/80">
-                    PASO {currentStep} DE 4
+                    PASO {currentStep} DE {totalSteps}
                   </p>
                   <h3 className="mt-1 text-2xl font-semibold text-sand">
                     {selectedBarber.nombre}
@@ -481,7 +534,37 @@ export function BookingShell({
             </div>
 
             <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-4 sm:p-5">
-              {currentStep === 2 ? (
+              {serviceStep && currentStep === serviceStep ? (
+                <>
+                  <div className="mb-4 flex items-center gap-2">
+                    <Scissors className="h-4 w-4 text-accent" />
+                    <h4 className="font-semibold text-sand">SELECCIONA EL SERVICIO</h4>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {selectedBarberServices.map((service) => (
+                      <button
+                        key={service.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedService(service);
+                          setCurrentStep(dateStep);
+                        }}
+                        className={cn(
+                          "rounded-2xl border p-4 text-left transition",
+                          selectedService?.id === service.id
+                            ? "border-accent bg-accent text-ink"
+                            : "border-white/10 bg-white/5 text-sand hover:border-accent/60"
+                        )}
+                      >
+                        <span className="block font-semibold">{service.nombre}</span>
+                        <span className="mt-2 block text-lg font-black">{formatCop(service.precio)}</span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              ) : null}
+
+              {currentStep === dateStep ? (
                 <>
                   <div className="mb-4 flex items-center gap-2">
                     <CalendarDays className="h-4 w-4 text-accent" />
@@ -501,7 +584,7 @@ export function BookingShell({
                           onClick={() => {
                             if (isPastDay) return;
                             setSelectedDate(day.isoDate);
-                            setCurrentStep(3);
+                            setCurrentStep(hourStep);
                           }}
                           className={cn(
                             "rounded-2xl border px-4 py-4 text-left transition",
@@ -529,7 +612,7 @@ export function BookingShell({
                 </>
               ) : null}
 
-              {currentStep === 3 ? (
+              {currentStep === hourStep ? (
                 <>
                   <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-center gap-2">
@@ -560,7 +643,7 @@ export function BookingShell({
                               onClick={() => {
                                 if (slotState.busy) return;
                                 setSelectedHour(hour);
-                                setCurrentStep(4);
+                                setCurrentStep(detailsStep);
                               }}
                               className={cn(
                                 "w-full rounded-2xl px-4 py-4 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-100",
@@ -587,7 +670,7 @@ export function BookingShell({
                 </>
               ) : null}
 
-              {currentStep === 4 ? (
+              {currentStep === detailsStep ? (
                 <>
                   <div className="mb-4 flex items-center gap-2">
                     <Scissors className="h-4 w-4 text-accent" />
@@ -625,6 +708,12 @@ export function BookingShell({
                     </label>
                   </div>
                   <div className="mt-4 rounded-[1.5rem] bg-accent/10 p-4 text-sm text-sand">
+                    {selectedService ? (
+                      <div className="mb-3 border-b border-accent/20 pb-3">
+                        <p className="font-semibold text-sand">{selectedService.nombre}</p>
+                        <p className="mt-1 font-bold text-accent">{formatCop(selectedService.precio)}</p>
+                      </div>
+                    ) : null}
                     <p>
                       Reserva confirmada para el dia{" "}
                       <span className="font-semibold">

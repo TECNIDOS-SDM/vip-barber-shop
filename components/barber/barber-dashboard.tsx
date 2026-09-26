@@ -20,6 +20,7 @@ import {
   type BarberDashboardViewState
 } from "@/lib/dashboard-view-state";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
+import { formatCop } from "@/lib/currency";
 
 type BarberDashboardProps = {
   barberEmail: string;
@@ -36,6 +37,9 @@ type BarberDashboardProps = {
       hora: string;
       estado: string;
       cliente_whatsapp?: string | null;
+      servicio_id?: string | null;
+      servicio_nombre_snapshot?: string | null;
+      servicio_precio_snapshot?: number | null;
     }[];
     attentionConfigurations: AttentionConfiguration[];
     currentWeek: {
@@ -433,6 +437,15 @@ export function BarberDashboard({
                                     ? "CITA FIJADA"
                                     : "RESERVA CONFIRMADA"}
                               </span>
+                              {reservation.estado !== "bloqueado" &&
+                              reservation.servicio_nombre_snapshot ? (
+                                <span className="mt-1 block truncate text-[11px] font-semibold">
+                                  {reservation.servicio_nombre_snapshot}
+                                  {reservation.servicio_precio_snapshot
+                                    ? ` - ${formatCop(reservation.servicio_precio_snapshot)}`
+                                    : ""}
+                                </span>
+                              ) : null}
                             </>
                           ) : null}
                         </div>

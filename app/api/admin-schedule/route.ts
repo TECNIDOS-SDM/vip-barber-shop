@@ -142,7 +142,7 @@ export async function POST(request: Request) {
         .update({ estado: payload.estado })
         .in("id", payload.reservation_ids)
         .select(
-          "id, barbero_id, cliente_nombre, cliente_whatsapp, fecha, hora, estado, created_at, barberos(nombre)"
+          "id, barbero_id, cliente_nombre, cliente_whatsapp, fecha, hora, estado, created_at, servicio_id, servicio_nombre_snapshot, servicio_precio_snapshot, barberos(nombre)"
         );
 
       if (error) {
@@ -230,7 +230,7 @@ export async function POST(request: Request) {
     const insertedIds = ((insertedReservations ?? []) as Array<{ id: string }>).map(item => item.id);
     const { data: createdReservations, error: createdReservationsError } = insertedIds.length
       ? await adminSupabase.from("reservas").select(
-        "id, barbero_id, cliente_nombre, cliente_whatsapp, fecha, hora, estado, created_at, barberos(nombre)"
+        "id, barbero_id, cliente_nombre, cliente_whatsapp, fecha, hora, estado, created_at, servicio_id, servicio_nombre_snapshot, servicio_precio_snapshot, barberos(nombre)"
       ).in("id", insertedIds)
       : { data: [], error: null };
 

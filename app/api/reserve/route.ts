@@ -8,7 +8,8 @@ const schema = z.object({
   cliente_nombre: z.string().min(3),
   cliente_whatsapp: z.string().min(7),
   fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  hora: z.string().regex(/^\d{2}:\d{2}$/)
+  hora: z.string().regex(/^\d{2}:\d{2}$/),
+  servicio_id: z.string().uuid().nullable().optional()
 });
 
 const SLOT_TAKEN_MESSAGE =
@@ -36,10 +37,15 @@ export async function POST(request: Request) {
       p_estado: "confirmada",
       p_cliente_nombre: values.cliente_nombre,
       p_cliente_whatsapp: values.cliente_whatsapp,
-      p_requerir_activo: true
+      p_requerir_activo: true,
+      p_servicio_id: values.servicio_id ?? null
     });
 
     if (error) {
+      if (error.code === "22023" && /servicio/i.test(error.message ?? "")) {
+        return NextResponse.json({ error: error.message }, { status: 409 });
+      }
+
       if (error.code === "23505" || error.code === "22023") {
         return NextResponse.json({ error: SLOT_TAKEN_MESSAGE }, { status: 409 });
       }

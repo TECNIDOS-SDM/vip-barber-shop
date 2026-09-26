@@ -24,6 +24,8 @@ import { SignOutButton } from "@/components/shared/sign-out-button";
 import { Logo } from "@/components/shared/logo";
 import { cn } from "@/lib/utils";
 import { buildWhatsAppUrl } from "@/lib/whatsapp";
+import { formatCop } from "@/lib/currency";
+import { BarberServices } from "@/components/admin/barber-services";
 
 const AdminLaborSchedules = dynamic(
   () =>
@@ -234,10 +236,11 @@ export function AdminDashboard({
   const [isAddingMoreHours, setIsAddingMoreHours] = useState(false);
   const [activeBarberId, setActiveBarberId] = useState<string | null>(initialActiveBarberId);
   const [activeBarberView, setActiveBarberView] = useState<
-    "list" | "perfil" | "agenda"
+    "list" | "perfil" | "agenda" | "servicios"
   >(
     initialViewState?.activeBarberView === "perfil" ||
-      initialViewState?.activeBarberView === "agenda"
+      initialViewState?.activeBarberView === "agenda" ||
+      initialViewState?.activeBarberView === "servicios"
       ? initialViewState.activeBarberView
       : "list"
   );
@@ -1289,6 +1292,16 @@ export function AdminDashboard({
                       type="button"
                       onClick={() => {
                         setShowLaborSchedules(false);
+                        setActiveBarberView("servicios");
+                      }}
+                      className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-sand/80"
+                    >
+                      Servicios
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowLaborSchedules(false);
                         setActiveBarberView("list");
                         setSelectedAction("confirmada");
                         setScheduleMode("confirmada");
@@ -1366,6 +1379,13 @@ export function AdminDashboard({
                       </div>
                     </div>
                   </div>
+                ) : null}
+
+                {activeBarberView === "servicios" ? (
+                  <BarberServices
+                    barberId={activeBarber.id}
+                    barberName={activeBarber.nombre}
+                  />
                 ) : null}
 
                 {activeBarberView === "agenda" ? (
@@ -1943,6 +1963,15 @@ export function AdminDashboard({
                         ? "Horario bloqueado"
                         : reservation.cliente_nombre}
                     </p>
+                    {reservation.estado !== "bloqueado" &&
+                    reservation.servicio_nombre_snapshot ? (
+                      <p className="mt-1 text-sand/70">
+                        Servicio: {reservation.servicio_nombre_snapshot}
+                        {reservation.servicio_precio_snapshot
+                          ? ` - ${formatCop(reservation.servicio_precio_snapshot)}`
+                          : ""}
+                      </p>
+                    ) : null}
                     {reservation.estado !== "bloqueado" &&
                     reservation.cliente_whatsapp ? (
                       <a
