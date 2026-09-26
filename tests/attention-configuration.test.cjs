@@ -14,7 +14,7 @@ function load(file, dependencies = {}) {
 const validation = load('lib/attention-configuration.ts');
 const a = '11111111-1111-4111-8111-111111111111';
 const b = '22222222-2222-4222-8222-222222222222';
-const valid = { barbero_id: a, hora_inicio_atencion: '08:00', hora_fin_atencion: '20:00', intervalo_citas: 60 };
+const valid = { barbero_id: a, dia_semana: 1, hora_inicio_atencion: '08:00', hora_fin_atencion: '20:00', intervalo_citas: 60 };
 
 test('accepts valid hours and integer intervals; rejects invalid input', () => {
   for (const minutes of [10, 40, 60, 90, 240]) {
@@ -27,7 +27,7 @@ test('accepts valid hours and integer intervals; rejects invalid input', () => {
     { intervalo_citas: -1 }, { intervalo_citas: 10.5 },
     { intervalo_citas: '' }, { intervalo_citas: 241 }, { intervalo_citas: 9 },
     { hora_inicio_atencion: '23:00', hora_fin_atencion: '23:30', intervalo_citas: 60 },
-    { barbero_id: 'invalid' }, { extra: true }
+    { barbero_id: 'invalid' }, { dia_semana: 0 }, { dia_semana: 8 }, { extra: true }
   ]) assert.equal(validation.attentionConfigurationSchema.safeParse({ ...valid, ...patch }).success, false, JSON.stringify(patch));
 });
 
@@ -42,7 +42,12 @@ test('endpoint denies unauthenticated and barber requests before database access
 });
 
 test('endpoint scopes reads and writes to barber ID, rejects malformed requests', async () => {
-  const rows = new Map([[a, { ...valid }], [b, { ...valid, barbero_id: b, intervalo_citas: 90 }]]);
+  const key = (id, day) => `${id}:${day}`;
+  const rows = new Map([
+    [key(a, 1), { ...valid }],
+    [key(a, 2), { ...valid, dia_semana: 2, intervalo_citas: 40 }],
+    [key(b, 1), { ...valid, barbero_id: b, intervalo_citas: 90 }]
+  ]);
   let readCalls = 0;
   let rpcCalls = 0;
   const routes = load('app/api/admin/attention-configuration/route.ts', {
@@ -52,11 +57,17 @@ test('endpoint scopes reads and writes to barber ID, rejects malformed requests'
         assert.equal(table, 'configuracion_atencion_barberos');
         readCalls++;
         let id;
+        let day;
         return {
           select() { return this; },
-          eq(column, value) { assert.equal(column, 'barbero_id'); id = value; return this; },
+          eq(column, value) {
+            if (column === 'barbero_id') id = value;
+            else if (column === 'dia_semana') day = value;
+            else assert.fail(`Unexpected filter ${column}`);
+            return this;
+          },
           async maybeSingle() {
-            return { data: rows.get(id) ?? null, error: null };
+            return { data: rows.get(key(id, day)) ?? null, error: null };
           }
         };
       },
@@ -64,7 +75,8 @@ test('endpoint scopes reads and writes to barber ID, rejects malformed requests'
         assert.equal(functionName, 'actualizar_configuracion_atencion_barbero');
         rpcCalls++;
         return { async maybeSingle() {
-          const current = rows.get(parameters.p_barbero_id);
+          const rowKey = key(parameters.p_barbero_id, parameters.p_dia_semana);
+          const current = rows.get(rowKey);
           if (!current) return { data: null, error: null };
           const updated = {
             ...current,
@@ -79,7 +91,7 @@ test('endpoint scopes reads and writes to barber ID, rejects malformed requests'
             plan_id: 'test-plan',
             aplicado: parameters.p_aplicar
           };
-          if (parameters.p_aplicar) rows.set(parameters.p_barbero_id, updated);
+          if (parameters.p_aplicar) rows.set(rowKey, updated);
           return { data: updated, error: null };
         } };
       }
@@ -95,10 +107,12 @@ test('endpoint scopes reads and writes to barber ID, rejects malformed requests'
   assert.equal(preview.status, 200);
   assert.equal((await preview.json()).plan.token, 'test-plan');
   assert.equal((await put({ ...valid, hora_inicio_atencion: '09:30', hora_fin_atencion: '20:30', intervalo_citas: 90 })).status, 200);
-  const result = await routes.GET(new Request(`http://localhost?barbero_id=${a}`));
+  const result = await routes.GET(new Request(`http://localhost?barbero_id=${a}&dia_semana=1`));
   assert.equal((await result.json()).configuration.hora_inicio_atencion, '09:30');
-  assert.equal(rows.get(b).hora_inicio_atencion, '08:00');
+  assert.equal(rows.get(key(a, 2)).intervalo_citas, 40);
+  assert.equal(rows.get(key(b, 1)).hora_inicio_atencion, '08:00');
   assert.equal((await routes.GET(new Request('http://localhost?barbero_id=invalid'))).status, 400);
+  assert.equal((await routes.GET(new Request(`http://localhost?barbero_id=${a}&dia_semana=8`))).status, 400);
   assert.equal((await routes.PUT(new Request('http://localhost', { method: 'PUT', body: '{' }))).status, 400);
 });
 
@@ -128,6 +142,7 @@ test('endpoint reports an atomic relocation conflict without exposing database d
 test('endpoint normalizes preview metadata required for administrator confirmation', async () => {
   const rpcResult = {
       barbero_id: a,
+      dia_semana: 1,
       hora_inicio_atencion: '09:00:00',
       hora_fin_atencion: '21:00:00',
       intervalo_citas: 60,

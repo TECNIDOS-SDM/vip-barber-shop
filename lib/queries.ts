@@ -8,7 +8,7 @@ import type { AttentionConfiguration } from "@/lib/attention-configuration";
 import type { Barber, ReservationSlot } from "@/types";
 
 const attentionConfigurationColumns =
-  "barbero_id,hora_inicio_atencion,hora_fin_atencion,intervalo_citas";
+  "barbero_id,dia_semana,hora_inicio_atencion,hora_fin_atencion,intervalo_citas";
 
 async function fetchAttentionConfigurations(barberIds?: string[]) {
   const supabase = getSupabaseAdminClient();

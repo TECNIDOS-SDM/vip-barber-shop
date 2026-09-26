@@ -36,6 +36,7 @@ const slotConfigurationSchema = z.object(slotConfigurationFields).refine(value =
 
 export const attentionConfigurationSchema = z.object({
   barbero_id: z.string().uuid(),
+  dia_semana: z.number().int().min(1).max(7),
   ...slotConfigurationFields
 }).strict().superRefine((value, context) => {
   const parsed = slotConfigurationSchema.safeParse(value);
@@ -46,9 +47,17 @@ export type AttentionConfiguration = z.infer<typeof attentionConfigurationSchema
 
 export function getAttentionConfiguration(
   configurations: AttentionConfiguration[] | undefined,
-  barberId: string | null | undefined
+  barberId: string | null | undefined,
+  isoDateOrDay?: string | number | null
 ) {
-  const configuration = configurations?.find(item => item.barbero_id === barberId);
+  const dayOfWeek = typeof isoDateOrDay === "number"
+    ? isoDateOrDay
+    : isoDateOrDay
+      ? getIsoDayOfWeek(isoDateOrDay)
+      : null;
+  const configuration = configurations?.find(item =>
+    item.barbero_id === barberId && (dayOfWeek === null || item.dia_semana === dayOfWeek)
+  );
   const parsed = slotConfigurationSchema.safeParse(configuration ? {
     hora_inicio_atencion: configuration.hora_inicio_atencion.slice(0, 5),
     hora_fin_atencion: configuration.hora_fin_atencion.slice(0, 5),
@@ -56,6 +65,11 @@ export function getAttentionConfiguration(
   } : DEFAULT_ATTENTION_SLOT_CONFIGURATION);
 
   return parsed.success ? parsed.data : { ...DEFAULT_ATTENTION_SLOT_CONFIGURATION };
+}
+
+export function getIsoDayOfWeek(isoDate: string) {
+  const day = new Date(`${isoDate}T12:00:00Z`).getUTCDay();
+  return day === 0 ? 7 : day;
 }
 
 export function generateAttentionSlots(

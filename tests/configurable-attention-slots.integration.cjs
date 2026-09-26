@@ -13,7 +13,9 @@ const barberIds = [];
 const authIds = [];
 let independenceRealtime = null;
 let independenceChannel = null;
+let configurationDay = 1;
 const ok = result => { if (result.error) throw new Error(result.error.message); return result.data; };
+const isoDay = date => { const day = new Date(`${date}T12:00:00Z`).getUTCDay(); return day === 0 ? 7 : day; };
 
 async function api(path, { method = 'GET', token, body, planToken } = {}) {
   const response = await fetch(`${base}${path}`, {
@@ -31,7 +33,7 @@ async function api(path, { method = 'GET', token, body, planToken } = {}) {
 
 async function previewConfiguration(id, token, values) {
   const result = await api('/api/admin/attention-configuration', {
-    method: 'POST', token, body: { barbero_id: id, ...values }
+    method: 'POST', token, body: { barbero_id: id, dia_semana: configurationDay, ...values }
   });
   assert.equal(result.status, 200, JSON.stringify(result.body));
   return result.body;
@@ -39,7 +41,7 @@ async function previewConfiguration(id, token, values) {
 
 async function applyConfiguration(id, token, values, planToken) {
   const result = await api('/api/admin/attention-configuration', {
-    method: 'PUT', token, planToken, body: { barbero_id: id, ...values }
+    method: 'PUT', token, planToken, body: { barbero_id: id, dia_semana: configurationDay, ...values }
   });
   assert.equal(result.status, 200, JSON.stringify(result.body));
   return result.body;
@@ -113,13 +115,14 @@ async function main() {
 
     const publicData = await api('/api/public-booking');
     assert.equal(publicData.status, 200);
-    assert.deepEqual(
-      publicData.body.attentionConfigurations.filter(item => barberIds.includes(item.barbero_id)).map(item => item.barbero_id),
-      [a],
-      'Public response must expose only active temporary barbers'
-    );
+    const publicTemporaryConfigurations = publicData.body.attentionConfigurations
+      .filter(item => barberIds.includes(item.barbero_id));
+    assert.equal(publicTemporaryConfigurations.length, 7);
+    assert.deepEqual([...new Set(publicTemporaryConfigurations.map(item => item.barbero_id))], [a],
+      'Public response must expose only active temporary barbers');
 
     const date = publicData.body.week.find(day => day.isToday)?.isoDate || publicData.body.week[0].isoDate;
+    configurationDay = isoDay(date);
     const validReservation = {
       barbero_id: a, fecha: date, hora: '10:00',
       cliente_nombre: 'PRUEBA CONTROLADA FASE 2', cliente_whatsapp: '3000000000'
@@ -197,7 +200,7 @@ async function main() {
     }).select('id').single());
     const staleApply = await api('/api/admin/attention-configuration', {
       method: 'PUT', token: adminToken, planToken: stalePreview.plan.token,
-      body: { barbero_id: a, ...sixtyValues }
+      body: { barbero_id: a, dia_semana: configurationDay, ...sixtyValues }
     });
     assert.equal(staleApply.status, 409);
     assert.match(staleApply.body.error, /agenda cambió después de la previsualización/);
@@ -216,7 +219,7 @@ async function main() {
 
     const reduction = await api('/api/admin/attention-configuration', {
       method: 'POST', token: adminToken,
-      body: { barbero_id: a, hora_inicio_atencion: '09:20', hora_fin_atencion: '10:20', intervalo_citas: 40 }
+      body: { barbero_id: a, dia_semana: configurationDay, hora_inicio_atencion: '09:20', hora_fin_atencion: '10:20', intervalo_citas: 40 }
     });
     assert.equal(reduction.status, 200, JSON.stringify(reduction.body));
     assert.equal(reduction.body.plan.requestedEnd, '10:20');
@@ -232,7 +235,7 @@ async function main() {
     }).select('id').single());
     const ignoredHistory = await api('/api/admin/attention-configuration', {
       method: 'POST', token: adminToken,
-      body: { barbero_id: a, hora_inicio_atencion: '09:20', hora_fin_atencion: '21:20', intervalo_citas: 60 }
+      body: { barbero_id: a, dia_semana: configurationDay, hora_inicio_atencion: '09:20', hora_fin_atencion: '21:20', intervalo_citas: 60 }
     });
     assert.equal(ignoredHistory.status, 200, JSON.stringify(ignoredHistory.body));
     assert.equal(ignoredHistory.body.plan.examples[0].hasta, '10:20');
@@ -240,7 +243,8 @@ async function main() {
       .in('id', beforeRelocation.map(item => item.id)).order('hora'));
     assert.deepEqual(afterRejected, afterReverse);
     const unchangedConfiguration = ok(await service.from('configuracion_atencion_barberos')
-      .select('hora_inicio_atencion,hora_fin_atencion,intervalo_citas').eq('barbero_id', a).single());
+      .select('hora_inicio_atencion,hora_fin_atencion,intervalo_citas').eq('barbero_id', a)
+      .eq('dia_semana', configurationDay).single());
     assert.equal(unchangedConfiguration.intervalo_citas, 40);
     ok(await service.from('reservas').delete().eq('id', cancelledHistory.id));
 
@@ -265,6 +269,7 @@ async function main() {
     assert.equal(effective.slice(0, 5), '09:00');
 
     const independenceDate = publicData.body.week.at(-1).isoDate;
+    configurationDay = isoDay(independenceDate);
     const baseline = { hora_inicio_atencion: '09:20', hora_fin_atencion: '21:20', intervalo_citas: 40 };
     let currentConfiguration = baseline;
     let independenceEvents = 0;
@@ -346,10 +351,10 @@ async function main() {
         resolveIndependenceEvent = null;
         assert.ok(independenceEvents > eventsBefore, `${label}: missing Realtime event`);
       } else await apply();
-      assert.deepEqual(flow.preview.configuration, { barbero_id: b, ...next });
-      assert.deepEqual(flow.applied.configuration, { barbero_id: b, ...next });
+      assert.deepEqual(flow.preview.configuration, { barbero_id: b, dia_semana: configurationDay, ...next });
+      assert.deepEqual(flow.applied.configuration, { barbero_id: b, dia_semana: configurationDay, ...next });
       assert.equal(flow.applied.applied, true);
-      assert.deepEqual((await api(`/api/admin/attention-configuration?barbero_id=${b}`, { token: adminToken })).body.configuration, { barbero_id: b, ...next });
+      assert.deepEqual((await api(`/api/admin/attention-configuration?barbero_id=${b}&dia_semana=${configurationDay}`, { token: adminToken })).body.configuration, { barbero_id: b, dia_semana: configurationDay, ...next });
       const audits = ok(await service.from('auditoria_configuracion_atencion')
         .select('configuracion_anterior,configuracion_nueva').eq('barbero_id', b)
         .order('created_at', { ascending: false }).limit(1));

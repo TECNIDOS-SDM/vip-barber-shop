@@ -243,9 +243,13 @@ export function BookingShell({
     [liveReservations, selectedBarber, selectedDate]
   );
   const configuredSlots = useMemo(() => {
-    const configuration = getAttentionConfiguration(liveAttentionConfigurations, selectedBarber?.id);
+    const configuration = getAttentionConfiguration(
+      liveAttentionConfigurations,
+      selectedBarber?.id,
+      selectedDate
+    );
     return extendAttentionSlots(configuration, Array.from(slotMap.keys()));
-  }, [liveAttentionConfigurations, selectedBarber?.id, slotMap]);
+  }, [liveAttentionConfigurations, selectedBarber?.id, selectedDate, slotMap]);
   const currentSlots = useMemo(
     () => mergeAttentionSlots(configuredSlots, Array.from(slotMap.keys())),
     [configuredSlots, slotMap]

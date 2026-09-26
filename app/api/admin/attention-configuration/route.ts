@@ -3,9 +3,10 @@ import { z } from "zod";
 import { requireAdministrator } from "@/lib/admin-labor-access";
 import { attentionConfigurationSchema } from "@/lib/attention-configuration";
 
-const columns = "barbero_id,hora_inicio_atencion,hora_fin_atencion,intervalo_citas";
+const columns = "barbero_id,dia_semana,hora_inicio_atencion,hora_fin_atencion,intervalo_citas";
 const normalize = (row: any) => ({
   barbero_id: row.barbero_id,
+  dia_semana: row.dia_semana,
   hora_inicio_atencion: row.hora_inicio_atencion.slice(0, 5),
   hora_fin_atencion: row.hora_fin_atencion.slice(0, 5),
   intervalo_citas: row.intervalo_citas
@@ -20,6 +21,7 @@ const normalizePlan = (row: any) => ({
   effectiveEnd: row.hora_fin_efectiva?.slice(0, 5),
   extensions: row.extensiones_por_fecha ?? {},
   firstRecords: row.primeros_registros ?? {},
+  affectedDates: Object.keys(row.primeros_registros ?? {}).length,
   laborWarnings: Array.isArray(row.advertencias_laborales) ? row.advertencias_laborales : [],
   token: row.plan_id
 });
@@ -61,6 +63,7 @@ async function planOrApply(request: Request, apply: boolean) {
   if (!parsed.success) return NextResponse.json({ error: "Revisa las horas y el intervalo entero de 10 a 240 minutos." }, { status: 400 });
   const { data, error } = await access.supabase.rpc("actualizar_configuracion_atencion_barbero", {
     p_barbero_id: parsed.data.barbero_id,
+    p_dia_semana: parsed.data.dia_semana,
     p_hora_inicio: parsed.data.hora_inicio_atencion,
     p_hora_fin: parsed.data.hora_fin_atencion,
     p_intervalo: parsed.data.intervalo_citas,
@@ -81,10 +84,13 @@ async function planOrApply(request: Request, apply: boolean) {
 export async function GET(request: Request) {
   const access = await requireAdministrator(request);
   if ("error" in access) return access.error;
-  const id = z.string().uuid().safeParse(new URL(request.url).searchParams.get("barbero_id"));
+  const searchParams = new URL(request.url).searchParams;
+  const id = z.string().uuid().safeParse(searchParams.get("barbero_id"));
+  const day = z.coerce.number().int().min(1).max(7).safeParse(searchParams.get("dia_semana"));
   if (!id.success) return NextResponse.json({ error: "Barbero invalido." }, { status: 400 });
+  if (!day.success) return NextResponse.json({ error: "Dia de semana invalido." }, { status: 400 });
   const { data, error } = await access.supabase.from("configuracion_atencion_barberos")
-    .select(columns).eq("barbero_id", id.data).maybeSingle();
+    .select(columns).eq("barbero_id", id.data).eq("dia_semana", day.data).maybeSingle();
   if (error) return NextResponse.json({ error: "No fue posible consultar la configuracion de atencion." }, { status: 500 });
   if (!data) return NextResponse.json({ error: "Configuracion no encontrada." }, { status: 404 });
   return NextResponse.json({ configuration: normalize(data) }, { headers: { "Cache-Control": "no-store" } });

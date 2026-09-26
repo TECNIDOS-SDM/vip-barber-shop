@@ -554,8 +554,6 @@ export function AdminLaborSchedules({
           </button>
         </div>
 
-        <AdminAttentionConfiguration key={selectedBarber.id} barberId={selectedBarber.id} />
-
         <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
           {WEEK_DAYS.map((day, index) => (
             <button
@@ -642,6 +640,15 @@ export function AdminLaborSchedules({
           Dias
         </button>
       </div>
+
+      {selectedBarber && selectedDay ? (
+        <AdminAttentionConfiguration
+          key={`${selectedBarber.id}-${selectedDay}`}
+          barberId={selectedBarber.id}
+          dayOfWeek={selectedDay}
+          dayLabel={dayLabel}
+        />
+      ) : null}
 
       <div className="mt-5 max-w-xl space-y-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
         <div className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">

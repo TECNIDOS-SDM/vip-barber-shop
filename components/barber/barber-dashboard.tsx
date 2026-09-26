@@ -275,11 +275,12 @@ export function BarberDashboard({
   const currentSlots = useMemo(() => {
     const configuration = getAttentionConfiguration(
       dashboardData.attentionConfigurations,
-      dashboardData.barber?.id
+      dashboardData.barber?.id,
+      selectedDate
     );
     const configured = extendAttentionSlots(configuration, Array.from(reservationMap.keys()));
     return mergeAttentionSlots(configured, Array.from(reservationMap.keys()));
-  }, [dashboardData.attentionConfigurations, dashboardData.barber?.id, reservationMap]);
+  }, [dashboardData.attentionConfigurations, dashboardData.barber?.id, reservationMap, selectedDate]);
   const hourColumns = useMemo(() => {
     return splitAttentionSlots(currentSlots);
   }, [currentSlots]);

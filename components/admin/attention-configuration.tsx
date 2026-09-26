@@ -19,6 +19,7 @@ type RelocationPlan = {
     cliente: string | null;
     hora: string;
   }>;
+  affectedDates: number;
   laborWarnings: Array<{
     dia_semana?: number;
     fecha?: string;
@@ -28,7 +29,15 @@ type RelocationPlan = {
   token: string;
 };
 
-export function AdminAttentionConfiguration({ barberId }: { barberId: string }) {
+export function AdminAttentionConfiguration({
+  barberId,
+  dayOfWeek,
+  dayLabel
+}: {
+  barberId: string;
+  dayOfWeek: number;
+  dayLabel: string;
+}) {
   const [configuration, setConfiguration] = useState<AttentionConfiguration | null>(null);
   const [savedConfiguration, setSavedConfiguration] = useState<AttentionConfiguration | null>(null);
   const [interval, setInterval] = useState("");
@@ -48,7 +57,7 @@ export function AdminAttentionConfiguration({ barberId }: { barberId: string }) 
     setPendingChange(null);
     void (async () => {
       try {
-        const response = await fetch(`/api/admin/attention-configuration?barbero_id=${barberId}`, {
+        const response = await fetch(`/api/admin/attention-configuration?barbero_id=${barberId}&dia_semana=${dayOfWeek}`, {
           cache: "no-store", signal: controller.signal
         });
         const payload = await response.json();
@@ -62,7 +71,7 @@ export function AdminAttentionConfiguration({ barberId }: { barberId: string }) 
       }
     })();
     return () => controller.abort();
-  }, [barberId]);
+  }, [barberId, dayOfWeek]);
 
   async function requestConfiguration(method: "POST" | "PUT", values: AttentionConfiguration, planToken?: string) {
     const response = await fetch("/api/admin/attention-configuration", {
@@ -94,8 +103,15 @@ export function AdminAttentionConfiguration({ barberId }: { barberId: string }) 
 
   async function save(event: FormEvent) {
     event.preventDefault();
-    if (inFlight.current || !configuration || configuration.barbero_id !== barberId) return;
-    const parsed = attentionConfigurationSchema.safeParse({ ...configuration, intervalo_citas: Number(interval) });
+    if (
+      inFlight.current || !configuration || configuration.barbero_id !== barberId ||
+      configuration.dia_semana !== dayOfWeek
+    ) return;
+    const parsed = attentionConfigurationSchema.safeParse({
+      ...configuration,
+      dia_semana: dayOfWeek,
+      intervalo_citas: Number(interval)
+    });
     if (!parsed.success || !/^\d+$/.test(interval)) {
       setError("La hora final debe ser posterior a la inicial y el intervalo un entero de 10 a 240 minutos.");
       return;
@@ -140,8 +156,8 @@ export function AdminAttentionConfiguration({ barberId }: { barberId: string }) 
   const inputClass = "w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sand outline-none";
   return <>
     <form onSubmit={save} className="mt-5 rounded-2xl border border-white/10 bg-white/5 p-4">
-      <h3 className="font-semibold text-sand">Configuracion de atencion</h3>
-      <fieldset disabled={!configuration || configuration.barbero_id !== barberId || saving} className="mt-3 grid gap-3 sm:grid-cols-3 disabled:opacity-60">
+      <h3 className="font-semibold text-sand">Configuracion de atencion — {dayLabel}</h3>
+      <fieldset disabled={!configuration || configuration.barbero_id !== barberId || configuration.dia_semana !== dayOfWeek || saving} className="mt-3 grid gap-3 sm:grid-cols-3 disabled:opacity-60">
         <label className="space-y-2 text-sm text-sand/70">Hora inicial
           <input aria-label="Hora inicial de atencion" required type="time" value={configuration?.hora_inicio_atencion ?? ""} className={inputClass}
             onChange={e => setConfiguration(current => current && ({ ...current, hora_inicio_atencion: e.target.value }))} />
@@ -161,6 +177,7 @@ export function AdminAttentionConfiguration({ barberId }: { barberId: string }) 
       <div className="fixed inset-0 z-50 grid place-items-center bg-black/75 p-4" role="dialog" aria-modal="true" aria-labelledby="attention-preview-title">
         <section className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl border border-white/15 bg-[#11110f] p-5 shadow-2xl sm:p-6">
           <h3 id="attention-preview-title" className="text-lg font-bold text-sand">Resumen del cambio</h3>
+          <p className="mt-1 text-sm text-sand/65">Dia semanal: <strong className="text-sand">{dayLabel}</strong></p>
           <div className="mt-4 grid gap-2 sm:grid-cols-2">
             <div className="rounded-xl border border-white/10 bg-black/20 p-3 text-sm text-sand/75">
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sand/50">Configuracion anterior</p>
@@ -178,6 +195,9 @@ export function AdminAttentionConfiguration({ barberId }: { barberId: string }) 
             <div className="rounded-xl border border-white/10 bg-white/5 p-3"><strong className="block text-xl text-accent">{pendingChange.plan.fixedAppointments}</strong><span className="text-xs text-sand/65">Citas fijadas</span></div>
             <div className="rounded-xl border border-white/10 bg-white/5 p-3"><strong className="block text-xl text-accent">{pendingChange.plan.blocks}</strong><span className="text-xs text-sand/65">Bloqueos</span></div>
           </div>
+          <p className="mt-3 text-sm text-sand/65">
+            Fechas actuales o futuras con registros: <strong className="text-sand">{pendingChange.plan.affectedDates}</strong>
+          </p>
           {Object.keys(pendingChange.plan.firstRecords).length ? (
             <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-3 text-sm text-sand/75">
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sand/50">Primer registro activo por fecha</p>

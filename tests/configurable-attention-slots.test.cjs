@@ -15,6 +15,7 @@ function load(file) {
 const slots = load('lib/attention-configuration.ts');
 const config = (start, end, interval) => ({
   barbero_id: '11111111-1111-4111-8111-111111111111',
+  dia_semana: 1,
   hora_inicio_atencion: start,
   hora_fin_atencion: end,
   intervalo_citas: interval
@@ -62,6 +63,16 @@ test('falls back to the stable defaults when a barber has no configuration', () 
   assert.equal(slots.generateAttentionSlots(resolved).length, 19);
 });
 
+test('resolves an independent configuration from the selected ISO date', () => {
+  const configurations = [
+    config('09:00', '21:00', 60),
+    { ...config('10:00', '20:00', 90), dia_semana: 2 }
+  ];
+  assert.equal(slots.getAttentionConfiguration(configurations, configurations[0].barbero_id, '2026-09-28').intervalo_citas, 60);
+  assert.equal(slots.getAttentionConfiguration(configurations, configurations[0].barbero_id, '2026-09-29').intervalo_citas, 90);
+  assert.equal(slots.getIsoDayOfWeek('2026-10-04'), 7);
+});
+
 test('extends only the day whose aligned records exceed the objective close', () => {
   const values = config('09:20', '18:20', 60);
   const normalDay = slots.extendAttentionSlots(values, []);
@@ -94,6 +105,21 @@ test('migration protects active records with preview, atomic execution and audit
   assert.match(sql, /revoke all on function public\.actualizar_configuracion_atencion_barbero/);
   assert.match(sql, /grant execute on function public\.actualizar_configuracion_atencion_barbero[\s\S]*to service_role/);
   assert.match(sql, /revoke all on function public\.crear_turnos_agenda_seguros[\s\S]*from public, anon, authenticated/);
+});
+
+test('weekday migration preserves one source of truth and scopes every movement to one ISO day', () => {
+  const sql = fs.readFileSync('supabase/migrations/20260926120000_attention_configuration_per_weekday.sql', 'utf8');
+  assert.match(sql, /add column if not exists dia_semana smallint/i);
+  assert.match(sql, /primary key \(barbero_id, dia_semana\)/i);
+  assert.match(sql, /generate_series\(1, 7\)/i);
+  assert.match(sql, /generate_series\(2, 7\)/i);
+  assert.match(sql, /extract\(isodow from reserva\.fecha\)::integer = p_dia_semana/i);
+  assert.match(sql, /resolver_configuracion_atencion\(p_barbero_id, p_fecha\)/i);
+  assert.match(sql, /where configuracion\.barbero_id = p_barbero_id\s+and configuracion\.dia_semana = p_dia_semana/i);
+  assert.match(sql, /dia_semana, configuracion_anterior/i);
+  assert.match(sql, /fechas_afectadas/i);
+  assert.doesNotMatch(sql, /delete from public\.reservas/i);
+  assert.doesNotMatch(sql, /grant .* to anon/i);
 });
 
 test('Realtime publishes barbers without exposing the private configuration table', () => {

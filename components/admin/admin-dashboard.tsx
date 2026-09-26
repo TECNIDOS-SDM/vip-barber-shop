@@ -946,9 +946,13 @@ export function AdminDashboard({
     );
   }, [selectedScheduleReservations]);
   const configuredScheduleSlots = useMemo(() => {
-    const configuration = getAttentionConfiguration(attentionConfigurations, scheduleForm.barbero_id);
+    const configuration = getAttentionConfiguration(
+      attentionConfigurations,
+      scheduleForm.barbero_id,
+      scheduleForm.fecha
+    );
     return extendAttentionSlots(configuration, Array.from(operationalScheduleSlotMap.keys()));
-  }, [attentionConfigurations, operationalScheduleSlotMap, scheduleForm.barbero_id]);
+  }, [attentionConfigurations, operationalScheduleSlotMap, scheduleForm.barbero_id, scheduleForm.fecha]);
   const currentScheduleSlots = useMemo(
     () => mergeAttentionSlots(configuredScheduleSlots, Array.from(operationalScheduleSlotMap.keys())),
     [configuredScheduleSlots, operationalScheduleSlotMap]

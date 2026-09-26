@@ -12,14 +12,14 @@ const client = () => createClient(url, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 const temporary = [];
 const accounts = [];
 const ok = result => { if (result.error) throw new Error(result.error.message); return result.data; };
-async function request(method, id, token, values, planToken) {
-  const response = await fetch(`${base}/api/admin/attention-configuration?barbero_id=${id}`, {
+async function request(method, id, token, values, planToken, day = 1) {
+  const response = await fetch(`${base}/api/admin/attention-configuration?barbero_id=${id}&dia_semana=${day}`, {
     method, headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(planToken ? { 'X-Attention-Plan': planToken } : {})
     },
-    ...(values ? { body: JSON.stringify({ barbero_id: id, ...values }) } : {})
+    ...(values ? { body: JSON.stringify({ barbero_id: id, dia_semana: day, ...values }) } : {})
   });
   return { status: response.status, body: await response.json() };
 }
@@ -57,7 +57,8 @@ async function main() {
       ok(await service.from('perfiles_usuario').insert({ user_id: user.id, rol: 'barbero', barbero_id: barber.id }));
       const defaults = await request('GET', barber.id, token);
       assert.equal(defaults.status, 200);
-      assert.deepEqual(defaults.body.configuration, { barbero_id: barber.id, hora_inicio_atencion: '09:20', hora_fin_atencion: '21:20', intervalo_citas: 40 });
+      assert.deepEqual(defaults.body.configuration, { barbero_id: barber.id, dia_semana: 1, hora_inicio_atencion: '09:20', hora_fin_atencion: '21:20', intervalo_citas: 40 });
+      assert.equal(ok(await service.from('configuracion_atencion_barberos').select('dia_semana').eq('barbero_id', barber.id)).length, 7);
       const barberClient = client();
       const barberToken = ok(await barberClient.auth.signInWithPassword({ email, password })).session.access_token;
       assert.equal((await request('GET', barber.id, barberToken)).status, 403);
@@ -76,7 +77,7 @@ async function main() {
     assert.match(missingPreview.body.error, /previsualización/);
 
     const positivePreview = await previewConfiguration(a, token, positiveValues);
-    assert.deepEqual(positivePreview.configuration, { barbero_id: a, ...positiveValues });
+    assert.deepEqual(positivePreview.configuration, { barbero_id: a, dia_semana: 1, ...positiveValues });
     assert.deepEqual({
       total: positivePreview.plan.total,
       reservations: positivePreview.plan.reservations,
@@ -98,29 +99,35 @@ async function main() {
     assert.ok(positivePreview.plan.token.length > 0);
     const positiveApply = await applyConfiguration(a, token, positiveValues, positivePreview.plan.token);
     assert.equal(positiveApply.applied, true);
-    assert.deepEqual((await request('GET', a, token)).body.configuration, { barbero_id: a, ...positiveValues });
+    assert.deepEqual((await request('GET', a, token)).body.configuration, { barbero_id: a, dia_semana: 1, ...positiveValues });
 
     for (const values of [
       { hora_inicio_atencion: '08:00', hora_fin_atencion: '22:00', intervalo_citas: 60 },
       { hora_inicio_atencion: '09:30', hora_fin_atencion: '20:30', intervalo_citas: 90 }
     ]) {
       await updateConfiguration(a, token, values);
-      assert.deepEqual((await request('GET', a, token)).body.configuration, { barbero_id: a, ...values });
+      assert.deepEqual((await request('GET', a, token)).body.configuration, { barbero_id: a, dia_semana: 1, ...values });
       await admin.auth.signOut();
       token = ok(await admin.auth.signInWithPassword({ email: 'admin123@admin.local', password: process.env.ATTENTION_ADMIN_PASSWORD })).session.access_token;
-      assert.deepEqual((await request('GET', a, token)).body.configuration, { barbero_id: a, ...values });
+      assert.deepEqual((await request('GET', a, token)).body.configuration, { barbero_id: a, dia_semana: 1, ...values });
     }
     const valuesA = { hora_inicio_atencion: '08:00', hora_fin_atencion: '18:00', intervalo_citas: 60 };
     const valuesB = { hora_inicio_atencion: '10:00', hora_fin_atencion: '20:00', intervalo_citas: 90 };
     await updateConfiguration(a, token, valuesA);
     await updateConfiguration(b, token, valuesB);
+    const tuesdayValues = { hora_inicio_atencion: '11:00', hora_fin_atencion: '19:00', intervalo_citas: 90 };
+    const tuesdayPreview = await request('POST', a, token, tuesdayValues, undefined, 2);
+    assert.equal(tuesdayPreview.status, 200);
+    const tuesdayApply = await request('PUT', a, token, tuesdayValues, tuesdayPreview.body.plan.token, 2);
+    assert.equal(tuesdayApply.status, 200);
     for (const invalid of [
       { hora_inicio_atencion: '20:00', hora_fin_atencion: '08:00' },
       { intervalo_citas: 0 }, { intervalo_citas: -1 }, { intervalo_citas: 10.5 },
       { hora_inicio_atencion: '' }, { hora_fin_atencion: '' }, { intervalo_citas: 241 }
     ]) assert.equal((await request('POST', a, token, { ...valuesA, ...invalid })).status, 400);
-    assert.deepEqual((await request('GET', a, token)).body.configuration, { barbero_id: a, ...valuesA });
-    assert.deepEqual((await request('GET', b, token)).body.configuration, { barbero_id: b, ...valuesB });
+    assert.deepEqual((await request('GET', a, token)).body.configuration, { barbero_id: a, dia_semana: 1, ...valuesA });
+    assert.deepEqual((await request('GET', a, token, undefined, undefined, 2)).body.configuration, { barbero_id: a, dia_semana: 2, ...tuesdayValues });
+    assert.deepEqual((await request('GET', b, token)).body.configuration, { barbero_id: b, dia_semana: 1, ...valuesB });
     console.log('PASS: preview, confirmation token, expected 409, persistence, fresh admin login, isolation, invalid values, anonymous and barber denial');
   } finally {
     await admin.auth.signOut();
