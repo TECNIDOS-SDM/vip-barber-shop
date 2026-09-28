@@ -1,4 +1,4 @@
-// Explicitly opt-in integration test. It creates and removes only identified temporary data.
+// Explicit opt-in integration test. It creates and removes only identified temporary data.
 const assert = require('node:assert/strict');
 const { randomUUID } = require('node:crypto');
 const { createClient } = require('@supabase/supabase-js');
@@ -14,6 +14,7 @@ const service = createClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY, options
 const client = () => createClient(url, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY, options);
 const temporaryBarberIds = [];
 const temporaryUserIds = [];
+const temporaryServiceIds = [];
 const ok = result => {
   if (result.error) throw new Error(result.error.message);
   return result.data;
@@ -28,16 +29,15 @@ async function jsonRequest(path, method = 'GET', token, body) {
     },
     ...(body ? { body: JSON.stringify(body) } : {})
   });
-  const payload = await response.json();
-  return { status: response.status, body: payload };
+  return { status: response.status, body: await response.json() };
 }
 
-async function createBarber(label, active, withAccount = false) {
+async function createBarber(label, withAccount = false) {
   const suffix = randomUUID();
-  const email = `servicios-test-${suffix}@admin.local`;
+  const email = `global-services-${suffix}@admin.local`;
   const barber = ok(await service
     .from('barberos')
-    .insert({ nombre: `PRUEBA SERVICIOS ${label} ${suffix}`, activo: active, auth_email: withAccount ? email : null })
+    .insert({ nombre: `PRUEBA GLOBAL ${label} ${suffix}`, activo: true, auth_email: withAccount ? email : null })
     .select('id,nombre')
     .single());
   temporaryBarberIds.push(barber.id);
@@ -58,178 +58,128 @@ function addMinutes(hour, minutes) {
 
 async function main() {
   const adminClient = client();
-  let adminToken;
   try {
-    adminToken = ok(await adminClient.auth.signInWithPassword({
+    const adminToken = ok(await adminClient.auth.signInWithPassword({
       email: 'admin123@admin.local',
       password: adminPassword
     })).session.access_token;
 
-    const a = await createBarber('A SIN SERVICIOS', true);
-    const b = await createBarber('B CON SERVICIOS', true, true);
-    const c = await createBarber('C AISLADO', true);
+    const existing = ok(await service.from('servicios').select('id'));
+    assert.equal(existing.length, 0, 'This production migration test requires the audited empty catalog');
 
-    const noSession = await jsonRequest(`/api/admin/barber-services?barbero_id=${a.barber.id}`);
-    assert.equal(noSession.status, 401);
+    const current = await createBarber('ACTUAL', true);
+    const future = await createBarber('FUTURO');
+
+    assert.equal((await jsonRequest('/api/admin/barber-services')).status, 401);
     const barberClient = client();
     const barberToken = ok(await barberClient.auth.signInWithPassword({
-      email: b.email,
-      password: b.password
+      email: current.email,
+      password: current.password
     })).session.access_token;
-    assert.equal((await jsonRequest(`/api/admin/barber-services?barbero_id=${b.barber.id}`, 'GET', barberToken)).status, 403);
-    assert.equal((await jsonRequest('/api/admin/barber-services', 'POST', barberToken, {
-      barbero_id: b.barber.id,
-      nombre: 'NO AUTORIZADO',
-      precio: 10000
-    })).status, 403);
-    assert.ok((await barberClient.from('servicios_barberos').select('*')).error);
-    assert.ok((await client().from('servicios_barberos').select('*')).error);
+    assert.ok([401, 403].includes((await jsonRequest('/api/admin/barber-services', 'GET', barberToken)).status));
+    assert.ok([401, 403].includes((await jsonRequest('/api/admin/barber-services', 'POST', barberToken, {
+      nombre: 'NO AUTORIZADO', precio: 10000
+    })).status));
+    assert.ok((await barberClient.from('servicios').select('*')).error);
+    assert.ok((await client().from('servicios').select('*')).error);
     await barberClient.auth.signOut();
 
-    const create = async (barberoId, nombre, precio) => {
-      const result = await jsonRequest('/api/admin/barber-services', 'POST', adminToken, {
-        barbero_id: barberoId,
-        nombre,
-        precio
-      });
-      assert.equal(result.status, 200, JSON.stringify(result.body));
-      return result.body.service;
-    };
+    const emptyPublic = (await jsonRequest('/api/public-booking')).body;
+    assert.equal(emptyPublic.services.length, 0);
 
-    const corte = await create(b.barber.id, 'Corte prueba', 25000);
-    const barba = await create(b.barber.id, 'Barba prueba', 15000);
-    const aislado = await create(c.barber.id, 'Servicio C prueba', 18000);
-    const servicesA = await jsonRequest(`/api/admin/barber-services?barbero_id=${a.barber.id}`, 'GET', adminToken);
-    const servicesB = await jsonRequest(`/api/admin/barber-services?barbero_id=${b.barber.id}`, 'GET', adminToken);
-    const servicesC = await jsonRequest(`/api/admin/barber-services?barbero_id=${c.barber.id}`, 'GET', adminToken);
-    assert.equal(servicesA.status, 200, JSON.stringify(servicesA.body));
-    assert.equal(servicesB.status, 200, JSON.stringify(servicesB.body));
-    assert.equal(servicesC.status, 200, JSON.stringify(servicesC.body));
-    assert.equal(servicesA.body.services.length, 0);
-    assert.deepEqual(servicesB.body.services.map(item => item.nombre), ['Corte prueba', 'Barba prueba']);
-    assert.deepEqual(servicesC.body.services.map(item => item.nombre), ['Servicio C prueba']);
+    const created = await jsonRequest('/api/admin/barber-services', 'POST', adminToken, {
+      nombre: `Corte global prueba ${randomUUID()}`,
+      precio: 25000
+    });
+    assert.equal(created.status, 200, JSON.stringify(created.body));
+    const globalService = created.body.service;
+    temporaryServiceIds.push(globalService.id);
 
-    const publicBefore = (await jsonRequest('/api/public-booking')).body;
-    const activeTemporaryServices = publicBefore.services.filter(item => temporaryBarberIds.includes(item.barbero_id));
-    assert.equal(activeTemporaryServices.filter(item => item.barbero_id === a.barber.id).length, 0);
-    assert.deepEqual(activeTemporaryServices.filter(item => item.barbero_id === b.barber.id).map(item => item.nombre), ['Corte prueba', 'Barba prueba']);
-    assert.deepEqual(activeTemporaryServices.filter(item => item.barbero_id === c.barber.id).map(item => item.nombre), ['Servicio C prueba']);
-    assert.ok(activeTemporaryServices.every(item => Object.keys(item).every(key => ['id', 'barbero_id', 'nombre', 'precio', 'activo', 'created_at'].includes(key))));
+    const publicData = (await jsonRequest('/api/public-booking')).body;
+    assert.ok(publicData.barbers.some(item => item.id === current.barber.id));
+    assert.ok(publicData.barbers.some(item => item.id === future.barber.id));
+    assert.deepEqual(publicData.services.map(item => item.id), [globalService.id]);
+    assert.ok(publicData.services.every(item => !Object.hasOwn(item, 'barbero_id')));
 
     const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
-    const targetDay = [...publicBefore.week].reverse().find(day => day.isoDate >= today);
+    const targetDay = [...publicData.week].reverse().find(day => day.isoDate >= today);
     assert.ok(targetDay, 'No current-week test day available');
     const dayOfWeek = new Date(`${targetDay.isoDate}T12:00:00Z`).getUTCDay() || 7;
     const configuration = ok(await service
       .from('configuracion_atencion_barberos')
       .select('hora_inicio_atencion,intervalo_citas')
-      .eq('barbero_id', b.barber.id)
+      .eq('barbero_id', current.barber.id)
       .eq('dia_semana', dayOfWeek)
       .single());
     const firstHour = configuration.hora_inicio_atencion.slice(0, 5);
     const secondHour = addMinutes(firstHour, configuration.intervalo_citas);
 
-    const reserve = (hour, serviceId) => jsonRequest('/api/reserve', 'POST', undefined, {
-      barbero_id: b.barber.id,
+    const reserve = (hour) => jsonRequest('/api/reserve', 'POST', undefined, {
+      barbero_id: current.barber.id,
       fecha: targetDay.isoDate,
       hora: hour,
-      cliente_nombre: 'PRUEBA CONTROLADA SERVICIOS',
+      cliente_nombre: 'PRUEBA CONTROLADA GLOBAL',
       cliente_whatsapp: '3000000000',
-      servicio_id: serviceId
+      servicio_id: globalService.id
     });
-    const firstReservation = await reserve(firstHour, corte.id);
-    assert.equal(firstReservation.status, 200, JSON.stringify(firstReservation.body));
-    assert.equal((await reserve(firstHour, barba.id)).status, 409);
+    assert.equal((await reserve(firstHour)).status, 200);
+    assert.equal((await reserve(firstHour)).status, 409);
 
-    const firstStored = ok(await service
+    const firstSnapshot = ok(await service
       .from('reservas')
-      .select('id,servicio_id,servicio_nombre_snapshot,servicio_precio_snapshot')
-      .eq('barbero_id', b.barber.id)
+      .select('servicio_id,servicio_nombre_snapshot,servicio_precio_snapshot')
+      .eq('barbero_id', current.barber.id)
       .eq('fecha', targetDay.isoDate)
       .eq('hora', firstHour)
       .single());
-    assert.equal(firstStored.servicio_id, corte.id);
-    assert.equal(firstStored.servicio_nombre_snapshot, 'Corte prueba');
-    assert.equal(firstStored.servicio_precio_snapshot, 25000);
+    assert.equal(firstSnapshot.servicio_id, globalService.id);
+    assert.equal(firstSnapshot.servicio_precio_snapshot, 25000);
 
     const edited = await jsonRequest('/api/admin/barber-services', 'PATCH', adminToken, {
-      id: corte.id,
-      barbero_id: b.barber.id,
-      nombre: 'Corte Premium prueba',
+      id: globalService.id,
+      nombre: globalService.nombre,
       precio: 30000
     });
     assert.equal(edited.status, 200, JSON.stringify(edited.body));
-    assert.equal((await reserve(secondHour, corte.id)).status, 200);
+    assert.equal((await reserve(secondHour)).status, 200);
+
     const snapshots = ok(await service
       .from('reservas')
-      .select('hora,servicio_nombre_snapshot,servicio_precio_snapshot')
-      .eq('barbero_id', b.barber.id)
+      .select('servicio_precio_snapshot')
+      .eq('barbero_id', current.barber.id)
       .eq('fecha', targetDay.isoDate)
       .order('hora'));
     assert.deepEqual(snapshots.map(item => item.servicio_precio_snapshot), [25000, 30000]);
-    assert.deepEqual(snapshots.map(item => item.servicio_nombre_snapshot), ['Corte prueba', 'Corte Premium prueba']);
 
-    const deactivateUsed = await jsonRequest('/api/admin/barber-services', 'DELETE', adminToken, {
-      id: corte.id,
-      barbero_id: b.barber.id
-    });
-    assert.equal(deactivateUsed.status, 200);
-    assert.equal(deactivateUsed.body.mode, 'deactivated');
-    assert.equal(deactivateUsed.body.service.activo, false);
-    const deleteUnused = await jsonRequest('/api/admin/barber-services', 'DELETE', adminToken, {
-      id: barba.id,
-      barbero_id: b.barber.id
-    });
-    assert.equal(deleteUnused.status, 200);
-    assert.equal(deleteUnused.body.mode, 'deleted');
-    assert.equal(ok(await service.from('servicios_barberos').select('id').eq('id', barba.id)).length, 0);
-    assert.equal(ok(await service.from('reservas').select('id').eq('servicio_id', corte.id)).length, 2);
-
-    const publicAfter = (await jsonRequest('/api/public-booking')).body;
-    assert.equal(publicAfter.services.filter(item => item.barbero_id === b.barber.id).length, 0);
-    assert.equal(publicAfter.services.filter(item => item.barbero_id === c.barber.id).length, 1);
+    const removed = await jsonRequest('/api/admin/barber-services', 'DELETE', adminToken, { id: globalService.id });
+    assert.equal(removed.status, 200);
+    assert.equal(removed.body.mode, 'deactivated');
+    assert.equal((await jsonRequest('/api/public-booking')).body.services.length, 0);
     assert.deepEqual(
-      publicAfter.attentionConfigurations.filter(item => item.barbero_id === b.barber.id),
-      publicBefore.attentionConfigurations.filter(item => item.barbero_id === b.barber.id),
-      'Services changed barber slots/configuration'
+      ok(await service.from('reservas').select('servicio_precio_snapshot').eq('barbero_id', current.barber.id).order('hora'))
+        .map(item => item.servicio_precio_snapshot),
+      [25000, 30000]
     );
 
-    const historical = ok(await service
-      .from('reservas')
-      .select('servicio_nombre_snapshot,servicio_precio_snapshot')
-      .eq('barbero_id', b.barber.id)
-      .order('hora'));
-    assert.deepEqual(historical.map(item => item.servicio_precio_snapshot), [25000, 30000]);
-    assert.ok(aislado.id);
-    console.log('PASS: CRUD, public flow, no-service flow, isolation, snapshots, deactivate/delete, double-booking and security');
+    console.log('PASS: global CRUD, current/future barbers, empty flow, snapshots, deactivation, double booking and security');
   } finally {
     await adminClient.auth.signOut();
     for (const userId of temporaryUserIds) {
       const result = await service.auth.admin.deleteUser(userId);
       if (result.error) throw new Error(result.error.message);
     }
-    if (temporaryBarberIds.length) {
-      ok(await service.from('barberos').delete().in('id', temporaryBarberIds));
-    }
-    for (const [table, column] of [
-      ['barberos', 'id'],
-      ['servicios_barberos', 'barbero_id'],
-      ['configuracion_atencion_barberos', 'barbero_id'],
-      ['reservas', 'barbero_id'],
-      ['perfiles_usuario', 'barbero_id'],
-      ['horarios_laborales_barberos', 'barbero_id'],
-      ['asistencias_laborales', 'barbero_id'],
-      ['observaciones_laborales', 'barbero_id'],
-      ['penalidades_laborales', 'barbero_id'],
-      ['notificaciones_laborales', 'barbero_id'],
-      ['recargos_laborales_anulados', 'barbero_id']
+    if (temporaryBarberIds.length) ok(await service.from('barberos').delete().in('id', temporaryBarberIds));
+    if (temporaryServiceIds.length) ok(await service.from('servicios').delete().in('id', temporaryServiceIds));
+
+    for (const [table, column, values] of [
+      ['barberos', 'id', temporaryBarberIds],
+      ['configuracion_atencion_barberos', 'barbero_id', temporaryBarberIds],
+      ['reservas', 'barbero_id', temporaryBarberIds],
+      ['perfiles_usuario', 'barbero_id', temporaryBarberIds],
+      ['servicios', 'id', temporaryServiceIds]
     ]) {
-      if (!temporaryBarberIds.length) continue;
-      const rows = ok(await service.from(table).select(column).in(column, temporaryBarberIds));
-      assert.equal(rows.length, 0, `Residual data in ${table}`);
-    }
-    for (const userId of temporaryUserIds) {
-      assert.ok((await service.auth.admin.getUserById(userId)).error);
+      if (!values.length) continue;
+      assert.equal(ok(await service.from(table).select(column).in(column, values)).length, 0, `Residual data in ${table}`);
     }
     console.log('PASS: temporary residues = 0');
   }

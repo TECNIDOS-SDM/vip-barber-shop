@@ -4,40 +4,35 @@ import { useEffect, useState } from "react";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { formatCop } from "@/lib/currency";
-import type { BarberService } from "@/types";
+import type { GlobalService } from "@/types";
 
 type Props = {
-  barberId: string;
-  barberName: string;
+  onClose: () => void;
 };
 
 const emptyForm = { nombre: "", precio: "" };
 
-export function BarberServices({ barberId, barberName }: Props) {
-  const [services, setServices] = useState<BarberService[]>([]);
+export function GlobalServices({ onClose }: Props) {
+  const [services, setServices] = useState<GlobalService[]>([]);
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   async function loadServices() {
-    const response = await fetch(
-      `/api/admin/barber-services?barbero_id=${encodeURIComponent(barberId)}`,
-      { cache: "no-store" }
-    );
+    const response = await fetch("/api/admin/barber-services", { cache: "no-store" });
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.error ?? "No fue posible cargar los servicios.");
     setServices(payload.services ?? []);
   }
 
   useEffect(() => {
-    setLoading(true);
     void loadServices()
       .catch((error) => toast.error(error instanceof Error ? error.message : "No fue posible cargar los servicios."))
       .finally(() => setLoading(false));
-  }, [barberId]);
+  }, []);
 
-  function beginEdit(service: BarberService) {
+  function beginEdit(service: GlobalService) {
     setEditingId(service.id);
     setForm({ nombre: service.nombre, precio: String(service.precio) });
   }
@@ -61,7 +56,6 @@ export function BarberServices({ barberId, barberName }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...(editingId ? { id: editingId } : {}),
-          barbero_id: barberId,
           nombre: form.nombre.trim(),
           precio
         })
@@ -78,17 +72,13 @@ export function BarberServices({ barberId, barberName }: Props) {
     }
   }
 
-  async function toggleService(service: BarberService) {
+  async function toggleService(service: GlobalService) {
     setSaving(true);
     try {
       const response = await fetch("/api/admin/barber-services", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: service.id,
-          barbero_id: barberId,
-          activo: !service.activo
-        })
+        body: JSON.stringify({ id: service.id, activo: !service.activo })
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error ?? "No fue posible cambiar el estado.");
@@ -101,13 +91,13 @@ export function BarberServices({ barberId, barberName }: Props) {
     }
   }
 
-  async function removeService(service: BarberService) {
+  async function removeService(service: GlobalService) {
     setSaving(true);
     try {
       const response = await fetch("/api/admin/barber-services", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: service.id, barbero_id: barberId })
+        body: JSON.stringify({ id: service.id })
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error ?? "No fue posible retirar el servicio.");
@@ -121,11 +111,16 @@ export function BarberServices({ barberId, barberName }: Props) {
   }
 
   return (
-    <div className="mt-6 space-y-5 rounded-[1.5rem] border border-white/10 bg-white/5 p-4 sm:p-5">
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent/80">Servicios de</p>
-        <h4 className="mt-2 text-xl font-semibold text-sand">{barberName}</h4>
-        <p className="mt-2 text-sm text-sand/60">El precio es únicamente informativo.</p>
+    <div className="mx-auto max-w-4xl space-y-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent/80">Administración</p>
+          <h2 className="mt-2 text-2xl font-semibold text-sand">Servicios</h2>
+          <p className="mt-2 text-sm text-sand/60">Catálogo global disponible para todos los barberos. El precio es informativo.</p>
+        </div>
+        <button type="button" onClick={onClose} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-sand/80">
+          Regresar
+        </button>
       </div>
 
       <div className="grid gap-3 rounded-2xl border border-white/10 bg-black/10 p-4 sm:grid-cols-[1fr_180px_auto]">
@@ -143,14 +138,9 @@ export function BarberServices({ barberId, barberName }: Props) {
           placeholder="Precio"
           className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sand outline-none focus:border-accent"
         />
-        <button
-          type="button"
-          disabled={saving}
-          onClick={() => void saveService()}
-          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-accent px-4 py-3 text-sm font-bold text-ink disabled:opacity-60"
-        >
+        <button type="button" disabled={saving} onClick={() => void saveService()} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-accent px-4 py-3 text-sm font-bold text-ink disabled:opacity-60">
           {editingId ? <Pencil className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-          {editingId ? "Guardar" : "Crear"}
+          {editingId ? "Guardar" : "Nuevo servicio"}
         </button>
         {editingId ? (
           <button type="button" onClick={cancelEdit} className="rounded-2xl border border-white/10 px-4 py-3 text-sm text-sand/75 sm:col-span-3">
@@ -185,7 +175,7 @@ export function BarberServices({ barberId, barberName }: Props) {
           ))}
         </div>
       ) : (
-        <div className="rounded-2xl border border-dashed border-white/10 p-5 text-sm text-sand/60">Este barbero aún no tiene servicios creados.</div>
+        <div className="rounded-2xl border border-dashed border-white/10 p-5 text-sm text-sand/60">Aún no hay servicios globales creados.</div>
       )}
     </div>
   );

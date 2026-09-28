@@ -2,9 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAdministrator } from "@/lib/admin-labor-access";
 
-const barberIdSchema = z.string().uuid();
 const serviceValuesSchema = z.object({
-  barbero_id: barberIdSchema,
   nombre: z.string().trim().min(1).max(120),
   precio: z.coerce.number().int().positive().max(100_000_000)
 });
@@ -13,18 +11,16 @@ const updateSchema = serviceValuesSchema.partial({ nombre: true, precio: true })
   activo: z.boolean().optional()
 });
 
-const serviceColumns = "id,barbero_id,nombre,precio,activo,created_at,updated_at";
+const serviceColumns = "id,nombre,precio,activo,created_at,updated_at";
 
 export async function GET(request: Request) {
   const access = await requireAdministrator(request);
   if ("error" in access) return access.error;
 
   try {
-    const barberId = barberIdSchema.parse(new URL(request.url).searchParams.get("barbero_id"));
     const { data, error } = await access.supabase
-      .from("servicios_barberos")
+      .from("servicios")
       .select(serviceColumns)
-      .eq("barbero_id", barberId)
       .order("created_at", { ascending: true });
 
     if (error) throw error;
@@ -63,7 +59,7 @@ export async function POST(request: Request) {
   try {
     const values = serviceValuesSchema.parse(await request.json());
     const { data, error } = await access.supabase
-      .from("servicios_barberos")
+      .from("servicios")
       .insert(values)
       .select(serviceColumns)
       .single();
@@ -82,13 +78,12 @@ export async function PATCH(request: Request) {
   if ("error" in access) return access.error;
 
   try {
-    const { id, barbero_id, ...changes } = updateSchema.parse(await request.json());
+    const { id, ...changes } = updateSchema.parse(await request.json());
     if (!Object.keys(changes).length) throw new Error("No hay cambios para guardar.");
     const { data, error } = await access.supabase
-      .from("servicios_barberos")
+      .from("servicios")
       .update(changes)
       .eq("id", id)
-      .eq("barbero_id", barbero_id)
       .select(serviceColumns)
       .single();
     if (error) throw error;
@@ -106,7 +101,7 @@ export async function DELETE(request: Request) {
   if ("error" in access) return access.error;
 
   try {
-    const payload = z.object({ id: z.string().uuid(), barbero_id: barberIdSchema }).parse(await request.json());
+    const payload = z.object({ id: z.string().uuid() }).parse(await request.json());
     const { count, error: usageError } = await access.supabase
       .from("reservas")
       .select("id", { count: "exact", head: true })
@@ -115,10 +110,9 @@ export async function DELETE(request: Request) {
 
     if ((count ?? 0) > 0) {
       const { data, error } = await access.supabase
-        .from("servicios_barberos")
+        .from("servicios")
         .update({ activo: false })
         .eq("id", payload.id)
-        .eq("barbero_id", payload.barbero_id)
         .select(serviceColumns)
         .single();
       if (error) throw error;
@@ -126,10 +120,9 @@ export async function DELETE(request: Request) {
     }
 
     const { error } = await access.supabase
-      .from("servicios_barberos")
+      .from("servicios")
       .delete()
-      .eq("id", payload.id)
-      .eq("barbero_id", payload.barbero_id);
+      .eq("id", payload.id);
     if (error) throw error;
     return NextResponse.json({ mode: "deleted", id: payload.id });
   } catch (error) {

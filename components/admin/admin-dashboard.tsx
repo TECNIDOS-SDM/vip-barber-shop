@@ -25,7 +25,7 @@ import { Logo } from "@/components/shared/logo";
 import { cn } from "@/lib/utils";
 import { buildWhatsAppUrl } from "@/lib/whatsapp";
 import { formatCop } from "@/lib/currency";
-import { BarberServices } from "@/components/admin/barber-services";
+import { GlobalServices } from "@/components/admin/global-services";
 
 const AdminLaborSchedules = dynamic(
   () =>
@@ -813,6 +813,15 @@ export function AdminDashboard({
     setActiveBarberView("list");
   }
 
+  function openGlobalServicesView() {
+    setShowLaborSchedules(false);
+    setActiveBarberView("servicios");
+  }
+
+  function closeGlobalServicesView() {
+    setActiveBarberView("list");
+  }
+
   function updateScheduleForBarber(
     barberId: string,
     patch: Partial<typeof emptyScheduleForm>,
@@ -1000,7 +1009,11 @@ export function AdminDashboard({
   const currentLaborWeekStart = dashboardWeek[0]?.isoDate ?? "";
 
   useEffect(() => {
-    if (!activeBarber || activeBarberView === "list" || activeBarberView === "nuevo") {
+    if (
+      !activeBarber ||
+      activeBarberView === "list" || activeBarberView === "nuevo" ||
+      activeBarberView === "servicios"
+    ) {
       return;
     }
 
@@ -1174,7 +1187,9 @@ export function AdminDashboard({
       <section className="mt-8 space-y-8">
         <div className="space-y-8">
           <section className="glass rounded-[2rem] p-6">
-            {showLaborSchedules && activeBarber ? (
+            {activeBarberView === "servicios" ? (
+              <GlobalServices onClose={closeGlobalServicesView} />
+            ) : showLaborSchedules && activeBarber ? (
                 <AdminLaborSchedules
                   key={activeBarber.id}
                   barber={activeBarber}
@@ -1343,14 +1358,23 @@ export function AdminDashboard({
                     Aun no hay barberos creados.
                   </div>
                 ) : null}
-                <button
-                  type="button"
-                  onClick={openNewBarberView}
-                  className="mt-6 flex w-full items-center justify-center gap-2 rounded-[1.5rem] border border-dashed border-accent/40 bg-accent/5 px-4 py-5 font-semibold text-accent transition hover:border-accent hover:bg-accent/10"
-                >
-                  <Plus className="h-5 w-5" />
-                  Nuevo barbero
-                </button>
+                <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={openGlobalServicesView}
+                    className="flex w-full items-center justify-center gap-2 rounded-[1.5rem] border border-accent/30 bg-accent/5 px-4 py-5 font-semibold text-accent transition hover:border-accent hover:bg-accent/10"
+                  >
+                    Servicios
+                  </button>
+                  <button
+                    type="button"
+                    onClick={openNewBarberView}
+                    className="flex w-full items-center justify-center gap-2 rounded-[1.5rem] border border-dashed border-accent/40 bg-accent/5 px-4 py-5 font-semibold text-accent transition hover:border-accent hover:bg-accent/10"
+                  >
+                    <Plus className="h-5 w-5" />
+                    Nuevo barbero
+                  </button>
+                </div>
               </>
             ) : (
               <div className="mt-5 rounded-[1.75rem] border border-accent/20 bg-black/10 p-5">
@@ -1390,16 +1414,6 @@ export function AdminDashboard({
                       className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-sand/80"
                     >
                       Horarios
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowLaborSchedules(false);
-                        setActiveBarberView("servicios");
-                      }}
-                      className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-sand/80"
-                    >
-                      Servicios
                     </button>
                     <button
                       type="button"
@@ -1482,13 +1496,6 @@ export function AdminDashboard({
                       </div>
                     </div>
                   </div>
-                ) : null}
-
-                {activeBarberView === "servicios" ? (
-                  <BarberServices
-                    barberId={activeBarber.id}
-                    barberName={activeBarber.nombre}
-                  />
                 ) : null}
 
                 {activeBarberView === "agenda" ? (

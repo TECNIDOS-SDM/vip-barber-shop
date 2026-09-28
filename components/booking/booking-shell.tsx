@@ -24,7 +24,7 @@ import {
 import { buildWhatsAppUrl } from "@/lib/whatsapp";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { formatCop } from "@/lib/currency";
-import type { Barber, BarberService, ReservationSlot } from "@/types";
+import type { Barber, GlobalService, ReservationSlot } from "@/types";
 
 const BARBER_FALLBACK_IMAGE = "/vip-barbertop-logo.jpeg";
 
@@ -32,7 +32,7 @@ type BookingShellProps = {
   isConfigured: boolean;
   barbers: Barber[];
   reservations: ReservationSlot[];
-  services: BarberService[];
+  services: GlobalService[];
   attentionConfigurations: AttentionConfiguration[];
   week: {
     key: string;
@@ -89,7 +89,7 @@ export function BookingShell({
   const [selectedBarber, setSelectedBarber] = useState<Barber | null>(null);
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedHour, setSelectedHour] = useState("");
-  const [selectedService, setSelectedService] = useState<BarberService | null>(null);
+  const [selectedService, setSelectedService] = useState<GlobalService | null>(null);
   const [clienteNombre, setClienteNombre] = useState("");
   const [clienteWhatsapp, setClienteWhatsapp] = useState("");
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4 | 5>(1);
@@ -138,13 +138,11 @@ export function BookingShell({
     setLiveWeek(week);
   }, [attentionConfigurations, barbers, reservations, services, week]);
 
-  const selectedBarberServices = useMemo(
-    () => liveServices.filter(
-      (service) => service.barbero_id === selectedBarber?.id && service.activo
-    ),
-    [liveServices, selectedBarber?.id]
+  const activeServices = useMemo(
+    () => liveServices.filter((service) => service.activo),
+    [liveServices]
   );
-  const hasServices = selectedBarberServices.length > 0;
+  const hasServices = activeServices.length > 0;
   const serviceStep = hasServices ? 2 : null;
   const dateStep = hasServices ? 3 : 2;
   const hourStep = hasServices ? 4 : 3;
@@ -163,7 +161,7 @@ export function BookingShell({
     }
 
     const currentService = selectedService
-      ? selectedBarberServices.find((service) => service.id === selectedService.id)
+      ? activeServices.find((service) => service.id === selectedService.id)
       : null;
     if (!currentService) {
       setSelectedService(null);
@@ -173,7 +171,7 @@ export function BookingShell({
     } else if (currentService !== selectedService) {
       setSelectedService(currentService);
     }
-  }, [hasServices, selectedBarber, selectedBarberServices, selectedService]);
+  }, [activeServices, hasServices, selectedBarber, selectedService]);
 
   useEffect(() => {
     if (!selectedBarber) {
@@ -541,7 +539,7 @@ export function BookingShell({
                     <h4 className="font-semibold text-sand">SELECCIONA EL SERVICIO</h4>
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2">
-                    {selectedBarberServices.map((service) => (
+                    {activeServices.map((service) => (
                       <button
                         key={service.id}
                         type="button"

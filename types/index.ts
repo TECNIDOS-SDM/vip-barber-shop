@@ -17,9 +17,8 @@ export type Barber = {
   activo: boolean;
 };
 
-export type BarberService = {
+export type GlobalService = {
   id: string;
-  barbero_id: string;
   nombre: string;
   precio: number;
   activo: boolean;
