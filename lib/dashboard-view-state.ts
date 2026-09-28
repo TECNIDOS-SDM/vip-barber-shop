@@ -3,7 +3,7 @@ export const BARBER_DASHBOARD_VIEW_COOKIE = "vip_barber_top_barber_view";
 
 export type AdminDashboardViewState = {
   activeBarberId?: string | null;
-  activeBarberView?: "list" | "perfil" | "agenda" | "servicios";
+  activeBarberView?: "list" | "perfil" | "agenda" | "servicios" | "nuevo";
   scheduleDate?: string;
 };
 
