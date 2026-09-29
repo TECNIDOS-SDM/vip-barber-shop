@@ -40,6 +40,8 @@ type BarberDashboardProps = {
       servicio_id?: string | null;
       servicio_nombre_snapshot?: string | null;
       servicio_precio_snapshot?: number | null;
+      precio_total_snapshot?: number | null;
+      reserva_servicios_adicionales?: { nombre_snapshot: string; precio_snapshot: number }[];
     }[];
     attentionConfigurations: AttentionConfiguration[];
     currentWeek: {
@@ -444,6 +446,16 @@ export function BarberDashboard({
                                   {reservation.servicio_precio_snapshot
                                     ? ` - ${formatCop(reservation.servicio_precio_snapshot)}`
                                     : ""}
+                                </span>
+                              ) : null}
+                              {reservation.estado !== "bloqueado" && reservation.reserva_servicios_adicionales?.length ? (
+                                <span className="mt-1 block truncate text-[11px] font-semibold">
+                                  + {reservation.reserva_servicios_adicionales.map((service) => service.nombre_snapshot).join(", ")}
+                                </span>
+                              ) : null}
+                              {reservation.estado !== "bloqueado" && reservation.precio_total_snapshot ? (
+                                <span className="mt-1 block truncate text-[11px] font-black text-accent">
+                                  Total: {formatCop(reservation.precio_total_snapshot)}
                                 </span>
                               ) : null}
                             </>

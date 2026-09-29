@@ -27,6 +27,15 @@ export type GlobalService = {
   usado?: boolean;
 };
 
+export type GlobalAdditionalService = GlobalService;
+
+export type ReservationAdditionalService = {
+  id?: string;
+  servicio_adicional_id?: string;
+  nombre_snapshot: string;
+  precio_snapshot: number;
+};
+
 export type ReservationSlot = {
   id?: string;
   barbero_id: string;
@@ -38,6 +47,8 @@ export type ReservationSlot = {
   servicio_id?: string | null;
   servicio_nombre_snapshot?: string | null;
   servicio_precio_snapshot?: number | null;
+  precio_total_snapshot?: number | null;
+  reserva_servicios_adicionales?: ReservationAdditionalService[];
   bloqueo_dia_completo?: boolean;
   barberos?: {
     nombre: string;

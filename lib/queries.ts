@@ -5,7 +5,7 @@ import { getSupabasePublicClient } from "@/lib/supabase/public";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { cleanupExpiredReservations } from "@/lib/reservation-cleanup";
 import type { AttentionConfiguration } from "@/lib/attention-configuration";
-import type { Barber, GlobalService, ReservationSlot } from "@/types";
+import type { Barber, GlobalAdditionalService, GlobalService, ReservationSlot } from "@/types";
 
 const attentionConfigurationColumns =
   "barbero_id,dia_semana,hora_inicio_atencion,hora_fin_atencion,intervalo_citas";
@@ -58,6 +58,7 @@ export async function getPublicBookingData() {
       barbers: [] as Barber[],
       reservations: [] as ReservationSlot[],
       services: [] as GlobalService[],
+      additionalServices: [] as GlobalAdditionalService[],
       attentionConfigurations: [] as AttentionConfiguration[],
       week: getCurrentWeek()
     };
@@ -67,7 +68,7 @@ export async function getPublicBookingData() {
   const weekDates = week.map((item) => item.isoDate);
   await cleanupExpiredReservations();
 
-  const [barbersResult, reservationsResult, servicesResult, attentionConfigurations] = await Promise.all([
+  const [barbersResult, reservationsResult, servicesResult, additionalServicesResult, attentionConfigurations] = await Promise.all([
     supabase
       .from("barberos")
       .select("id, nombre, foto, whatsapp, telefono, activo, created_at")
@@ -79,6 +80,11 @@ export async function getPublicBookingData() {
       .in("fecha", weekDates),
     supabase
       .from("servicios")
+      .select("id,nombre,precio,activo,created_at")
+      .eq("activo", true)
+      .order("created_at", { ascending: true }),
+    supabase
+      .from("servicios_adicionales")
       .select("id,nombre,precio,activo,created_at")
       .eq("activo", true)
       .order("created_at", { ascending: true }),
@@ -99,6 +105,13 @@ export async function getPublicBookingData() {
         precio: service.precio,
         activo: true
       })) as GlobalService[],
+    additionalServices: (additionalServicesResult.data ?? [])
+      .map((service: { id: string; nombre: string; precio: number }) => ({
+        id: service.id,
+        nombre: service.nombre,
+        precio: service.precio,
+        activo: true
+      })) as GlobalAdditionalService[],
     attentionConfigurations: attentionConfigurations.filter(configuration =>
       publicBarberIds.has(configuration.barbero_id)
     ),
@@ -137,7 +150,7 @@ export async function getAdminDashboardData(existingSupabase?: SupabaseClient) {
       supabase
         .from("reservas")
         .select(
-          "id, barbero_id, cliente_nombre, cliente_whatsapp, fecha, hora, estado, created_at, servicio_id, servicio_nombre_snapshot, servicio_precio_snapshot, barberos(nombre)"
+          "id, barbero_id, cliente_nombre, cliente_whatsapp, fecha, hora, estado, created_at, servicio_id, servicio_nombre_snapshot, servicio_precio_snapshot, precio_total_snapshot, reserva_servicios_adicionales(nombre_snapshot,precio_snapshot), barberos(nombre)"
         )
         .in("fecha", weekDates)
         .order("fecha")
@@ -242,7 +255,7 @@ export async function getBarberDashboardData(barberoId: string) {
   const [{ data: reservations }, { data: barber }, attentionConfigurations] = await Promise.all([
     supabase
       .from("reservas")
-      .select("id, cliente_nombre, cliente_whatsapp, fecha, hora, estado, servicio_id, servicio_nombre_snapshot, servicio_precio_snapshot")
+      .select("id, cliente_nombre, cliente_whatsapp, fecha, hora, estado, servicio_id, servicio_nombre_snapshot, servicio_precio_snapshot, precio_total_snapshot, reserva_servicios_adicionales(nombre_snapshot,precio_snapshot)")
       .eq("barbero_id", barberoId)
       .in("fecha", weekDates)
       .neq("estado", "cancelada")

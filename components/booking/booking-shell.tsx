@@ -24,7 +24,7 @@ import {
 import { buildWhatsAppUrl } from "@/lib/whatsapp";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { formatCop } from "@/lib/currency";
-import type { Barber, GlobalService, ReservationSlot } from "@/types";
+import type { Barber, GlobalAdditionalService, GlobalService, ReservationSlot } from "@/types";
 
 const BARBER_FALLBACK_IMAGE = "/vip-barbertop-logo.jpeg";
 
@@ -33,6 +33,7 @@ type BookingShellProps = {
   barbers: Barber[];
   reservations: ReservationSlot[];
   services: GlobalService[];
+  additionalServices: GlobalAdditionalService[];
   attentionConfigurations: AttentionConfiguration[];
   week: {
     key: string;
@@ -75,6 +76,7 @@ export function BookingShell({
   barbers,
   reservations,
   services,
+  additionalServices,
   attentionConfigurations,
   week
 }: BookingShellProps) {
@@ -84,15 +86,18 @@ export function BookingShell({
   const [liveBarbers, setLiveBarbers] = useState(barbers);
   const [liveReservations, setLiveReservations] = useState(reservations);
   const [liveServices, setLiveServices] = useState(services);
+  const [liveAdditionalServices, setLiveAdditionalServices] = useState(additionalServices);
   const [liveAttentionConfigurations, setLiveAttentionConfigurations] = useState(attentionConfigurations);
   const [liveWeek, setLiveWeek] = useState(week);
   const [selectedBarber, setSelectedBarber] = useState<Barber | null>(null);
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedHour, setSelectedHour] = useState("");
   const [selectedService, setSelectedService] = useState<GlobalService | null>(null);
+  const [wantsAdditionalServices, setWantsAdditionalServices] = useState<boolean | null>(null);
+  const [selectedAdditionalServices, setSelectedAdditionalServices] = useState<GlobalAdditionalService[]>([]);
   const [clienteNombre, setClienteNombre] = useState("");
   const [clienteWhatsapp, setClienteWhatsapp] = useState("");
-  const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4 | 5>(1);
+  const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const isRefreshingRef = useRef(false);
   const shouldRefreshAgainRef = useRef(false);
@@ -118,6 +123,7 @@ export function BookingShell({
       setLiveBarbers(payload.barbers ?? []);
       setLiveReservations(payload.reservations ?? []);
       setLiveServices(payload.services ?? []);
+      setLiveAdditionalServices(payload.additionalServices ?? []);
       setLiveAttentionConfigurations(payload.attentionConfigurations ?? []);
       setLiveWeek(payload.week ?? []);
     } finally {
@@ -134,20 +140,34 @@ export function BookingShell({
     setLiveBarbers(barbers);
     setLiveReservations(reservations);
     setLiveServices(services);
+    setLiveAdditionalServices(additionalServices);
     setLiveAttentionConfigurations(attentionConfigurations);
     setLiveWeek(week);
-  }, [attentionConfigurations, barbers, reservations, services, week]);
+  }, [additionalServices, attentionConfigurations, barbers, reservations, services, week]);
 
   const activeServices = useMemo(
     () => liveServices.filter((service) => service.activo),
     [liveServices]
   );
   const hasServices = activeServices.length > 0;
+  const activeAdditionalServices = useMemo(
+    () => liveAdditionalServices.filter((service) => service.activo),
+    [liveAdditionalServices]
+  );
+  const hasAdditionalServices = hasServices && activeAdditionalServices.length > 0;
+  const hadAdditionalServicesRef = useRef(hasAdditionalServices);
   const serviceStep = hasServices ? 2 : null;
-  const dateStep = hasServices ? 3 : 2;
-  const hourStep = hasServices ? 4 : 3;
-  const detailsStep = hasServices ? 5 : 4;
-  const totalSteps = hasServices ? 5 : 4;
+  const additionalChoiceStep = hasAdditionalServices ? 3 : null;
+  const additionalSelectionStep = hasAdditionalServices ? 4 : null;
+  const dateStep = hasServices ? (hasAdditionalServices ? 5 : 3) : 2;
+  const hourStep = dateStep + 1;
+  const detailsStep = hourStep + 1;
+  const totalSteps = detailsStep;
+  const selectedAdditionalTotal = useMemo(
+    () => selectedAdditionalServices.reduce((total, service) => total + service.precio, 0),
+    [selectedAdditionalServices]
+  );
+  const reservationTotal = (selectedService?.precio ?? 0) + selectedAdditionalTotal;
 
   useEffect(() => {
     if (!selectedBarber || !hasServices) {
@@ -172,6 +192,25 @@ export function BookingShell({
       setSelectedService(currentService);
     }
   }, [activeServices, hasServices, selectedBarber, selectedService]);
+
+  useEffect(() => {
+    const currentIds = new Set(activeAdditionalServices.map((service) => service.id));
+    setSelectedAdditionalServices((current) => current.filter((service) => currentIds.has(service.id)));
+
+    if (!hasAdditionalServices) {
+      setWantsAdditionalServices(null);
+      setSelectedAdditionalServices([]);
+
+      if (hadAdditionalServicesRef.current) {
+        setCurrentStep((step) => {
+          if (step === 3 || step === 4) return 3;
+          return step >= 5 ? step - 2 : step;
+        });
+      }
+    }
+
+    hadAdditionalServicesRef.current = hasAdditionalServices;
+  }, [activeAdditionalServices, hasAdditionalServices]);
 
   useEffect(() => {
     if (!selectedBarber) {
@@ -335,6 +374,8 @@ export function BookingShell({
     setSelectedDate("");
     setSelectedHour("");
     setSelectedService(null);
+    setWantsAdditionalServices(null);
+    setSelectedAdditionalServices([]);
     setClienteNombre("");
     setClienteWhatsapp("");
     setCurrentStep(1);
@@ -345,6 +386,8 @@ export function BookingShell({
     setSelectedDate("");
     setSelectedHour("");
     setSelectedService(null);
+    setWantsAdditionalServices(null);
+    setSelectedAdditionalServices([]);
     setClienteNombre("");
     setClienteWhatsapp("");
     setCurrentStep(2);
@@ -360,15 +403,31 @@ export function BookingShell({
       return;
     }
 
+    if (currentStep === additionalSelectionStep) {
+      setCurrentStep(additionalChoiceStep ?? serviceStep ?? 1);
+      return;
+    }
+
+    if (currentStep === additionalChoiceStep) {
+      setCurrentStep(serviceStep ?? 1);
+      return;
+    }
+
     if (currentStep === dateStep) {
       setSelectedDate("");
+      setCurrentStep(
+        wantsAdditionalServices
+          ? additionalSelectionStep ?? serviceStep ?? 1
+          : additionalChoiceStep ?? serviceStep ?? 1
+      );
+      return;
     }
 
     if (currentStep === detailsStep) {
       setSelectedHour("");
     }
 
-    setCurrentStep((current) => (current - 1) as 1 | 2 | 3 | 4 | 5);
+    setCurrentStep((current) => current - 1);
   }
 
   async function confirmReservation() {
@@ -380,6 +439,18 @@ export function BookingShell({
     if (hasServices && !selectedService) {
       toast.error("Selecciona un servicio antes de confirmar.");
       setCurrentStep(2);
+      return;
+    }
+
+    if (hasAdditionalServices && wantsAdditionalServices === null) {
+      toast.error("Indica si deseas agregar servicios adicionales.");
+      setCurrentStep(additionalChoiceStep ?? dateStep);
+      return;
+    }
+
+    if (wantsAdditionalServices && selectedAdditionalServices.length === 0) {
+      toast.error("Selecciona al menos un servicio adicional o vuelve y elige No.");
+      setCurrentStep(additionalSelectionStep ?? dateStep);
       return;
     }
 
@@ -409,7 +480,8 @@ export function BookingShell({
           hora: selectedHour,
           cliente_nombre: clienteNombre,
           cliente_whatsapp: clienteWhatsapp,
-          servicio_id: selectedService?.id ?? null
+          servicio_id: selectedService?.id ?? null,
+          servicios_adicionales: selectedAdditionalServices.map((service) => service.id)
         })
       });
 
@@ -545,7 +617,7 @@ export function BookingShell({
                         type="button"
                         onClick={() => {
                           setSelectedService(service);
-                          setCurrentStep(dateStep);
+                          setCurrentStep(additionalChoiceStep ?? dateStep);
                         }}
                         className={cn(
                           "rounded-2xl border p-4 text-left transition",
@@ -558,6 +630,98 @@ export function BookingShell({
                         <span className="mt-2 block text-lg font-black">{formatCop(service.precio)}</span>
                       </button>
                     ))}
+                  </div>
+                </>
+              ) : null}
+
+              {additionalChoiceStep && currentStep === additionalChoiceStep ? (
+                <>
+                  <div className="mb-4 flex items-center gap-2">
+                    <Scissors className="h-4 w-4 text-accent" />
+                    <h4 className="font-semibold text-sand">¿DESEAS AGREGAR SERVICIOS ADICIONALES?</h4>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setWantsAdditionalServices(true);
+                        setCurrentStep(additionalSelectionStep ?? dateStep);
+                      }}
+                      className="rounded-2xl border border-accent bg-accent px-4 py-4 text-left font-bold text-ink"
+                    >
+                      Sí, ver adicionales
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setWantsAdditionalServices(false);
+                        setSelectedAdditionalServices([]);
+                        setCurrentStep(dateStep);
+                      }}
+                      className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-left font-semibold text-sand hover:border-accent/60"
+                    >
+                      No, continuar
+                    </button>
+                  </div>
+                  {selectedService ? (
+                    <p className="mt-4 text-sm font-semibold text-accent">Total actual: {formatCop(reservationTotal)}</p>
+                  ) : null}
+                </>
+              ) : null}
+
+              {additionalSelectionStep && currentStep === additionalSelectionStep ? (
+                <>
+                  <div className="mb-4 flex items-center gap-2">
+                    <Scissors className="h-4 w-4 text-accent" />
+                    <h4 className="font-semibold text-sand">SERVICIOS ADICIONALES</h4>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {activeAdditionalServices.map((service) => {
+                      const checked = selectedAdditionalServices.some((selected) => selected.id === service.id);
+                      return (
+                        <button
+                          key={service.id}
+                          type="button"
+                          onClick={() => setSelectedAdditionalServices((current) =>
+                            checked
+                              ? current.filter((selected) => selected.id !== service.id)
+                              : [...current, service]
+                          )}
+                          className={cn(
+                            "flex items-center justify-between rounded-2xl border p-4 text-left transition",
+                            checked
+                              ? "border-accent bg-accent text-ink"
+                              : "border-white/10 bg-white/5 text-sand hover:border-accent/60"
+                          )}
+                        >
+                          <span className="font-semibold">{checked ? "✓ " : "□ "}{service.nombre}</span>
+                          <span className="font-black">{formatCop(service.precio)}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="mt-4 text-lg font-black text-accent">Total: {formatCop(reservationTotal)}</p>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    <button
+                      type="button"
+                      onClick={() => setCurrentStep(additionalChoiceStep ?? serviceStep ?? 1)}
+                      className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-sand/80"
+                    >
+                      Volver
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!selectedAdditionalServices.length) {
+                          toast.error("Selecciona al menos un servicio adicional o vuelve y elige No.");
+                          return;
+                        }
+                        setCurrentStep(dateStep);
+                      }}
+                      className="rounded-2xl bg-accent px-4 py-3 text-sm font-bold text-ink"
+                    >
+                      Continuar
+                    </button>
                   </div>
                 </>
               ) : null}
@@ -708,9 +872,22 @@ export function BookingShell({
                   <div className="mt-4 rounded-[1.5rem] bg-accent/10 p-4 text-sm text-sand">
                     {selectedService ? (
                       <div className="mb-3 border-b border-accent/20 pb-3">
-                        <p className="font-semibold text-sand">{selectedService.nombre}</p>
+                        <p className="font-semibold text-sand">Servicio: {selectedService.nombre}</p>
                         <p className="mt-1 font-bold text-accent">{formatCop(selectedService.precio)}</p>
                       </div>
+                    ) : null}
+                    {selectedAdditionalServices.length ? (
+                      <div className="mb-3 border-b border-accent/20 pb-3">
+                        <p className="font-semibold text-sand">Servicios adicionales</p>
+                        {selectedAdditionalServices.map((service) => (
+                          <p key={service.id} className="mt-1 text-sand/80">
+                            {service.nombre} - {formatCop(service.precio)}
+                          </p>
+                        ))}
+                      </div>
+                    ) : null}
+                    {selectedService ? (
+                      <p className="mb-3 text-lg font-black text-accent">Total: {formatCop(reservationTotal)}</p>
                     ) : null}
                     <p>
                       Reserva confirmada para el dia{" "}

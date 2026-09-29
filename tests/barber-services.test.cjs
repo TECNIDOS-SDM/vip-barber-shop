@@ -58,7 +58,7 @@ test('admin exposes one exclusive global services view outside barber profiles',
   assert.match(dashboard, /activeBarberView === "servicios"[\s\S]*<GlobalServices onClose=/);
   assert.match(dashboard, /onClick=\{openGlobalServicesView\}/);
   assert.doesNotMatch(dashboard, /<BarberServices|barberName=|barberId=/);
-  assert.match(services, /Catálogo global disponible para todos los barberos/);
+  assert.match(services, /Catálogos globales/);
   assert.match(services, />\s*Regresar\s*</);
   assert.doesNotMatch(services, /barbero_id|barberId|barberName/);
 });
@@ -69,7 +69,7 @@ test('public flow uses the same active catalog for every barber and skips an emp
 
   assert.match(booking, /liveServices\.filter\(\(service\) => service\.activo\)/);
   assert.match(booking, /const hasServices = activeServices\.length > 0/);
-  assert.match(booking, /const dateStep = hasServices \? 3 : 2/);
+  assert.match(booking, /const dateStep = hasServices \? \(hasAdditionalServices \? 5 : 3\) : 2/);
   assert.match(booking, /setSelectedService\(null\)/);
   assert.doesNotMatch(booking, /service\.barbero_id/);
   assert.match(queries, /\.from\("servicios"\)/);

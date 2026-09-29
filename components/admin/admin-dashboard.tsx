@@ -1983,6 +1983,16 @@ export function AdminDashboard({
                           : ""}
                       </p>
                     ) : null}
+                    {reservation.estado !== "bloqueado" && reservation.reserva_servicios_adicionales?.length ? (
+                      <p className="mt-1 text-sand/70">
+                        Adicionales: {reservation.reserva_servicios_adicionales.map((service: { nombre_snapshot: string }) => service.nombre_snapshot).join(", ")}
+                      </p>
+                    ) : null}
+                    {reservation.estado !== "bloqueado" && reservation.precio_total_snapshot ? (
+                      <p className="mt-1 font-semibold text-accent">
+                        Total: {formatCop(reservation.precio_total_snapshot)}
+                      </p>
+                    ) : null}
                     {reservation.estado !== "bloqueado" &&
                     reservation.cliente_whatsapp ? (
                       <a

@@ -9,7 +9,8 @@ const schema = z.object({
   cliente_whatsapp: z.string().min(7),
   fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   hora: z.string().regex(/^\d{2}:\d{2}$/),
-  servicio_id: z.string().uuid().nullable().optional()
+  servicio_id: z.string().uuid().nullable().optional(),
+  servicios_adicionales: z.array(z.string().uuid()).max(50).optional()
 });
 
 const SLOT_TAKEN_MESSAGE =
@@ -38,7 +39,8 @@ export async function POST(request: Request) {
       p_cliente_nombre: values.cliente_nombre,
       p_cliente_whatsapp: values.cliente_whatsapp,
       p_requerir_activo: true,
-      p_servicio_id: values.servicio_id ?? null
+      p_servicio_id: values.servicio_id ?? null,
+      p_servicios_adicionales: values.servicios_adicionales ?? []
     });
 
     if (error) {
