@@ -120,7 +120,11 @@ export async function getPublicBookingData() {
 }
 
 export async function getAdminDashboardData(existingSupabase?: SupabaseClient) {
-  const supabase = existingSupabase ?? (await getSupabaseServerClient("admin"));
+  const sessionSupabase = existingSupabase ?? (await getSupabaseServerClient("admin"));
+  // The page and API validate the administrator session before reaching this
+  // function. Read the agenda with the internal server client so an RLS read
+  // regression cannot make persisted reservations render as available.
+  const supabase = getSupabaseAdminClient() ?? sessionSupabase;
 
   if (!supabase) {
     return {
@@ -235,7 +239,10 @@ export async function getAdminDashboardShellData() {
 }
 
 export async function getBarberDashboardData(barberoId: string) {
-  const supabase = await getSupabaseServerClient("barber");
+  const sessionSupabase = await getSupabaseServerClient("barber");
+  // The page and API verify that the signed-in barber owns barberoId first.
+  // This query stays scoped to that barber while avoiding a silent RLS read.
+  const supabase = getSupabaseAdminClient() ?? sessionSupabase;
 
   if (!supabase) {
     return {

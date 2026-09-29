@@ -35,3 +35,11 @@ test('each agenda has one debounced reservation invalidation channel', () => {
     assert.match(source, /removeChannel\(channel\)/);
   }
 });
+
+test('verified agenda routes keep persisted reservations readable', () => {
+  const queries = read('lib/queries.ts');
+
+  assert.match(queries, /const sessionSupabase = existingSupabase \?\? \(await getSupabaseServerClient\("admin"\)\);[\s\S]*const supabase = getSupabaseAdminClient\(\) \?\? sessionSupabase;/);
+  assert.match(queries, /const sessionSupabase = await getSupabaseServerClient\("barber"\);[\s\S]*const supabase = getSupabaseAdminClient\(\) \?\? sessionSupabase;/);
+  assert.match(queries, /\.eq\("barbero_id", barberoId\)[\s\S]*\.in\("fecha", weekDates\)/);
+});
