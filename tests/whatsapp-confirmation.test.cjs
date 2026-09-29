@@ -12,9 +12,12 @@ for (const [names, expected] of [
     const { state } = confirmedFixture(names);
     const url = new URL(state.url);
     const message = `Hola soy Davison, agend\u00e9 una cita con Rodrigo Miranda para el servicio Corte${expected}${suffix}`;
-    assert.equal(url.origin + url.pathname, 'https://wa.me/573024400088');
+    assert.equal(url.origin + url.pathname, 'https://api.whatsapp.com/send');
+    assert.equal(url.searchParams.get('phone'), '573024400088');
     assert.equal(url.searchParams.get('text'), message);
-    assert.equal(url.search, `?text=${encodeURIComponent(message)}`);
+    assert.equal(url.search, `?phone=573024400088&text=${encodeURIComponent(message)}`);
+    assert.match(state.url, /Muchas%20gracias%20%F0%9F%92%88$/);
+    assert.doesNotMatch(state.url, /%EF%BF%BD|%25F0%259F%2592%2588/);
     assert.equal(state.requests, 0);
     assert.equal(state.opened, false);
   });

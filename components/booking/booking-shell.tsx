@@ -500,8 +500,9 @@ export function BookingShell({
           ? ` con los servicios adicionales ${additionalNames.slice(0, -1).join(", ")} y ${additionalNames[additionalNames.length - 1]}`
           : "";
       const serviceMessage = selectedService ? ` para el servicio ${selectedService.nombre}` : "";
-      const message = `Hola soy ${clienteNombre}, agendé una cita con ${selectedBarber.nombre}${serviceMessage}${additionalMessage} el día ${formatReservationDate(selectedDate)} a las ${formatHourDisplay(selectedHour)}.\n\nMuchas gracias 💈`;
-      setConfirmedWhatsAppUrl(`https://wa.me/${RESERVATION_WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`);
+      const whatsappBarberPole = String.fromCodePoint(0x1f488);
+      const message = `Hola soy ${clienteNombre}, agendé una cita con ${selectedBarber.nombre}${serviceMessage}${additionalMessage} el día ${formatReservationDate(selectedDate)} a las ${formatHourDisplay(selectedHour)}.\n\nMuchas gracias ${whatsappBarberPole}`;
+      setConfirmedWhatsAppUrl(`https://api.whatsapp.com/send?phone=${RESERVATION_WHATSAPP_NUMBER}&text=${encodeURIComponent(message)}`);
       setWhatsAppOpened(false);
       setWhatsAppError(null);
       resetBookingFlow();
