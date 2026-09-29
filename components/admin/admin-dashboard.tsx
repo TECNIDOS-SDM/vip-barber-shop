@@ -295,9 +295,9 @@ export function AdminDashboard({
   }, []);
 
   useEffect(() => {
-    // Realtime invalidation uses the public barber feed so customer data never
-    // needs to be exposed to anonymous clients.
-    const supabase = getSupabaseBrowserClient("public");
+    // The administrator receives reservation changes through its authenticated
+    // session; public clients use a separate sanitized broadcast instead.
+    const supabase = getSupabaseBrowserClient("admin");
 
     const queueRefresh = () => {
       if (refreshTimeoutRef.current) {
@@ -317,6 +317,11 @@ export function AdminDashboard({
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "barberos" },
+        queueRefresh
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "reservas" },
         queueRefresh
       )
       .subscribe();

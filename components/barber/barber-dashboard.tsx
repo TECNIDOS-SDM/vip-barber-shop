@@ -188,9 +188,10 @@ export function BarberDashboard({
   }, [dashboardData.currentWeek, panelView, selectedDate]);
 
   useEffect(() => {
-    // Agenda changes are signaled through the public barber feed without
-    // exposing reservation details on Realtime.
-    const supabase = getSupabaseBrowserClient("public");
+    // The barber receives only their own reservation changes through the
+    // authenticated barber session.
+    const supabase = getSupabaseBrowserClient("barber");
+    const barberId = dashboardData.barber?.id;
 
     const queueRefresh = () => {
       if (refreshTimeoutRef.current) {
@@ -211,8 +212,22 @@ export function BarberDashboard({
         "postgres_changes",
         { event: "*", schema: "public", table: "barberos" },
         queueRefresh
-      )
-      .subscribe();
+      );
+
+    if (barberId) {
+      channel.on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "reservas",
+          filter: `barbero_id=eq.${barberId}`
+        },
+        queueRefresh
+      );
+    }
+
+    channel.subscribe();
 
     const handleVisibilityRefresh = () => {
       if (document.visibilityState === "visible") {
@@ -232,7 +247,7 @@ export function BarberDashboard({
 
       void supabase.removeChannel(channel);
     };
-  }, []);
+  }, [dashboardData.barber?.id]);
 
   useEffect(() => {
     let lastSeenDate = new Date().toLocaleDateString("en-CA", {

@@ -248,6 +248,11 @@ export function BookingShell({
     const channel = supabase
       .channel("public-booking-realtime")
       .on(
+        "broadcast",
+        { event: "reservation_availability_changed" },
+        queueRefresh
+      )
+      .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "barberos" },
         queueRefresh

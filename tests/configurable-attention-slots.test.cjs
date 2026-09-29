@@ -132,22 +132,24 @@ test('Realtime publishes barbers without exposing the private configuration tabl
   assert.doesNotMatch(migration, /add table public\.configuracion_atencion_barberos/i);
 });
 
-test('reservation changes invalidate every agenda through the public barber feed', () => {
+test('reservation changes invalidate every agenda without exposing public reservation rows', () => {
   const migration = fs.readFileSync(
-    'supabase/migrations/20260924092718_notify_schedule_changes_realtime.sql',
+    'supabase/migrations/20260929170000_reservation_realtime_availability.sql',
     'utf8'
   );
-  const dashboards = [
-    'components/admin/admin-dashboard.tsx',
-    'components/barber/barber-dashboard.tsx',
-    'components/booking/booking-shell.tsx'
-  ].map(file => fs.readFileSync(file, 'utf8'));
+  const admin = fs.readFileSync('components/admin/admin-dashboard.tsx', 'utf8');
+  const barber = fs.readFileSync('components/barber/barber-dashboard.tsx', 'utf8');
+  const booking = fs.readFileSync('components/booking/booking-shell.tsx', 'utf8');
 
   assert.match(migration, /after insert or update or delete on public\.reservas/i);
-  assert.match(migration, /update public\.barberos[\s\S]*set activo = activo/i);
+  assert.match(migration, /realtime\.send\(/);
+  assert.match(migration, /drop trigger if exists reservas_notificar_cambio_agenda/i);
   assert.doesNotMatch(migration, /grant select[\s\S]*public\.reservas[\s\S]*to anon/i);
-  for (const source of dashboards) {
-    assert.match(source, /getSupabaseBrowserClient\("public"\)/);
-    assert.match(source, /table: "barberos"/);
-  }
+  assert.match(booking, /getSupabaseBrowserClient\("public"\)/);
+  assert.match(booking, /event: "reservation_availability_changed"/);
+  assert.doesNotMatch(booking, /table: "reservas"/);
+  assert.match(admin, /getSupabaseBrowserClient\("admin"\)/);
+  assert.match(admin, /table: "reservas"/);
+  assert.match(barber, /getSupabaseBrowserClient\("barber"\)/);
+  assert.match(barber, /filter: `barbero_id=eq\.\$\{barberId\}`/);
 });
