@@ -69,7 +69,7 @@ test('public flow uses the same active catalog for every barber and skips an emp
 
   assert.match(booking, /liveServices\.filter\(\(service\) => service\.activo\)/);
   assert.match(booking, /const hasServices = activeServices\.length > 0/);
-  assert.match(booking, /const dateStep = hasServices \? \(hasAdditionalServices \? 5 : 3\) : 2/);
+  assert.match(booking, /const dateStep = hasServices \? \(hasAdditionalServices \? 4 : 3\) : 2/);
   assert.match(booking, /setSelectedService\(null\)/);
   assert.doesNotMatch(booking, /service\.barbero_id/);
   assert.match(queries, /\.from\("servicios"\)/);

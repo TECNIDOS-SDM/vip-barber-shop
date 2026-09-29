@@ -27,6 +27,7 @@ import { formatCop } from "@/lib/currency";
 import type { Barber, GlobalAdditionalService, GlobalService, ReservationSlot } from "@/types";
 
 const BARBER_FALLBACK_IMAGE = "/vip-barbertop-logo.jpeg";
+const RESERVATION_WHATSAPP_NUMBER = "573024400088";
 
 type BookingShellProps = {
   isConfigured: boolean;
@@ -98,6 +99,9 @@ export function BookingShell({
   const [clienteWhatsapp, setClienteWhatsapp] = useState("");
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [confirmedWhatsAppUrl, setConfirmedWhatsAppUrl] = useState<string | null>(null);
+  const [whatsAppOpened, setWhatsAppOpened] = useState(false);
+  const [whatsAppError, setWhatsAppError] = useState<string | null>(null);
   const isRefreshingRef = useRef(false);
   const shouldRefreshAgainRef = useRef(false);
   const refreshTimeoutRef = useRef<number | null>(null);
@@ -421,6 +425,21 @@ export function BookingShell({
     setCurrentStep((current) => current - 1);
   }
 
+  function openReservationWhatsApp() {
+    if (!confirmedWhatsAppUrl) return;
+
+    try {
+      const whatsappWindow = window.open("about:blank", "_blank");
+      if (!whatsappWindow) throw new Error("WhatsApp window blocked");
+      whatsappWindow.opener = null;
+      whatsappWindow.location.replace(confirmedWhatsAppUrl);
+      setWhatsAppError(null);
+      setWhatsAppOpened(true);
+    } catch {
+      setWhatsAppError("No fue posible abrir WhatsApp. Intenta nuevamente.");
+    }
+  }
+
   async function confirmReservation() {
     if (!selectedBarber || !selectedDate || !selectedHour) {
       toast.error("Completa barbero, dia y hora antes de confirmar.");
@@ -474,6 +493,17 @@ export function BookingShell({
         `Reserva confirmada para el dia ${formatReservationDate(selectedDate)}, a las ${formatHourDisplay(selectedHour)}, con el barbero ${selectedBarber.nombre}. Recuerda que si quieres cancelar tu cita comunicate a nuestro WhatsApp.`
       );
 
+      const additionalNames = selectedAdditionalServices.map((service) => service.nombre);
+      const additionalMessage = additionalNames.length === 1
+        ? ` con el servicio adicional ${additionalNames[0]}`
+        : additionalNames.length > 1
+          ? ` con los servicios adicionales ${additionalNames.slice(0, -1).join(", ")} y ${additionalNames[additionalNames.length - 1]}`
+          : "";
+      const serviceMessage = selectedService ? ` para el servicio ${selectedService.nombre}` : "";
+      const message = `Hola soy ${clienteNombre}, agendé una cita con ${selectedBarber.nombre}${serviceMessage}${additionalMessage} el día ${formatReservationDate(selectedDate)} a las ${formatHourDisplay(selectedHour)}.\n\nMuchas gracias 💈`;
+      setConfirmedWhatsAppUrl(`https://wa.me/${RESERVATION_WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`);
+      setWhatsAppOpened(false);
+      setWhatsAppError(null);
       resetBookingFlow();
       await refreshData();
     } catch (error) {
@@ -497,7 +527,37 @@ export function BookingShell({
   return (
     <div className="grid gap-6">
       <section className="glass rounded-[2rem] p-4 sm:p-6">
-        {!selectedBarber ? (
+        {confirmedWhatsAppUrl ? (
+          <div
+            role="status"
+            className="mx-auto max-w-xl rounded-[1.5rem] border border-accent/30 bg-white/[0.03] p-5 text-center sm:p-8"
+          >
+            <h3 className="text-2xl font-semibold text-sand">¡Reserva confirmada! 💈</h3>
+            <p className="mt-4 text-sand/80">
+              Déjanos un mensaje a nuestro WhatsApp para confirmar tu reserva
+            </p>
+            {whatsAppError ? (
+              <p role="alert" className="mt-4 text-sm text-sand">{whatsAppError}</p>
+            ) : null}
+            <button
+              type="button"
+              autoFocus
+              onClick={openReservationWhatsApp}
+              className="mt-6 w-full rounded-2xl bg-accent px-4 py-3 text-sm font-bold text-ink"
+            >
+              Enviar
+            </button>
+            {whatsAppOpened ? (
+              <button
+                type="button"
+                onClick={() => setConfirmedWhatsAppUrl(null)}
+                className="mt-3 w-full rounded-2xl border border-white/10 px-4 py-3 text-sm text-sand/80"
+              >
+                Volver al inicio
+              </button>
+            ) : null}
+          </div>
+        ) : !selectedBarber ? (
           <>
             <div className="grid gap-4 sm:grid-cols-2">
               {liveBarbers.map((barber) => (

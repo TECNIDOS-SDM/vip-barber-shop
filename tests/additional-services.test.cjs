@@ -40,10 +40,13 @@ test('admin CRUD is server-authorized and preserves used additional services', (
   assert.doesNotMatch(additionalRoute, /service_role|SUPABASE_SERVICE_ROLE_KEY/);
 });
 
-test('public booking adds the optional yes-no flow only after a main service exists', () => {
+test('public booking offers optional additions directly after a main service exists', () => {
   assert.match(booking, /const hasAdditionalServices = hasServices && activeAdditionalServices\.length > 0/);
-  assert.match(booking, /¿DESEAS AGREGAR SERVICIOS ADICIONALES\?/);
-  assert.match(booking, /Selecciona al menos un servicio adicional o vuelve y elige No\./);
+  assert.match(booking, /const additionalSelectionStep = hasAdditionalServices \? 3 : null/);
+  assert.match(booking, /currentStep === additionalSelectionStep/);
+  assert.match(booking, /onClick=\{\(\) => setCurrentStep\(dateStep\)\}/);
+  assert.match(booking, /selectedAdditionalServices\.length \? "Continuar" : "No, continuar"/);
+  assert.doesNotMatch(booking, /¿DESEAS AGREGAR SERVICIOS ADICIONALES\?|Selecciona al menos un servicio adicional o vuelve y elige No\./);
   assert.match(booking, /setSelectedAdditionalServices\(\[\]\)/);
   assert.match(booking, /Total: \{formatCop\(reservationTotal\)\}/);
   assert.match(booking, /servicios_adicionales: selectedAdditionalServices\.map/);
