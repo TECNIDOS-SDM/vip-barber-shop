@@ -648,26 +648,14 @@ export function BookingShell({
                     })}
                   </div>
                   <p className="mt-4 text-lg font-black text-accent">Total actual: {formatCop(reservationTotal)}</p>
-                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <div className="mt-4">
                     <button
                       type="button"
-                      onClick={() => {
-                        setSelectedAdditionalServices([]);
-                        setCurrentStep(dateStep);
-                      }}
-                      className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-sand/80"
+                      onClick={() => setCurrentStep(dateStep)}
+                      className="w-full rounded-2xl bg-accent px-4 py-3 text-sm font-bold text-ink"
                     >
-                      No, continuar
+                      Continuar
                     </button>
-                    {selectedAdditionalServices.length ? (
-                      <button
-                        type="button"
-                        onClick={() => setCurrentStep(dateStep)}
-                        className="rounded-2xl bg-accent px-4 py-3 text-sm font-bold text-ink"
-                      >
-                        Continuar
-                      </button>
-                    ) : null}
                   </div>
                 </>
               ) : null}
