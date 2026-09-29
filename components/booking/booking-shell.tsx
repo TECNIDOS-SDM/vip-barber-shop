@@ -93,7 +93,6 @@ export function BookingShell({
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedHour, setSelectedHour] = useState("");
   const [selectedService, setSelectedService] = useState<GlobalService | null>(null);
-  const [wantsAdditionalServices, setWantsAdditionalServices] = useState<boolean | null>(null);
   const [selectedAdditionalServices, setSelectedAdditionalServices] = useState<GlobalAdditionalService[]>([]);
   const [clienteNombre, setClienteNombre] = useState("");
   const [clienteWhatsapp, setClienteWhatsapp] = useState("");
@@ -157,9 +156,8 @@ export function BookingShell({
   const hasAdditionalServices = hasServices && activeAdditionalServices.length > 0;
   const hadAdditionalServicesRef = useRef(hasAdditionalServices);
   const serviceStep = hasServices ? 2 : null;
-  const additionalChoiceStep = hasAdditionalServices ? 3 : null;
-  const additionalSelectionStep = hasAdditionalServices ? 4 : null;
-  const dateStep = hasServices ? (hasAdditionalServices ? 5 : 3) : 2;
+  const additionalSelectionStep = hasAdditionalServices ? 3 : null;
+  const dateStep = hasServices ? (hasAdditionalServices ? 4 : 3) : 2;
   const hourStep = dateStep + 1;
   const detailsStep = hourStep + 1;
   const totalSteps = detailsStep;
@@ -198,13 +196,12 @@ export function BookingShell({
     setSelectedAdditionalServices((current) => current.filter((service) => currentIds.has(service.id)));
 
     if (!hasAdditionalServices) {
-      setWantsAdditionalServices(null);
       setSelectedAdditionalServices([]);
 
       if (hadAdditionalServicesRef.current) {
         setCurrentStep((step) => {
-          if (step === 3 || step === 4) return 3;
-          return step >= 5 ? step - 2 : step;
+          if (step === 3) return 3;
+          return step >= 4 ? step - 1 : step;
         });
       }
     }
@@ -379,7 +376,6 @@ export function BookingShell({
     setSelectedDate("");
     setSelectedHour("");
     setSelectedService(null);
-    setWantsAdditionalServices(null);
     setSelectedAdditionalServices([]);
     setClienteNombre("");
     setClienteWhatsapp("");
@@ -391,7 +387,6 @@ export function BookingShell({
     setSelectedDate("");
     setSelectedHour("");
     setSelectedService(null);
-    setWantsAdditionalServices(null);
     setSelectedAdditionalServices([]);
     setClienteNombre("");
     setClienteWhatsapp("");
@@ -409,22 +404,13 @@ export function BookingShell({
     }
 
     if (currentStep === additionalSelectionStep) {
-      setCurrentStep(additionalChoiceStep ?? serviceStep ?? 1);
-      return;
-    }
-
-    if (currentStep === additionalChoiceStep) {
       setCurrentStep(serviceStep ?? 1);
       return;
     }
 
     if (currentStep === dateStep) {
       setSelectedDate("");
-      setCurrentStep(
-        wantsAdditionalServices
-          ? additionalSelectionStep ?? serviceStep ?? 1
-          : additionalChoiceStep ?? serviceStep ?? 1
-      );
+      setCurrentStep(additionalSelectionStep ?? serviceStep ?? 1);
       return;
     }
 
@@ -444,18 +430,6 @@ export function BookingShell({
     if (hasServices && !selectedService) {
       toast.error("Selecciona un servicio antes de confirmar.");
       setCurrentStep(2);
-      return;
-    }
-
-    if (hasAdditionalServices && wantsAdditionalServices === null) {
-      toast.error("Indica si deseas agregar servicios adicionales.");
-      setCurrentStep(additionalChoiceStep ?? dateStep);
-      return;
-    }
-
-    if (wantsAdditionalServices && selectedAdditionalServices.length === 0) {
-      toast.error("Selecciona al menos un servicio adicional o vuelve y elige No.");
-      setCurrentStep(additionalSelectionStep ?? dateStep);
       return;
     }
 
@@ -622,7 +596,7 @@ export function BookingShell({
                         type="button"
                         onClick={() => {
                           setSelectedService(service);
-                          setCurrentStep(additionalChoiceStep ?? dateStep);
+                          setCurrentStep(additionalSelectionStep ?? dateStep);
                         }}
                         className={cn(
                           "rounded-2xl border p-4 text-left transition",
@@ -639,47 +613,15 @@ export function BookingShell({
                 </>
               ) : null}
 
-              {additionalChoiceStep && currentStep === additionalChoiceStep ? (
-                <>
-                  <div className="mb-4 flex items-center gap-2">
-                    <Scissors className="h-4 w-4 text-accent" />
-                    <h4 className="font-semibold text-sand">¿DESEAS AGREGAR SERVICIOS ADICIONALES?</h4>
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setWantsAdditionalServices(true);
-                        setCurrentStep(additionalSelectionStep ?? dateStep);
-                      }}
-                      className="rounded-2xl border border-accent bg-accent px-4 py-4 text-left font-bold text-ink"
-                    >
-                      Sí, ver adicionales
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setWantsAdditionalServices(false);
-                        setSelectedAdditionalServices([]);
-                        setCurrentStep(dateStep);
-                      }}
-                      className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-left font-semibold text-sand hover:border-accent/60"
-                    >
-                      No, continuar
-                    </button>
-                  </div>
-                  {selectedService ? (
-                    <p className="mt-4 text-sm font-semibold text-accent">Total actual: {formatCop(reservationTotal)}</p>
-                  ) : null}
-                </>
-              ) : null}
-
               {additionalSelectionStep && currentStep === additionalSelectionStep ? (
                 <>
                   <div className="mb-4 flex items-center gap-2">
                     <Scissors className="h-4 w-4 text-accent" />
                     <h4 className="font-semibold text-sand">SERVICIOS ADICIONALES</h4>
                   </div>
+                  <p className="mb-4 text-sm text-sand/70">
+                    Puedes seleccionar uno o más servicios adicionales para tu cita.
+                  </p>
                   <div className="grid gap-3 sm:grid-cols-2">
                     {activeAdditionalServices.map((service) => {
                       const checked = selectedAdditionalServices.some((selected) => selected.id === service.id);
@@ -705,28 +647,27 @@ export function BookingShell({
                       );
                     })}
                   </div>
-                  <p className="mt-4 text-lg font-black text-accent">Total: {formatCop(reservationTotal)}</p>
+                  <p className="mt-4 text-lg font-black text-accent">Total actual: {formatCop(reservationTotal)}</p>
                   <div className="mt-4 grid gap-3 sm:grid-cols-2">
                     <button
                       type="button"
-                      onClick={() => setCurrentStep(additionalChoiceStep ?? serviceStep ?? 1)}
-                      className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-sand/80"
-                    >
-                      Volver
-                    </button>
-                    <button
-                      type="button"
                       onClick={() => {
-                        if (!selectedAdditionalServices.length) {
-                          toast.error("Selecciona al menos un servicio adicional o vuelve y elige No.");
-                          return;
-                        }
+                        setSelectedAdditionalServices([]);
                         setCurrentStep(dateStep);
                       }}
-                      className="rounded-2xl bg-accent px-4 py-3 text-sm font-bold text-ink"
+                      className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-sand/80"
                     >
-                      Continuar
+                      No, continuar
                     </button>
+                    {selectedAdditionalServices.length ? (
+                      <button
+                        type="button"
+                        onClick={() => setCurrentStep(dateStep)}
+                        className="rounded-2xl bg-accent px-4 py-3 text-sm font-bold text-ink"
+                      >
+                        Continuar
+                      </button>
+                    ) : null}
                   </div>
                 </>
               ) : null}
