@@ -68,8 +68,7 @@ function renderCard(state) {
   const module = { exports: {} };
   vm.runInNewContext(compile(`module.exports = ${card.whenTrue.getText(ast)};`), {
     module, exports: module.exports, require,
-    Image: props => require('react').createElement('img', { src: props.src, alt: props.alt }),
-    BARBER_FALLBACK_IMAGE: '/vip-barbertop-logo.jpeg',
+    WhatsAppGoldIcon: props => require('react').createElement('svg', { ...props, 'data-testid': 'whatsapp-logo' }),
     whatsAppOpened: state.opened, whatsAppError: state.error,
     openReservationWhatsApp() {}, setConfirmedWhatsAppUrl() {}
   });

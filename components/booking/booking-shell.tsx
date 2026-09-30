@@ -489,7 +489,7 @@ export function BookingShell({
         throw new Error(payload.error ?? "No fue posible crear la reserva.");
       }
 
-      toast.success("Reservado");
+      toast.success("Reservado", { duration: 4000 });
 
       const additionalNames = selectedAdditionalServices.map((service) => service.nombre);
       const additionalMessage = additionalNames.length === 1
@@ -531,15 +531,12 @@ export function BookingShell({
             role="status"
             className="mx-auto max-w-xl rounded-[1.5rem] border border-accent/30 bg-white/[0.03] p-5 text-center sm:p-8"
           >
-            <div className="relative mx-auto h-20 w-20 overflow-hidden rounded-full border border-accent/40 bg-black shadow-[0_10px_35px_rgba(240,199,110,0.2)] sm:h-24 sm:w-24">
-              <Image
-                src={BARBER_FALLBACK_IMAGE}
-                alt="Logo VIP BarberTop"
-                fill
-                sizes="(max-width: 640px) 80px, 96px"
-                className="object-cover"
-                priority
-              />
+            <div
+              role="img"
+              aria-label="Logo WhatsApp"
+              className="mx-auto flex h-20 w-20 items-center justify-center rounded-full border border-[#25D366]/40 bg-[#25D366]/10 text-[#25D366] shadow-[0_10px_35px_rgba(37,211,102,0.18)] sm:h-24 sm:w-24"
+            >
+              <WhatsAppGoldIcon className="h-12 w-12 sm:h-14 sm:w-14" />
             </div>
             <p className="mt-4 text-sand/80">
               Déjanos un mensaje a nuestro wp para confirmar tu reserva

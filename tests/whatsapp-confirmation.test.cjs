@@ -69,8 +69,9 @@ test('blocked popup preserves confirmation and allows retry without network', ()
 test('actual confirmation JSX shows exact copy and hides home until Enviar', () => {
   const fixture = confirmedFixture();
   const html = renderCard(fixture.state);
-  assert.match(html, /src="\/vip-barbertop-logo\.jpeg"/);
-  assert.match(html, /alt="Logo VIP BarberTop"/);
+  assert.match(html, /aria-label="Logo WhatsApp"/);
+  assert.match(html, /data-testid="whatsapp-logo"/);
+  assert.doesNotMatch(html, /vip-barbertop-logo\.jpeg|Logo VIP BarberTop/);
   assert.match(html, /D\u00e9janos un mensaje a nuestro wp para confirmar tu reserva/);
   assert.match(html, />Enviar<\/button>/);
   assert.equal((html.match(/<button/g) ?? []).length, 1);
@@ -80,6 +81,7 @@ test('actual confirmation JSX shows exact copy and hides home until Enviar', () 
 
 test('success banner keeps its behavior and only shows Reservado', () => {
   const source = require('node:fs').readFileSync('components/booking/booking-shell.tsx', 'utf8');
-  assert.match(source, /toast\.success\("Reservado"\)/);
+  assert.match(source, /toast\.success\("Reservado", \{ duration: 4000 \}\)/);
+  assert.doesNotMatch(source, /toast\.success\("Reservado", \{ duration: Infinity \}\)/);
   assert.doesNotMatch(source, /toast\.success\(\s*`Reserva confirmada para el dia/);
 });
