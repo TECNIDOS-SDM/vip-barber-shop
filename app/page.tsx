@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Logo } from "@/components/shared/logo";
 import { BookingShell } from "@/components/booking/booking-shell";
+import { PromotionModal } from "@/components/booking/promotion-modal";
 import { getPublicBookingData } from "@/lib/queries";
 
 export const dynamic = "force-dynamic";
@@ -15,6 +16,7 @@ export default async function HomePage() {
 
   return (
     <main className="mx-auto max-w-7xl px-4 pb-16 pt-6 sm:px-6 lg:px-8">
+      <PromotionModal />
       <section className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-grain p-5 shadow-2xl shadow-black/20 sm:p-6 lg:p-8">
         <Logo
           title="VIP BARBER TOP"
