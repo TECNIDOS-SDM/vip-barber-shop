@@ -10,21 +10,15 @@ const booking = fs.readFileSync(
   'utf8'
 );
 
-test('public page renders the supplied promotion between header and booking flow', () => {
+test('public page moves directly from header to booking flow without promotion', () => {
   const headerIndex = page.indexOf('title="VIP BARBER TOP"');
-  const promotionIndex = page.indexOf('src="/promocion-miercoles-2x1.png"');
   const bookingIndex = page.indexOf('<BookingShell');
 
   assert.ok(headerIndex >= 0);
-  assert.ok(promotionIndex > headerIndex);
-  assert.ok(bookingIndex > promotionIndex);
-  assert.match(page, /width=\{1170\}/);
-  assert.match(page, /height=\{1169\}/);
-  assert.match(page, /object-contain/);
-  assert.match(page, /h-48 overflow-hidden rounded-\[1\.5rem\] sm:hidden/);
-  assert.match(page, /hidden sm:block lg:hidden/);
-  assert.match(page, /aspect-\[5\.4\/1\]/);
-  assert.match(page, /@vip_barbertop/);
+  assert.ok(bookingIndex > headerIndex);
+  assert.doesNotMatch(page, /promocion-miercoles-2x1\.png/);
+  assert.doesNotMatch(page, /Promoción miércoles 2x1 en corte básico/);
+  assert.match(page, /<\/section>\s*<section id="reservas" className="mt-4 scroll-mt-6">/);
 });
 
 test('location panel follows social links and embeds the exact coordinates', () => {
