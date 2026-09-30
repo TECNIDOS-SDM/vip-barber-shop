@@ -8,6 +8,7 @@ import {
   Clock3,
   Facebook,
   Instagram,
+  MapPin,
   MessageCircleMore,
   Scissors
 } from "lucide-react";
@@ -923,42 +924,65 @@ export function BookingShell({
         )}
       </section>
 
-      <aside className="glass h-fit rounded-[2rem] p-5 sm:p-6">
-        <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-4">
-          <p className="text-xs uppercase tracking-[0.22em] text-accent/80">
-            REDES SOCIALES
-          </p>
-          <div className="mt-4 flex items-center gap-3">
-            <a
-              href="https://www.instagram.com/vip_barbertop?igsh=MWliYzYwazNxM3JzbQ%3D%3D&utm_source=qr"
-              target="_blank"
-              rel="noreferrer"
-              aria-label="Instagram VIP Barber Top"
-              className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-sand transition hover:border-accent hover:text-accent"
-            >
-              <Instagram className="h-5 w-5" />
-            </a>
-            <a
-              href="https://www.facebook.com/share/1DsXeNLRL1/?mibextid=wwXIfr"
-              target="_blank"
-              rel="noreferrer"
-              aria-label="Facebook VIP Barber Top"
-              className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-sand transition hover:border-accent hover:text-accent"
-            >
-              <Facebook className="h-5 w-5" />
-            </a>
-            <a
-              href="https://www.tiktok.com/@vip_barbertop?_r=1&_t=ZS-95kyenGjuyd"
-              target="_blank"
-              rel="noreferrer"
-              aria-label="TikTok VIP Barber Top"
-              className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-sand transition hover:border-accent hover:text-accent"
-            >
-              <TikTokIcon />
-            </a>
+      <div className="grid gap-6 lg:grid-cols-[0.75fr_1.25fr]">
+        <aside className="glass h-full rounded-[2rem] p-5 sm:p-6">
+          <div className="h-full rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-4">
+            <p className="text-xs uppercase tracking-[0.22em] text-accent/80">
+              REDES SOCIALES
+            </p>
+            <div className="mt-4 flex items-center gap-3">
+              <a
+                href="https://www.instagram.com/vip_barbertop?igsh=MWliYzYwazNxM3JzbQ%3D%3D&utm_source=qr"
+                target="_blank"
+                rel="noreferrer"
+                aria-label="Instagram VIP Barber Top"
+                className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-sand transition hover:border-accent hover:text-accent"
+              >
+                <Instagram className="h-5 w-5" />
+              </a>
+              <a
+                href="https://www.facebook.com/share/1DsXeNLRL1/?mibextid=wwXIfr"
+                target="_blank"
+                rel="noreferrer"
+                aria-label="Facebook VIP Barber Top"
+                className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-sand transition hover:border-accent hover:text-accent"
+              >
+                <Facebook className="h-5 w-5" />
+              </a>
+              <a
+                href="https://www.tiktok.com/@vip_barbertop?_r=1&_t=ZS-95kyenGjuyd"
+                target="_blank"
+                rel="noreferrer"
+                aria-label="TikTok VIP Barber Top"
+                className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-sand transition hover:border-accent hover:text-accent"
+              >
+                <TikTokIcon />
+              </a>
+            </div>
           </div>
-        </div>
-      </aside>
+        </aside>
+
+        <aside className="glass h-full rounded-[2rem] p-5 sm:p-6">
+          <div className="h-full rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-4">
+            <div className="flex items-center gap-2 text-accent/80">
+              <MapPin className="h-5 w-5" aria-hidden="true" />
+              <h2 className="text-xs font-semibold uppercase tracking-[0.22em]">
+                Ubicación
+              </h2>
+            </div>
+            <div className="mt-4 overflow-hidden rounded-[1.25rem] border border-white/10 bg-black/30">
+              <iframe
+                title="Ubicación de VIP Barber Top en Google Maps"
+                src="https://www.google.com/maps?q=3.4437761,-76.4901789&z=19&output=embed"
+                className="h-64 w-full sm:h-72 lg:h-32"
+                loading="lazy"
+                allowFullScreen
+                referrerPolicy="no-referrer-when-downgrade"
+              />
+            </div>
+          </div>
+        </aside>
+      </div>
     </div>
   );
 }
