@@ -27,14 +27,38 @@ export default async function HomePage() {
         aria-label="Promoción miércoles 2x1 en corte básico"
         className="glass mt-4 overflow-hidden rounded-[2rem] p-2 sm:p-3"
       >
-        <div className="lg:hidden">
+        <div className="relative h-48 overflow-hidden rounded-[1.5rem] sm:hidden">
+          <Image
+            src="/promocion-miercoles-2x1.png"
+            alt="Promoción miércoles 2x1 en corte básico de VIP Barber Top"
+            fill
+            priority
+            sizes="calc(100vw - 3rem)"
+            className="scale-110 object-cover object-center opacity-75"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-black/45 via-black/15 to-black/25" />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="text-center font-black uppercase leading-none text-[#ffe12d] drop-shadow-[0_0_10px_rgba(255,216,0,0.8)]">
+              <p className="text-2xl">Miércoles</p>
+              <p className="mt-1 text-5xl">2x1</p>
+              <p className="mx-auto mt-1 w-fit rounded-md bg-black px-3 py-1.5 text-[10px] tracking-wide">
+                En corte básico
+              </p>
+              <p className="mt-2 text-[10px] normal-case tracking-wide">
+                @vip_barbertop
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="hidden sm:block lg:hidden">
           <Image
             src="/promocion-miercoles-2x1.png"
             alt="Promoción miércoles 2x1 en corte básico de VIP Barber Top"
             width={1170}
             height={1169}
             priority
-            sizes="(max-width: 1023px) calc(100vw - 2rem), 1px"
+            sizes="(max-width: 1023px) calc(100vw - 3rem), 1px"
             className="h-auto w-full rounded-[1.5rem] object-contain"
           />
         </div>

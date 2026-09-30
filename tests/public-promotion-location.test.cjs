@@ -21,6 +21,8 @@ test('public page renders the supplied promotion between header and booking flow
   assert.match(page, /width=\{1170\}/);
   assert.match(page, /height=\{1169\}/);
   assert.match(page, /object-contain/);
+  assert.match(page, /h-48 overflow-hidden rounded-\[1\.5rem\] sm:hidden/);
+  assert.match(page, /hidden sm:block lg:hidden/);
   assert.match(page, /aspect-\[5\.4\/1\]/);
   assert.match(page, /@vip_barbertop/);
 });
