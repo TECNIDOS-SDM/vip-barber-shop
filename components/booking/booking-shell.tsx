@@ -890,7 +890,7 @@ export function BookingShell({
                       <p className="mb-3 text-lg font-black text-accent">Total: {formatCop(reservationTotal)}</p>
                     ) : null}
                     <p>
-                      Reserva confirmada para el dia{" "}
+                      Confirme su reserva para el día{" "}
                       <span className="font-semibold">
                         {formatReservationDate(selectedDate)}
                       </span>

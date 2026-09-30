@@ -86,4 +86,6 @@ test('success banner keeps its behavior and only shows Reservado', () => {
   assert.match(source, /toast\.success\("Reservado", \{ duration: 4000 \}\)/);
   assert.doesNotMatch(source, /toast\.success\("Reservado", \{ duration: Infinity \}\)/);
   assert.doesNotMatch(source, /toast\.success\(\s*`Reserva confirmada para el dia/);
+  assert.match(source, /Confirme su reserva para el día\{" "\}/);
+  assert.doesNotMatch(source, />\s*Reserva confirmada para el dia\{" "\}/);
 });
