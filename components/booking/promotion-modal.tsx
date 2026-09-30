@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { X } from "lucide-react";
+import { shouldShowWednesdayPromotion } from "@/lib/promotion-day";
 
 export function PromotionModal() {
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(() => shouldShowWednesdayPromotion());
 
   useEffect(() => {
     if (!isOpen) return;
