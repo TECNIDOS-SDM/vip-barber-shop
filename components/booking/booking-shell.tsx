@@ -73,6 +73,10 @@ function WhatsAppGoldIcon({ className = "h-4 w-4" }: { className?: string }) {
   );
 }
 
+function scrollToWhatsAppConfirmation(element: HTMLDivElement | null) {
+  element?.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
 export function BookingShell({
   isConfigured,
   barbers,
@@ -106,6 +110,7 @@ export function BookingShell({
   const isRefreshingRef = useRef(false);
   const shouldRefreshAgainRef = useRef(false);
   const refreshTimeoutRef = useRef<number | null>(null);
+  const whatsAppConfirmationRef = useRef<HTMLDivElement>(null);
   async function refreshData() {
     if (isRefreshingRef.current) {
       shouldRefreshAgainRef.current = true;
@@ -307,6 +312,16 @@ export function BookingShell({
       setCurrentStep(1);
     }
   }, [selectedBarber]);
+
+  useEffect(() => {
+    if (!confirmedWhatsAppUrl) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      scrollToWhatsAppConfirmation(whatsAppConfirmationRef.current);
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [confirmedWhatsAppUrl]);
 
   const slotMap = useMemo(() => {
     return new Map(
@@ -529,6 +544,7 @@ export function BookingShell({
       <section className="glass rounded-[2rem] p-4 sm:p-6">
         {confirmedWhatsAppUrl ? (
           <div
+            ref={whatsAppConfirmationRef}
             role="status"
             className="mx-auto max-w-xl rounded-[1.5rem] border border-accent/30 bg-white/[0.03] p-5 text-center sm:p-8"
           >

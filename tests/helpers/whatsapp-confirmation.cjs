@@ -69,6 +69,7 @@ function renderCard(state) {
   vm.runInNewContext(compile(`module.exports = ${card.whenTrue.getText(ast)};`), {
     module, exports: module.exports, require,
     WhatsAppGoldIcon: props => require('react').createElement('svg', { ...props, 'data-testid': 'whatsapp-logo' }),
+    whatsAppConfirmationRef: { current: null },
     whatsAppOpened: state.opened, whatsAppError: state.error,
     openReservationWhatsApp() {}, setConfirmedWhatsAppUrl() {}
   });

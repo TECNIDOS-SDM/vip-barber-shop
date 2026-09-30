@@ -1,6 +1,11 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const ts = require('typescript');
 const { confirmedFixture, clickSend, renderCard } = require('./helpers/whatsapp-confirmation.cjs');
+
+const bookingSource = fs.readFileSync('components/booking/booking-shell.tsx', 'utf8');
 
 const suffix = ' el d\u00eda martes 29 de septiembre a las 2:40 PM.\n\nMuchas gracias \ud83d\udc88';
 for (const [names, expected] of [
@@ -81,11 +86,47 @@ test('actual confirmation JSX shows exact copy and hides home until Enviar', () 
   assert.match(renderCard({ ...fixture.state, opened: true }), /Volver al inicio/);
 });
 
+test('successful confirmation scrolls the WhatsApp card into view once it is rendered', () => {
+  const ast = ts.createSourceFile(
+    'booking-shell.tsx',
+    bookingSource,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
+  );
+  let scrollFunction;
+  ts.forEachChild(ast, function visit(node) {
+    if (ts.isFunctionDeclaration(node) && node.name?.text === 'scrollToWhatsAppConfirmation') {
+      scrollFunction = node.getText(ast);
+    }
+    ts.forEachChild(node, visit);
+  });
+  assert.ok(scrollFunction);
+
+  const calls = [];
+  const compiled = ts.transpileModule(
+    `${scrollFunction}\nscrollToWhatsAppConfirmation(target);`,
+    { compilerOptions: { target: ts.ScriptTarget.ES2020 } },
+  ).outputText;
+  vm.runInNewContext(compiled, {
+    target: { scrollIntoView: options => calls.push(options) },
+  });
+
+  assert.deepEqual(JSON.parse(JSON.stringify(calls)), [
+    { behavior: 'smooth', block: 'center' },
+  ]);
+  assert.match(bookingSource, /const whatsAppConfirmationRef = useRef<HTMLDivElement>\(null\)/);
+  assert.match(bookingSource, /ref=\{whatsAppConfirmationRef\}\s+role="status"/);
+  assert.match(
+    bookingSource,
+    /useEffect\(\(\) => \{\s+if \(!confirmedWhatsAppUrl\) return;[\s\S]*?requestAnimationFrame[\s\S]*?\}, \[confirmedWhatsAppUrl\]\);/,
+  );
+});
+
 test('success banner keeps its behavior and only shows Reservado', () => {
-  const source = require('node:fs').readFileSync('components/booking/booking-shell.tsx', 'utf8');
-  assert.match(source, /toast\.success\("Reservado", \{ duration: 4000 \}\)/);
-  assert.doesNotMatch(source, /toast\.success\("Reservado", \{ duration: Infinity \}\)/);
-  assert.doesNotMatch(source, /toast\.success\(\s*`Reserva confirmada para el dia/);
-  assert.match(source, /Confirme su reserva para el día\{" "\}/);
-  assert.doesNotMatch(source, />\s*Reserva confirmada para el dia\{" "\}/);
+  assert.match(bookingSource, /toast\.success\("Reservado", \{ duration: 4000 \}\)/);
+  assert.doesNotMatch(bookingSource, /toast\.success\("Reservado", \{ duration: Infinity \}\)/);
+  assert.doesNotMatch(bookingSource, /toast\.success\(\s*`Reserva confirmada para el dia/);
+  assert.match(bookingSource, /Confirme su reserva para el día\{" "\}/);
+  assert.doesNotMatch(bookingSource, />\s*Reserva confirmada para el dia\{" "\}/);
 });
