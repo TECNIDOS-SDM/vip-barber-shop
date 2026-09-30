@@ -489,17 +489,15 @@ export function BookingShell({
         throw new Error(payload.error ?? "No fue posible crear la reserva.");
       }
 
-      toast.success(
-        `Reserva confirmada para el dia ${formatReservationDate(selectedDate)}, a las ${formatHourDisplay(selectedHour)}, con el barbero ${selectedBarber.nombre}. Recuerda que si quieres cancelar tu cita comunicate a nuestro WhatsApp.`
-      );
+      toast.success("Reservado");
 
       const additionalNames = selectedAdditionalServices.map((service) => service.nombre);
       const additionalMessage = additionalNames.length === 1
-        ? ` con el servicio adicional ${additionalNames[0]}`
+        ? ` con ${additionalNames[0]}`
         : additionalNames.length > 1
-          ? ` con los servicios adicionales ${additionalNames.slice(0, -1).join(", ")} y ${additionalNames[additionalNames.length - 1]}`
+          ? ` con ${additionalNames.slice(0, -1).join(", ")} y ${additionalNames[additionalNames.length - 1]}`
           : "";
-      const serviceMessage = selectedService ? ` para el servicio ${selectedService.nombre}` : "";
+      const serviceMessage = selectedService ? ` para ${selectedService.nombre}` : "";
       const whatsappBarberPole = String.fromCodePoint(0x1f488);
       const message = `Hola soy ${clienteNombre}, agendé una cita con ${selectedBarber.nombre}${serviceMessage}${additionalMessage} el día ${formatReservationDate(selectedDate)} a las ${formatHourDisplay(selectedHour)}.\n\nMuchas gracias ${whatsappBarberPole}`;
       setConfirmedWhatsAppUrl(`https://api.whatsapp.com/send?phone=${RESERVATION_WHATSAPP_NUMBER}&text=${encodeURIComponent(message)}`);
@@ -533,9 +531,18 @@ export function BookingShell({
             role="status"
             className="mx-auto max-w-xl rounded-[1.5rem] border border-accent/30 bg-white/[0.03] p-5 text-center sm:p-8"
           >
-            <h3 className="text-2xl font-semibold text-sand">¡Reserva confirmada! 💈</h3>
+            <div className="relative mx-auto h-20 w-20 overflow-hidden rounded-full border border-accent/40 bg-black shadow-[0_10px_35px_rgba(240,199,110,0.2)] sm:h-24 sm:w-24">
+              <Image
+                src={BARBER_FALLBACK_IMAGE}
+                alt="Logo VIP BarberTop"
+                fill
+                sizes="(max-width: 640px) 80px, 96px"
+                className="object-cover"
+                priority
+              />
+            </div>
             <p className="mt-4 text-sand/80">
-              Déjanos un mensaje a nuestro WhatsApp para confirmar tu reserva
+              Déjanos un mensaje a nuestro wp para confirmar tu reserva
             </p>
             {whatsAppError ? (
               <p role="alert" className="mt-4 text-sm text-sand">{whatsAppError}</p>

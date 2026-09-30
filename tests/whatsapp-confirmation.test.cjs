@@ -5,13 +5,13 @@ const { confirmedFixture, clickSend, renderCard } = require('./helpers/whatsapp-
 const suffix = ' el d\u00eda martes 29 de septiembre a las 2:40 PM.\n\nMuchas gracias \ud83d\udc88';
 for (const [names, expected] of [
   [[], ''],
-  [['Mascarilla'], ' con el servicio adicional Mascarilla'],
-  [['Mascarilla', 'Lavado', 'Cejas'], ' con los servicios adicionales Mascarilla, Lavado y Cejas']
+  [['Mascarilla'], ' con Mascarilla'],
+  [['Mascarilla', 'Lavado', 'Cejas'], ' con Mascarilla, Lavado y Cejas']
 ]) {
   test(`confirmed message with ${names.length} additions uses exact destination, text and encoding`, () => {
     const { state } = confirmedFixture(names);
     const url = new URL(state.url);
-    const message = `Hola soy Davison, agend\u00e9 una cita con Rodrigo Miranda para el servicio Corte${expected}${suffix}`;
+    const message = `Hola soy Davison, agend\u00e9 una cita con Rodrigo Miranda para Corte${expected}${suffix}`;
     assert.equal(url.origin + url.pathname, 'https://api.whatsapp.com/send');
     assert.equal(url.searchParams.get('phone'), '573024400088');
     assert.equal(url.searchParams.get('text'), message);
@@ -69,10 +69,17 @@ test('blocked popup preserves confirmation and allows retry without network', ()
 test('actual confirmation JSX shows exact copy and hides home until Enviar', () => {
   const fixture = confirmedFixture();
   const html = renderCard(fixture.state);
-  assert.match(html, /\u00a1Reserva confirmada! \ud83d\udc88/);
-  assert.match(html, /D\u00e9janos un mensaje a nuestro WhatsApp para confirmar tu reserva/);
+  assert.match(html, /src="\/vip-barbertop-logo\.jpeg"/);
+  assert.match(html, /alt="Logo VIP BarberTop"/);
+  assert.match(html, /D\u00e9janos un mensaje a nuestro wp para confirmar tu reserva/);
   assert.match(html, />Enviar<\/button>/);
   assert.equal((html.match(/<button/g) ?? []).length, 1);
   assert.doesNotMatch(html, /Volver al inicio/);
   assert.match(renderCard({ ...fixture.state, opened: true }), /Volver al inicio/);
+});
+
+test('success banner keeps its behavior and only shows Reservado', () => {
+  const source = require('node:fs').readFileSync('components/booking/booking-shell.tsx', 'utf8');
+  assert.match(source, /toast\.success\("Reservado"\)/);
+  assert.doesNotMatch(source, /toast\.success\(\s*`Reserva confirmada para el dia/);
 });
