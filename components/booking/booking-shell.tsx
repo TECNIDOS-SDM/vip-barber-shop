@@ -534,9 +534,9 @@ export function BookingShell({
             <div
               role="img"
               aria-label="Logo WhatsApp"
-              className="mx-auto flex h-20 w-20 items-center justify-center rounded-full border border-[#25D366]/40 bg-[#25D366]/10 text-[#25D366] shadow-[0_10px_35px_rgba(37,211,102,0.18)] sm:h-24 sm:w-24"
+              className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-[#25D366]/40 bg-[#25D366]/10 text-[#25D366] shadow-[0_10px_35px_rgba(37,211,102,0.18)] sm:h-16 sm:w-16"
             >
-              <WhatsAppGoldIcon className="h-12 w-12 sm:h-14 sm:w-14" />
+              <WhatsAppGoldIcon className="h-8 w-8 sm:h-9 sm:w-9" />
             </div>
             <p className="mt-4 text-sand/80">
               Déjanos un mensaje a nuestro wp para confirmar tu reserva

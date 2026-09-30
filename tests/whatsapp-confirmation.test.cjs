@@ -71,6 +71,8 @@ test('actual confirmation JSX shows exact copy and hides home until Enviar', () 
   const html = renderCard(fixture.state);
   assert.match(html, /aria-label="Logo WhatsApp"/);
   assert.match(html, /data-testid="whatsapp-logo"/);
+  assert.match(html, /h-14 w-14/);
+  assert.match(html, /h-8 w-8/);
   assert.doesNotMatch(html, /vip-barbertop-logo\.jpeg|Logo VIP BarberTop/);
   assert.match(html, /D\u00e9janos un mensaje a nuestro wp para confirmar tu reserva/);
   assert.match(html, />Enviar<\/button>/);
