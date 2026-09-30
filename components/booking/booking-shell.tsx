@@ -73,10 +73,6 @@ function WhatsAppGoldIcon({ className = "h-4 w-4" }: { className?: string }) {
   );
 }
 
-function scrollToWhatsAppConfirmation(element: HTMLDivElement | null) {
-  element?.scrollIntoView({ behavior: "smooth", block: "center" });
-}
-
 export function BookingShell({
   isConfigured,
   barbers,
@@ -105,12 +101,10 @@ export function BookingShell({
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [confirmedWhatsAppUrl, setConfirmedWhatsAppUrl] = useState<string | null>(null);
-  const [whatsAppOpened, setWhatsAppOpened] = useState(false);
   const [whatsAppError, setWhatsAppError] = useState<string | null>(null);
   const isRefreshingRef = useRef(false);
   const shouldRefreshAgainRef = useRef(false);
   const refreshTimeoutRef = useRef<number | null>(null);
-  const whatsAppConfirmationRef = useRef<HTMLDivElement>(null);
   async function refreshData() {
     if (isRefreshingRef.current) {
       shouldRefreshAgainRef.current = true;
@@ -313,16 +307,6 @@ export function BookingShell({
     }
   }, [selectedBarber]);
 
-  useEffect(() => {
-    if (!confirmedWhatsAppUrl) return;
-
-    const frame = window.requestAnimationFrame(() => {
-      scrollToWhatsAppConfirmation(whatsAppConfirmationRef.current);
-    });
-
-    return () => window.cancelAnimationFrame(frame);
-  }, [confirmedWhatsAppUrl]);
-
   const slotMap = useMemo(() => {
     return new Map(
       liveReservations
@@ -450,7 +434,7 @@ export function BookingShell({
       whatsappWindow.opener = null;
       whatsappWindow.location.replace(confirmedWhatsAppUrl);
       setWhatsAppError(null);
-      setWhatsAppOpened(true);
+      setConfirmedWhatsAppUrl(null);
     } catch {
       setWhatsAppError("No fue posible abrir WhatsApp. Intenta nuevamente.");
     }
@@ -517,7 +501,6 @@ export function BookingShell({
       const whatsappBarberPole = String.fromCodePoint(0x1f488);
       const message = `Hola soy ${clienteNombre}, agendé una cita con ${selectedBarber.nombre}${serviceMessage}${additionalMessage} el día ${formatReservationDate(selectedDate)} a las ${formatHourDisplay(selectedHour)}.\n\nMuchas gracias ${whatsappBarberPole}`;
       setConfirmedWhatsAppUrl(`https://api.whatsapp.com/send?phone=${RESERVATION_WHATSAPP_NUMBER}&text=${encodeURIComponent(message)}`);
-      setWhatsAppOpened(false);
       setWhatsAppError(null);
       resetBookingFlow();
       await refreshData();
@@ -539,47 +522,39 @@ export function BookingShell({
     );
   }
 
-  return (
+  return confirmedWhatsAppUrl ? (
+    <section className="glass flex min-h-[calc(100dvh-15rem)] items-center justify-center rounded-[2rem] p-4 sm:p-6">
+      <div
+        role="status"
+        className="w-full max-w-xl rounded-[1.5rem] border border-accent/30 bg-white/[0.03] p-5 text-center sm:p-8"
+      >
+        <div
+          role="img"
+          aria-label="Logo WhatsApp"
+          className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-[#25D366]/40 bg-[#25D366]/10 text-[#25D366] shadow-[0_10px_35px_rgba(37,211,102,0.18)] sm:h-16 sm:w-16"
+        >
+          <WhatsAppGoldIcon className="h-8 w-8 sm:h-9 sm:w-9" />
+        </div>
+        <p className="mt-4 text-sand/80">
+          Déjanos un mensaje a nuestro wp para confirmar tu reserva
+        </p>
+        {whatsAppError ? (
+          <p role="alert" className="mt-4 text-sm text-sand">{whatsAppError}</p>
+        ) : null}
+        <button
+          type="button"
+          autoFocus
+          onClick={openReservationWhatsApp}
+          className="mt-6 w-full rounded-2xl bg-accent px-4 py-3 text-sm font-bold text-ink"
+        >
+          Enviar
+        </button>
+      </div>
+    </section>
+  ) : (
     <div className="grid gap-6">
       <section className="glass rounded-[2rem] p-4 sm:p-6">
-        {confirmedWhatsAppUrl ? (
-          <div
-            ref={whatsAppConfirmationRef}
-            role="status"
-            className="mx-auto max-w-xl rounded-[1.5rem] border border-accent/30 bg-white/[0.03] p-5 text-center sm:p-8"
-          >
-            <div
-              role="img"
-              aria-label="Logo WhatsApp"
-              className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-[#25D366]/40 bg-[#25D366]/10 text-[#25D366] shadow-[0_10px_35px_rgba(37,211,102,0.18)] sm:h-16 sm:w-16"
-            >
-              <WhatsAppGoldIcon className="h-8 w-8 sm:h-9 sm:w-9" />
-            </div>
-            <p className="mt-4 text-sand/80">
-              Déjanos un mensaje a nuestro wp para confirmar tu reserva
-            </p>
-            {whatsAppError ? (
-              <p role="alert" className="mt-4 text-sm text-sand">{whatsAppError}</p>
-            ) : null}
-            <button
-              type="button"
-              autoFocus
-              onClick={openReservationWhatsApp}
-              className="mt-6 w-full rounded-2xl bg-accent px-4 py-3 text-sm font-bold text-ink"
-            >
-              Enviar
-            </button>
-            {whatsAppOpened ? (
-              <button
-                type="button"
-                onClick={() => setConfirmedWhatsAppUrl(null)}
-                className="mt-3 w-full rounded-2xl border border-white/10 px-4 py-3 text-sm text-sand/80"
-              >
-                Volver al inicio
-              </button>
-            ) : null}
-          </div>
-        ) : !selectedBarber ? (
+        {!selectedBarber ? (
           <>
             <div className="grid gap-4 sm:grid-cols-2">
               {liveBarbers.map((barber) => (

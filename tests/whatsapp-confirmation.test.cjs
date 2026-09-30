@@ -1,8 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const vm = require('node:vm');
-const ts = require('typescript');
 const { confirmedFixture, clickSend, renderCard } = require('./helpers/whatsapp-confirmation.cjs');
 
 const bookingSource = fs.readFileSync('components/booking/booking-shell.tsx', 'utf8');
@@ -24,7 +22,6 @@ for (const [names, expected] of [
     assert.match(state.url, /Muchas%20gracias%20%F0%9F%92%88$/);
     assert.doesNotMatch(state.url, /%EF%BF%BD|%25F0%259F%2592%2588/);
     assert.equal(state.requests, 0);
-    assert.equal(state.opened, false);
   });
 }
 
@@ -40,21 +37,20 @@ test('accented names and separators round-trip without leaking extra fields', ()
   assert.doesNotMatch(message, /0000000000|PRIVATE-ID|987654/);
 });
 
-test('Enviar opens the same link repeatedly without any reservation request', () => {
+test('Enviar opens the link, closes the final view and makes no reservation request', () => {
   const fixture = confirmedFixture();
   const navigations = [];
-  for (let attempt = 0; attempt < 3; attempt++) {
-    const popup = { opener: {}, location: { replace: url => navigations.push(url) } };
-    clickSend(fixture, (url, target) => {
-      assert.equal(url, 'about:blank');
-      assert.equal(target, '_blank');
-      return popup;
-    });
-    assert.equal(popup.opener, null);
-  }
-  assert.deepEqual(navigations, Array(3).fill(fixture.state.url));
+  const confirmedUrl = fixture.state.url;
+  const popup = { opener: {}, location: { replace: url => navigations.push(url) } };
+  clickSend(fixture, (url, target) => {
+    assert.equal(url, 'about:blank');
+    assert.equal(target, '_blank');
+    return popup;
+  });
+  assert.equal(popup.opener, null);
+  assert.deepEqual(navigations, [confirmedUrl]);
   assert.equal(fixture.state.requests, 0);
-  assert.equal(fixture.state.opened, true);
+  assert.equal(fixture.state.url, null);
 });
 
 test('blocked popup preserves confirmation and allows retry without network', () => {
@@ -62,16 +58,15 @@ test('blocked popup preserves confirmation and allows retry without network', ()
   const original = fixture.state.url;
   clickSend(fixture, () => null);
   assert.equal(fixture.state.url, original);
-  assert.equal(fixture.state.opened, false);
   assert.equal(fixture.state.error, 'No fue posible abrir WhatsApp. Intenta nuevamente.');
   assert.match(renderCard(fixture.state), /role="alert"/);
   clickSend(fixture, () => ({ location: { replace() {} } }));
   assert.equal(fixture.state.error, null);
-  assert.equal(fixture.state.opened, true);
+  assert.equal(fixture.state.url, null);
   assert.equal(fixture.state.requests, 0);
 });
 
-test('actual confirmation JSX shows exact copy and hides home until Enviar', () => {
+test('actual confirmation JSX is an exclusive final view with only Enviar', () => {
   const fixture = confirmedFixture();
   const html = renderCard(fixture.state);
   assert.match(html, /aria-label="Logo WhatsApp"/);
@@ -83,44 +78,9 @@ test('actual confirmation JSX shows exact copy and hides home until Enviar', () 
   assert.match(html, />Enviar<\/button>/);
   assert.equal((html.match(/<button/g) ?? []).length, 1);
   assert.doesNotMatch(html, /Volver al inicio/);
-  assert.match(renderCard({ ...fixture.state, opened: true }), /Volver al inicio/);
-});
-
-test('successful confirmation scrolls the WhatsApp card into view once it is rendered', () => {
-  const ast = ts.createSourceFile(
-    'booking-shell.tsx',
-    bookingSource,
-    ts.ScriptTarget.Latest,
-    true,
-    ts.ScriptKind.TSX,
-  );
-  let scrollFunction;
-  ts.forEachChild(ast, function visit(node) {
-    if (ts.isFunctionDeclaration(node) && node.name?.text === 'scrollToWhatsAppConfirmation') {
-      scrollFunction = node.getText(ast);
-    }
-    ts.forEachChild(node, visit);
-  });
-  assert.ok(scrollFunction);
-
-  const calls = [];
-  const compiled = ts.transpileModule(
-    `${scrollFunction}\nscrollToWhatsAppConfirmation(target);`,
-    { compilerOptions: { target: ts.ScriptTarget.ES2020 } },
-  ).outputText;
-  vm.runInNewContext(compiled, {
-    target: { scrollIntoView: options => calls.push(options) },
-  });
-
-  assert.deepEqual(JSON.parse(JSON.stringify(calls)), [
-    { behavior: 'smooth', block: 'center' },
-  ]);
-  assert.match(bookingSource, /const whatsAppConfirmationRef = useRef<HTMLDivElement>\(null\)/);
-  assert.match(bookingSource, /ref=\{whatsAppConfirmationRef\}\s+role="status"/);
-  assert.match(
-    bookingSource,
-    /useEffect\(\(\) => \{\s+if \(!confirmedWhatsAppUrl\) return;[\s\S]*?requestAnimationFrame[\s\S]*?\}, \[confirmedWhatsAppUrl\]\);/,
-  );
+  assert.doesNotMatch(html, /REDES SOCIALES|Ubicación|Google Maps|AGENDA TU CITA/);
+  assert.match(bookingSource, /return confirmedWhatsAppUrl \? \(/);
+  assert.doesNotMatch(bookingSource, /scrollIntoView|requestAnimationFrame\(\(\) => \{\s+scrollToWhatsAppConfirmation/);
 });
 
 test('success banner keeps its behavior and only shows Reservado', () => {

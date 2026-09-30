@@ -35,7 +35,7 @@ const openCode = findFunction('openReservationWhatsApp').getText(ast);
 const card = nodes.find(node => ts.isConditionalExpression(node) && node.condition.getText(ast) === 'confirmedWhatsAppUrl');
 
 function confirmedFixture(additionalNames = [], overrides = {}) {
-  const state = { url: null, opened: false, error: null, requests: 0 };
+  const state = { url: null, error: null, requests: 0 };
   const denyNetwork = () => { state.requests++; throw new Error('Network forbidden in isolated test'); };
   const context = {
     ...dates,
@@ -47,7 +47,6 @@ function confirmedFixture(additionalNames = [], overrides = {}) {
     selectedDate: '2026-09-29', selectedHour: '14:40',
     ...overrides,
     setConfirmedWhatsAppUrl: url => { state.url = url; },
-    setWhatsAppOpened: opened => { state.opened = opened; },
     setWhatsAppError: error => { state.error = error; },
     fetch: denyNetwork,
     XMLHttpRequest: denyNetwork
@@ -69,8 +68,7 @@ function renderCard(state) {
   vm.runInNewContext(compile(`module.exports = ${card.whenTrue.getText(ast)};`), {
     module, exports: module.exports, require,
     WhatsAppGoldIcon: props => require('react').createElement('svg', { ...props, 'data-testid': 'whatsapp-logo' }),
-    whatsAppConfirmationRef: { current: null },
-    whatsAppOpened: state.opened, whatsAppError: state.error,
+    whatsAppError: state.error,
     openReservationWhatsApp() {}, setConfirmedWhatsAppUrl() {}
   });
   return require('react-dom/server').renderToStaticMarkup(module.exports);
