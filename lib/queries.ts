@@ -3,7 +3,6 @@ import { getCurrentWeek, getWeekByOffset, type WeekOffset } from "@/lib/date";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabasePublicClient } from "@/lib/supabase/public";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
-import { cleanupExpiredReservations } from "@/lib/reservation-cleanup";
 import type { AttentionConfiguration } from "@/lib/attention-configuration";
 import type { Barber, GlobalAdditionalService, GlobalService, ReservationSlot } from "@/types";
 
@@ -58,7 +57,6 @@ export async function getPublicBookingData(weekOffset: WeekOffset = 0) {
 
   const week = getWeekByOffset(weekOffset);
   const weekDates = week.map((item) => item.isoDate);
-  await cleanupExpiredReservations();
 
   const [barbersResult, reservationsResult, servicesResult, additionalServicesResult, attentionConfigurations] = await Promise.all([
     supabase
@@ -145,7 +143,6 @@ export async function getAdminDashboardData(
   const week = getWeekByOffset(weekOffset);
   const weekDates = week.map((item) => item.isoDate);
   const today = week.find((item) => item.isToday)?.isoDate ?? week[0].isoDate;
-  await cleanupExpiredReservations();
 
   const [barbersResult, reservationsResult, profilesResult, attentionConfigurations] =
     await Promise.all([
@@ -214,8 +211,6 @@ export async function getAdminDashboardShellData() {
     };
   }
 
-  await cleanupExpiredReservations();
-
   const [{ data: barbers }, attentionConfigurations] = await Promise.all([
     fetchAdminBarbers(supabase),
     fetchAttentionConfigurations()
@@ -262,7 +257,6 @@ export async function getBarberDashboardData(
   const week = getWeekByOffset(weekOffset);
   const weekDates = week.map((item) => item.isoDate);
   const today = week.find((item) => item.isToday)?.isoDate ?? week[0].isoDate;
-  await cleanupExpiredReservations();
 
   const [{ data: reservations }, { data: barber }, attentionConfigurations] = await Promise.all([
     supabase
@@ -296,8 +290,6 @@ export async function getBarberDashboardData(
 }
 
 export async function getTeamDashboardData() {
-  await cleanupExpiredReservations();
-
   const week = getCurrentWeek();
   const weekDates = week.map((item) => item.isoDate);
   const today = week.find((item) => item.isToday)?.isoDate ?? week[0].isoDate;

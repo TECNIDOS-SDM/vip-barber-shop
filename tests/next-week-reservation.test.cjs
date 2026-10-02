@@ -16,10 +16,9 @@ test('public reservations accept dates only when the real date belongs to either
   assert.doesNotMatch(reserveRoute, /weekOffset\s*:/);
 
   const validationIndex = reserveRoute.indexOf('getWeekOffsetForDate(values.fecha)');
-  const cleanupIndex = reserveRoute.indexOf('await cleanupExpiredReservations()');
   const rpcIndex = reserveRoute.indexOf('.rpc("crear_turnos_agenda_seguros"');
-  assert.ok(validationIndex >= 0 && validationIndex < cleanupIndex);
-  assert.ok(cleanupIndex < rpcIndex);
+  assert.ok(validationIndex >= 0 && validationIndex < rpcIndex);
+  assert.doesNotMatch(reserveRoute, /cleanupExpiredReservations|reservation-cleanup/);
 });
 
 test('next-week public flow uses the unchanged reservation payload and confirmation flow', () => {

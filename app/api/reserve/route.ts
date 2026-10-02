@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getWeekOffsetForDate } from "@/lib/date";
-import { cleanupExpiredReservations } from "@/lib/reservation-cleanup";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 
 const schema = z.object({
@@ -37,8 +36,6 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
-
-    await cleanupExpiredReservations();
 
     const supabase = getSupabaseAdminClient();
 
