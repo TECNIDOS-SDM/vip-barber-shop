@@ -8,6 +8,7 @@ import {
   type BarberDashboardViewState
 } from "@/lib/dashboard-view-state";
 import { getWeekOffsetForDate, type WeekOffset } from "@/lib/date";
+import { isWeekOffsetEnabled } from "@/lib/feature-flags";
 import { getBarberDashboardData } from "@/lib/queries";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -47,6 +48,7 @@ export default async function GestionEquipoPage() {
   if (initialViewState?.selectedDate) {
     try {
       initialWeekOffset = getWeekOffsetForDate(initialViewState.selectedDate) ?? 0;
+      if (!isWeekOffsetEnabled(initialWeekOffset)) initialWeekOffset = 0;
     } catch {
       initialWeekOffset = 0;
     }

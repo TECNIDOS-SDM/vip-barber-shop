@@ -26,6 +26,7 @@ import {
 } from "@/lib/dashboard-view-state";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { formatCop } from "@/lib/currency";
+import { NEXT_WEEK_ENABLED, isWeekOffsetEnabled } from "@/lib/feature-flags";
 
 type BarberDashboardProps = {
   barberEmail: string;
@@ -181,7 +182,11 @@ export function BarberDashboard({
   }
 
   async function switchVisibleWeek(nextOffset: WeekOffset, preferToday = false) {
-    if (nextOffset === activeWeekOffsetRef.current || isWeekLoading) return;
+    if (
+      !isWeekOffsetEnabled(nextOffset) ||
+      nextOffset === activeWeekOffsetRef.current ||
+      isWeekLoading
+    ) return;
 
     const previousOffset = activeWeekOffsetRef.current;
     const previousSelectedDate = selectedDateRef.current;
@@ -561,7 +566,7 @@ export function BarberDashboard({
           )}
           <button
             type="button"
-            disabled={isWeekLoading}
+            disabled={isWeekLoading || !NEXT_WEEK_ENABLED}
             aria-busy={isWeekLoading}
             onClick={() => void switchVisibleWeek(activeWeekOffset === 0 ? 1 : 0)}
             className="mt-6 min-h-12 w-full rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-sand/80 transition hover:border-accent/40 hover:text-accent disabled:cursor-wait disabled:opacity-60"

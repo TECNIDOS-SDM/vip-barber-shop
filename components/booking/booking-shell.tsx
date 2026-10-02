@@ -30,6 +30,7 @@ import {
 import { buildWhatsAppUrl } from "@/lib/whatsapp";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { formatCop } from "@/lib/currency";
+import { NEXT_WEEK_ENABLED, isWeekOffsetEnabled } from "@/lib/feature-flags";
 import type { Barber, GlobalAdditionalService, GlobalService, ReservationSlot } from "@/types";
 
 const BARBER_FALLBACK_IMAGE = "/vip-barbertop-logo.jpeg";
@@ -419,7 +420,11 @@ export function BookingShell({
   }
 
   async function switchVisibleWeek(nextOffset: WeekOffset) {
-    if (nextOffset === activeWeekOffsetRef.current || isWeekLoading) return;
+    if (
+      !isWeekOffsetEnabled(nextOffset) ||
+      nextOffset === activeWeekOffsetRef.current ||
+      isWeekLoading
+    ) return;
 
     const previousOffset = activeWeekOffsetRef.current;
     const previousSelectedDate = selectedDateRef.current;
@@ -973,7 +978,7 @@ export function BookingShell({
               {currentStep >= dateStep && currentStep <= detailsStep ? (
                 <button
                   type="button"
-                  disabled={isWeekLoading}
+                  disabled={isWeekLoading || !NEXT_WEEK_ENABLED}
                   aria-busy={isWeekLoading}
                   onClick={() => void switchVisibleWeek(activeWeekOffset === 0 ? 1 : 0)}
                   className="mt-6 min-h-12 w-full rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-sand/80 transition hover:border-accent/40 hover:text-accent disabled:cursor-wait disabled:opacity-60"

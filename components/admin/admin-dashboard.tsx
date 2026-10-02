@@ -29,6 +29,7 @@ import { Logo } from "@/components/shared/logo";
 import { cn } from "@/lib/utils";
 import { buildWhatsAppUrl } from "@/lib/whatsapp";
 import { formatCop } from "@/lib/currency";
+import { NEXT_WEEK_ENABLED, isWeekOffsetEnabled } from "@/lib/feature-flags";
 import { GlobalServices } from "@/components/admin/global-services";
 
 const AdminLaborSchedules = dynamic(
@@ -836,7 +837,11 @@ export function AdminDashboard({
   }
 
   async function switchVisibleWeek(nextOffset: WeekOffset) {
-    if (nextOffset === activeWeekOffsetRef.current || isWeekLoading) return;
+    if (
+      !isWeekOffsetEnabled(nextOffset) ||
+      nextOffset === activeWeekOffsetRef.current ||
+      isWeekLoading
+    ) return;
 
     const previousOffset = activeWeekOffsetRef.current;
     const previousScheduleDate = scheduleDateRef.current;
@@ -1806,7 +1811,7 @@ export function AdminDashboard({
                       )}
                       <button
                         type="button"
-                        disabled={isWeekLoading}
+                        disabled={isWeekLoading || !NEXT_WEEK_ENABLED}
                         aria-busy={isWeekLoading}
                         onClick={() => void switchVisibleWeek(activeWeekOffset === 0 ? 1 : 0)}
                         className="min-h-12 w-full rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-sand/80 transition hover:border-accent/40 hover:text-accent disabled:cursor-wait disabled:opacity-60"

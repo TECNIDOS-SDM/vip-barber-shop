@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getCurrentUserRole } from "@/lib/auth";
 import { DAY_FULL_BLOCK_MARKER } from "@/lib/attention-configuration";
 import { getWeekOffsetForDate } from "@/lib/date";
+import { isWeekOffsetEnabled } from "@/lib/feature-flags";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -43,7 +44,8 @@ const DATE_OUT_OF_RANGE_MESSAGE =
 
 function isManagedAgendaDate(fecha: string) {
   try {
-    return getWeekOffsetForDate(fecha) !== null;
+    const weekOffset = getWeekOffsetForDate(fecha);
+    return weekOffset !== null && isWeekOffsetEnabled(weekOffset);
   } catch {
     return false;
   }

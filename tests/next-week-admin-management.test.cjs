@@ -8,8 +8,9 @@ const admin = read('components/admin/admin-dashboard.tsx');
 const barber = read('components/barber/barber-dashboard.tsx');
 const queries = read('lib/queries.ts');
 
-test('admin schedule writes validate real dates for current and next week on the server', () => {
-  assert.match(route, /getWeekOffsetForDate\(fecha\) !== null/);
+test('admin schedule writes validate real dates and the temporary week gate on the server', () => {
+  assert.match(route, /const weekOffset = getWeekOffsetForDate\(fecha\)/);
+  assert.match(route, /weekOffset !== null && isWeekOffsetEnabled\(weekOffset\)/);
   assert.match(route, /"fecha" in payload && !isManagedAgendaDate\(payload\.fecha\)/);
   assert.match(route, /La fecha seleccionada no está disponible para esta acción\./);
   assert.match(route, /error instanceof z\.ZodError[\s\S]*issue\.path\[0\] === "fecha"/);
@@ -28,9 +29,10 @@ test('release and status changes read persisted dates before any mutation', () =
   assert.ok(statusBranch.indexOf('!isManagedAgendaDate(reservation.fecha)') < statusBranch.indexOf('.update({ estado: payload.estado })'));
 });
 
-test('admin reuses every existing agenda action in either visible week', () => {
+test('admin keeps every agenda action while next-week navigation is temporarily disabled', () => {
   assert.doesNotMatch(admin, /preventFutureWeekWrite|solo para consulta en esta fase/);
-  assert.doesNotMatch(admin, /disabled=\{activeWeekOffset === 1\}/);
+  assert.match(admin, /disabled=\{isWeekLoading \|\| !NEXT_WEEK_ENABLED\}/);
+  assert.match(admin, /!isWeekOffsetEnabled\(nextOffset\)/);
   assert.match(admin, /action: "create"/);
   assert.match(admin, /action: "release"/);
   assert.match(admin, /action: "unblock"/);

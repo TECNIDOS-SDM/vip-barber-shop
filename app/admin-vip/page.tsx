@@ -8,6 +8,7 @@ import {
   type AdminDashboardViewState
 } from "@/lib/dashboard-view-state";
 import { getWeekOffsetForDate, type WeekOffset } from "@/lib/date";
+import { isWeekOffsetEnabled } from "@/lib/feature-flags";
 import { getAdminDashboardData } from "@/lib/queries";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -43,6 +44,7 @@ export default async function AdminVipPage() {
   if (initialViewState?.scheduleDate) {
     try {
       initialWeekOffset = getWeekOffsetForDate(initialViewState.scheduleDate) ?? 0;
+      if (!isWeekOffsetEnabled(initialWeekOffset)) initialWeekOffset = 0;
     } catch {
       initialWeekOffset = 0;
     }

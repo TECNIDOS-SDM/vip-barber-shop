@@ -8,8 +8,9 @@ const booking = read('components/booking/booking-shell.tsx');
 const admin = read('components/admin/admin-dashboard.tsx');
 const barber = read('components/barber/barber-dashboard.tsx');
 
-test('public reservations accept dates only when the real date belongs to either visible week', () => {
-  assert.match(reserveRoute, /getWeekOffsetForDate\(values\.fecha\) === null/);
+test('public reservations temporarily accept only enabled dates while preserving real offset validation', () => {
+  assert.match(reserveRoute, /const weekOffset = getWeekOffsetForDate\(values\.fecha\)/);
+  assert.match(reserveRoute, /weekOffset === null \|\| !isWeekOffsetEnabled\(weekOffset\)/);
   assert.match(reserveRoute, /La fecha seleccionada no está disponible para reserva\./);
   assert.match(reserveRoute, /status: 400/);
   assert.match(reserveRoute, /error instanceof z\.ZodError[\s\S]*issue\.path\[0\] === "fecha"/);
@@ -21,9 +22,9 @@ test('public reservations accept dates only when the real date belongs to either
   assert.doesNotMatch(reserveRoute, /cleanupExpiredReservations|reservation-cleanup/);
 });
 
-test('next-week public flow uses the unchanged reservation payload and confirmation flow', () => {
-  assert.doesNotMatch(booking, /activeWeekOffset !== 0[\s\S]{0,200}return;/);
-  assert.doesNotMatch(booking, /disabled=\{loading \|\| activeWeekOffset === 1\}/);
+test('next-week reservation implementation remains intact behind the temporary gate', () => {
+  assert.match(booking, /disabled=\{isWeekLoading \|\| !NEXT_WEEK_ENABLED\}/);
+  assert.match(booking, /!isWeekOffsetEnabled\(nextOffset\)/);
   assert.match(booking, /fetch\("\/api\/reserve"/);
   assert.match(booking, /fecha: selectedDate/);
   assert.match(booking, /servicio_id: selectedService\?\.id \?\? null/);

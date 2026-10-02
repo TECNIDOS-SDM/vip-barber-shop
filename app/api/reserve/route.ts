@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getWeekOffsetForDate } from "@/lib/date";
+import { isWeekOffsetEnabled } from "@/lib/feature-flags";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 
 const schema = z.object({
@@ -24,7 +25,8 @@ export async function POST(request: Request) {
     const values = schema.parse(body);
 
     try {
-      if (getWeekOffsetForDate(values.fecha) === null) {
+      const weekOffset = getWeekOffsetForDate(values.fecha);
+      if (weekOffset === null || !isWeekOffsetEnabled(weekOffset)) {
         return NextResponse.json(
           { error: DATE_OUT_OF_RANGE_MESSAGE },
           { status: 400 }
