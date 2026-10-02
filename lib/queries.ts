@@ -32,15 +32,6 @@ async function fetchAttentionConfigurations(barberIds?: string[]) {
 }
 
 async function fetchAdminBarbers(supabase: any) {
-  const withPassword = await supabase
-    .from("barberos")
-    .select("id, nombre, foto, whatsapp, telefono, auth_email, access_password, activo, created_at")
-    .order("created_at", { ascending: true });
-
-  if (!withPassword.error) {
-    return withPassword;
-  }
-
   return supabase
     .from("barberos")
     .select("id, nombre, foto, whatsapp, telefono, auth_email, activo, created_at")
@@ -154,7 +145,7 @@ export async function getAdminDashboardData(existingSupabase?: SupabaseClient) {
       supabase
         .from("reservas")
         .select(
-          "id, barbero_id, cliente_nombre, cliente_whatsapp, fecha, hora, estado, created_at, servicio_id, servicio_nombre_snapshot, servicio_precio_snapshot, precio_total_snapshot, reserva_servicios_adicionales(nombre_snapshot,precio_snapshot), barberos(nombre)"
+          "id, barbero_id, cliente_nombre, cliente_whatsapp, fecha, hora, estado, bloqueo_dia_completo, created_at, servicio_id, servicio_nombre_snapshot, servicio_precio_snapshot, precio_total_snapshot, reserva_servicios_adicionales(nombre_snapshot,precio_snapshot), barberos(nombre)"
         )
         .in("fecha", weekDates)
         .order("fecha")
@@ -194,7 +185,8 @@ export async function getAdminDashboardData(existingSupabase?: SupabaseClient) {
 }
 
 export async function getAdminDashboardShellData() {
-  const supabase = await getSupabaseServerClient("admin");
+  const sessionSupabase = await getSupabaseServerClient("admin");
+  const supabase = getSupabaseAdminClient() ?? sessionSupabase;
 
   if (!supabase) {
     return {
@@ -262,7 +254,7 @@ export async function getBarberDashboardData(barberoId: string) {
   const [{ data: reservations }, { data: barber }, attentionConfigurations] = await Promise.all([
     supabase
       .from("reservas")
-      .select("id, cliente_nombre, cliente_whatsapp, fecha, hora, estado, servicio_id, servicio_nombre_snapshot, servicio_precio_snapshot, precio_total_snapshot, reserva_servicios_adicionales(nombre_snapshot,precio_snapshot)")
+      .select("id, cliente_nombre, cliente_whatsapp, fecha, hora, estado, bloqueo_dia_completo, servicio_id, servicio_nombre_snapshot, servicio_precio_snapshot, precio_total_snapshot, reserva_servicios_adicionales(nombre_snapshot,precio_snapshot)")
       .eq("barbero_id", barberoId)
       .in("fecha", weekDates)
       .neq("estado", "cancelada")

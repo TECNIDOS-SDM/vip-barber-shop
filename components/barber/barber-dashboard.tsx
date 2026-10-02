@@ -37,6 +37,7 @@ type BarberDashboardProps = {
       hora: string;
       estado: string;
       cliente_whatsapp?: string | null;
+      bloqueo_dia_completo?: boolean | null;
       servicio_id?: string | null;
       servicio_nombre_snapshot?: string | null;
       servicio_precio_snapshot?: number | null;
@@ -58,6 +59,14 @@ type BarberDashboardProps = {
 
 function normalizeHourKey(hour?: string | null) {
   return (hour ?? "").slice(0, 5);
+}
+
+function isDayFullBlock(reservation?: {
+  bloqueo_dia_completo?: boolean | null;
+  cliente_whatsapp?: string | null;
+} | null) {
+  return reservation?.bloqueo_dia_completo === true ||
+    reservation?.cliente_whatsapp === DAY_FULL_BLOCK_MARKER;
 }
 
 function getCurrentIsoDateForDashboard(
@@ -210,7 +219,12 @@ export function BarberDashboard({
       .channel("barber-dashboard-realtime")
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "barberos" },
+        {
+          event: "*",
+          schema: "public",
+          table: "barberos",
+          select: ["id", "nombre", "foto", "activo"]
+        } as any,
         queueRefresh
       );
 
@@ -278,7 +292,7 @@ export function BarberDashboard({
   const reservationMap = useMemo(() => {
     return new Map(
       selectedDayReservations.filter(
-        reservation => reservation.cliente_whatsapp !== DAY_FULL_BLOCK_MARKER
+        reservation => !isDayFullBlock(reservation)
       ).map((reservation) => [
         normalizeHourKey(reservation.hora),
         reservation
@@ -288,7 +302,7 @@ export function BarberDashboard({
   const dayFullBlock = useMemo(
     () => selectedDayReservations.find(
       reservation => reservation.estado === "bloqueado" &&
-        reservation.cliente_whatsapp === DAY_FULL_BLOCK_MARKER
+        isDayFullBlock(reservation)
     ),
     [selectedDayReservations]
   );

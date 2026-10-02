@@ -13,7 +13,6 @@ export type Barber = {
   whatsapp: string | null;
   telefono: string | null;
   auth_email?: string | null;
-  access_password?: string | null;
   activo: boolean;
 };
 

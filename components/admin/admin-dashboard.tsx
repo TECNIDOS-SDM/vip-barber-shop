@@ -13,7 +13,6 @@ import {
   splitAttentionSlots,
   type AttentionConfiguration
 } from "@/lib/attention-configuration";
-import { adminIdentifierToEmail } from "@/lib/admin-auth";
 import {
   ADMIN_DASHBOARD_VIEW_COOKIE,
   type AdminDashboardViewState
@@ -124,6 +123,14 @@ const emptyScheduleForm = {
 
 function normalizeHourKey(hour?: string | null) {
   return (hour ?? "").slice(0, 5);
+}
+
+function isDayFullBlock(reservation?: {
+  bloqueo_dia_completo?: boolean | null;
+  cliente_whatsapp?: string | null;
+} | null) {
+  return reservation?.bloqueo_dia_completo === true ||
+    reservation?.cliente_whatsapp === DAY_FULL_BLOCK_MARKER;
 }
 
 function getCurrentIsoDateForDashboard(
@@ -316,7 +323,12 @@ export function AdminDashboard({
       .channel("admin-dashboard-realtime")
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "barberos" },
+        {
+          event: "*",
+          schema: "public",
+          table: "barberos",
+          select: ["id", "nombre", "foto", "activo"]
+        } as any,
         queueRefresh
       )
       .on(
@@ -446,46 +458,7 @@ export function AdminDashboard({
           throw new Error(payload.error ?? "No fue posible guardar el barbero.");
         }
       } catch (apiError) {
-        const supabase = getSupabaseBrowserClient("admin");
-        const normalizedBarberForm = {
-          nombre: barberForm.nombre.trim(),
-          foto: barberForm.foto.trim() || null,
-          whatsapp: barberForm.whatsapp.trim() || null,
-          auth_email: barberForm.auth_email.trim()
-            ? adminIdentifierToEmail(barberForm.auth_email)
-            : null,
-          access_password: barberForm.access_password.trim() || "12345678"
-        };
-
-        const { data, error } = editingId
-          ? await supabase
-              .from("barberos")
-              .update(normalizedBarberForm)
-              .eq("id", editingId)
-              .select("id, nombre, foto, whatsapp, telefono, auth_email, access_password, activo")
-              .single()
-          : await supabase.from("barberos").insert({
-              ...normalizedBarberForm,
-              activo: true
-            })
-              .select("id, nombre, foto, whatsapp, telefono, auth_email, access_password, activo")
-              .single();
-
-        if (error) {
-          throw error;
-        }
-
-        payload = {
-          barber: data,
-          accessReady: false,
-          message:
-            apiError instanceof Error &&
-            apiError.message.includes("SUPABASE_SERVICE_ROLE_KEY")
-              ? "Barbero creado. Falta SUPABASE_SERVICE_ROLE_KEY para crear automaticamente su acceso al panel Barberos."
-              : editingId
-                ? "Barbero actualizado correctamente."
-                : "Barbero creado correctamente."
-        };
+        throw apiError;
       }
 
       toast.success(
@@ -779,7 +752,7 @@ export function AdminDashboard({
       foto: barber.foto ?? "",
       whatsapp: barber.whatsapp ?? "",
       auth_email: barber.auth_email ?? "",
-      access_password: barber.access_password ?? "12345678",
+      access_password: "",
       activo: barber.activo ?? true
     });
     setShowProfileEditModal(true);
@@ -945,14 +918,14 @@ export function AdminDashboard({
   const dayFullBlockReservation = useMemo(
     () => selectedScheduleReservations.find(
       reservation => reservation.estado === "bloqueado" &&
-        reservation.cliente_whatsapp === DAY_FULL_BLOCK_MARKER
+        isDayFullBlock(reservation)
     ),
     [selectedScheduleReservations]
   );
   const operationalScheduleSlotMap = useMemo(() => {
     return new Map(
       selectedScheduleReservations
-        .filter(reservation => reservation.cliente_whatsapp !== DAY_FULL_BLOCK_MARKER)
+        .filter(reservation => !isDayFullBlock(reservation))
         .map((reservation) => [normalizeHourKey(reservation.hora), reservation])
     );
   }, [selectedScheduleReservations]);
@@ -1350,9 +1323,6 @@ export function AdminDashboard({
                           <p className="text-sm text-sand/50">
                             Usuario: {barber.auth_email || "Sin acceso configurado"}
                           </p>
-                          <p className="text-sm text-sand/50">
-                            Clave: {barber.access_password || "Sin clave guardada"}
-                          </p>
                         </div>
                       </div>
                     </button>
@@ -1452,9 +1422,6 @@ export function AdminDashboard({
                         </h4>
                         <p className="mt-2 text-sm text-sand/65">
                           Usuario: {activeBarber.auth_email || "Sin configurar"}
-                        </p>
-                        <p className="mt-1 text-sm text-sand/65">
-                          Clave: {activeBarber.access_password || "Sin clave guardada"}
                         </p>
                         {activeBarber.whatsapp ? (
                           <a
@@ -1562,8 +1529,7 @@ export function AdminDashboard({
                                 const blockedHours = currentScheduleSlots.filter(
                                   (hour) =>
                                     scheduleSlotMap.get(hour)?.estado === "bloqueado" &&
-                                    scheduleSlotMap.get(hour)?.cliente_whatsapp ===
-                                      DAY_FULL_BLOCK_MARKER
+                                    isDayFullBlock(scheduleSlotMap.get(hour))
                                 );
 
                                 if (blockedHours.length === 0) {

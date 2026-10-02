@@ -255,7 +255,12 @@ export function BookingShell({
       )
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "barberos" },
+        {
+          event: "*",
+          schema: "public",
+          table: "barberos",
+          select: ["id", "nombre", "foto", "activo"]
+        } as any,
         queueRefresh
       )
       .subscribe();

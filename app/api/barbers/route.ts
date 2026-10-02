@@ -55,27 +55,38 @@ function getReadableErrorMessage(error: unknown, fallback: string) {
 }
 
 async function requireAdmin() {
-  const supabase = await getSupabaseServerClient("admin");
+  const sessionSupabase = await getSupabaseServerClient("admin");
 
-  if (!supabase) {
+  if (!sessionSupabase) {
     return { error: NextResponse.json({ error: "Supabase no configurado." }, { status: 500 }) };
   }
 
   const {
     data: { user }
-  } = await supabase.auth.getUser();
+  } = await sessionSupabase.auth.getUser();
 
   if (!user) {
     return { error: NextResponse.json({ error: "No autorizado." }, { status: 401 }) };
   }
 
-  const { role } = await getCurrentUserRole(supabase, user);
+  const { role } = await getCurrentUserRole(sessionSupabase, user);
 
   if (role !== "administrador") {
     return { error: NextResponse.json({ error: "No autorizado." }, { status: 403 }) };
   }
 
-  return { supabase };
+  const adminSupabase = getSupabaseAdminClient();
+
+  if (!adminSupabase) {
+    return {
+      error: NextResponse.json(
+        { error: "Falta la configuración segura del servidor." },
+        { status: 500 }
+      )
+    };
+  }
+
+  return { adminSupabase: adminSupabase as any };
 }
 
 async function syncBarberAccess(
@@ -266,24 +277,14 @@ export async function POST(request: Request) {
       whatsapp: payload.whatsapp?.trim() || null,
       telefono: payload.telefono?.trim() || null,
       auth_email: authEmail,
-      access_password: payload.access_password?.trim() || "12345678",
       activo: payload.activo ?? true
     };
 
-    let insertResult = await adminCheck.supabase
+    const insertResult = await adminCheck.adminSupabase
       .from("barberos")
       .insert(insertPayload)
-      .select("id, nombre, foto, whatsapp, telefono, auth_email, access_password, activo")
+      .select("id, nombre, foto, whatsapp, telefono, auth_email, activo")
       .single();
-
-    if (insertResult.error && getReadableErrorMessage(insertResult.error, "").includes("access_password")) {
-      const { access_password: _accessPassword, ...fallbackPayload } = insertPayload;
-      insertResult = await adminCheck.supabase
-        .from("barberos")
-        .insert(fallbackPayload)
-        .select("id, nombre, foto, whatsapp, telefono, auth_email, activo")
-        .single();
-    }
 
     if (insertResult.error) {
       throw insertResult.error;
@@ -348,26 +349,15 @@ export async function PATCH(request: Request) {
       whatsapp: payload.whatsapp?.trim() || null,
       telefono: payload.telefono?.trim() || null,
       auth_email: authEmail,
-      access_password: payload.access_password?.trim() || "12345678",
       activo: payload.activo ?? true
     };
 
-    let updateResult = await adminCheck.supabase
+    const updateResult = await adminCheck.adminSupabase
       .from("barberos")
       .update(updatePayload)
       .eq("id", payload.id)
-      .select("id, nombre, foto, whatsapp, telefono, auth_email, access_password, activo")
+      .select("id, nombre, foto, whatsapp, telefono, auth_email, activo")
       .single();
-
-    if (updateResult.error && getReadableErrorMessage(updateResult.error, "").includes("access_password")) {
-      const { access_password: _accessPassword, ...fallbackPayload } = updatePayload;
-      updateResult = await adminCheck.supabase
-        .from("barberos")
-        .update(fallbackPayload)
-        .eq("id", payload.id)
-        .select("id, nombre, foto, whatsapp, telefono, auth_email, activo")
-        .single();
-    }
 
     if (updateResult.error) {
       throw updateResult.error;
@@ -415,7 +405,7 @@ export async function DELETE(request: Request) {
       );
     }
 
-    const { data: barber, error: barberError } = await adminCheck.supabase
+    const { data: barber, error: barberError } = await adminCheck.adminSupabase
       .from("barberos")
       .select("id, nombre, auth_email")
       .eq("id", payload.id)
@@ -432,7 +422,7 @@ export async function DELETE(request: Request) {
       );
     }
 
-    const adminSupabase = getSupabaseAdminClient();
+    const adminSupabase = adminCheck.adminSupabase;
     let deletedAccessUserId: string | null = null;
 
     if (adminSupabase && barber.auth_email) {
@@ -462,7 +452,7 @@ export async function DELETE(request: Request) {
         .eq("barbero_id", barber.id);
     }
 
-    const { error: deleteError } = await adminCheck.supabase
+    const { error: deleteError } = await adminSupabase
       .from("barberos")
       .delete()
       .eq("id", payload.id);

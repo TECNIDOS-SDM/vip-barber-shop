@@ -142,7 +142,7 @@ export async function POST(request: Request) {
         .update({ estado: payload.estado })
         .in("id", payload.reservation_ids)
         .select(
-          "id, barbero_id, cliente_nombre, cliente_whatsapp, fecha, hora, estado, created_at, servicio_id, servicio_nombre_snapshot, servicio_precio_snapshot, precio_total_snapshot, reserva_servicios_adicionales(nombre_snapshot,precio_snapshot), barberos(nombre)"
+          "id, barbero_id, cliente_nombre, cliente_whatsapp, fecha, hora, estado, bloqueo_dia_completo, created_at, servicio_id, servicio_nombre_snapshot, servicio_precio_snapshot, precio_total_snapshot, reserva_servicios_adicionales(nombre_snapshot,precio_snapshot), barberos(nombre)"
         );
 
       if (error) {
@@ -159,27 +159,40 @@ export async function POST(request: Request) {
       const { data: blockedReservations, error: blockedReservationsError } =
         await adminSupabase
           .from("reservas")
-          .select("id")
+          .select("id, bloqueo_dia_completo, cliente_whatsapp")
           .eq("barbero_id", payload.barbero_id)
           .eq("fecha", payload.fecha)
-          .eq("estado", "bloqueado")
-          .eq("cliente_whatsapp", DAY_FULL_BLOCK_MARKER);
+          .eq("estado", "bloqueado");
 
       if (blockedReservationsError) {
         throw blockedReservationsError;
       }
 
-      const releasedIds = ((blockedReservations ?? []) as Array<{ id: string }>).map(
-        (reservation) => reservation.id
-      );
+      const releasedIds = ((blockedReservations ?? []) as Array<{
+        id: string;
+        bloqueo_dia_completo?: boolean | null;
+        cliente_whatsapp?: string | null;
+      }>).filter(
+        (reservation) => reservation.bloqueo_dia_completo === true ||
+          reservation.cliente_whatsapp === DAY_FULL_BLOCK_MARKER
+      ).map((reservation) => reservation.id);
+
+      if (releasedIds.length === 0) {
+        return NextResponse.json({
+          success: true,
+          releasedCount: 0,
+          releasedIds: []
+        });
+      }
 
       const { count, error } = await adminSupabase
         .from("reservas")
         .delete({ count: "exact" })
+        .in("id", releasedIds)
         .eq("barbero_id", payload.barbero_id)
         .eq("fecha", payload.fecha)
         .eq("estado", "bloqueado")
-        .eq("cliente_whatsapp", DAY_FULL_BLOCK_MARKER);
+        .or(`bloqueo_dia_completo.eq.true,cliente_whatsapp.eq.${DAY_FULL_BLOCK_MARKER}`);
 
       if (error) {
         throw error;
@@ -210,7 +223,9 @@ export async function POST(request: Request) {
         p_estado: payload.estado,
         p_cliente_nombre: clienteNombre,
         p_cliente_whatsapp: clienteWhatsapp,
-        p_requerir_activo: false
+        p_requerir_activo: false,
+        p_bloqueo_dia_completo: payload.estado === "bloqueado" &&
+          payload.bloqueo_origen === "dia_completo"
       }
     );
 
@@ -230,7 +245,7 @@ export async function POST(request: Request) {
     const insertedIds = ((insertedReservations ?? []) as Array<{ id: string }>).map(item => item.id);
     const { data: createdReservations, error: createdReservationsError } = insertedIds.length
       ? await adminSupabase.from("reservas").select(
-        "id, barbero_id, cliente_nombre, cliente_whatsapp, fecha, hora, estado, created_at, servicio_id, servicio_nombre_snapshot, servicio_precio_snapshot, precio_total_snapshot, reserva_servicios_adicionales(nombre_snapshot,precio_snapshot), barberos(nombre)"
+        "id, barbero_id, cliente_nombre, cliente_whatsapp, fecha, hora, estado, bloqueo_dia_completo, created_at, servicio_id, servicio_nombre_snapshot, servicio_precio_snapshot, precio_total_snapshot, reserva_servicios_adicionales(nombre_snapshot,precio_snapshot), barberos(nombre)"
       ).in("id", insertedIds)
       : { data: [], error: null };
 
