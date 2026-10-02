@@ -62,7 +62,7 @@ export async function getPublicBookingData() {
   const [barbersResult, reservationsResult, servicesResult, additionalServicesResult, attentionConfigurations] = await Promise.all([
     supabase
       .from("barberos")
-      .select("id, nombre, foto, whatsapp, telefono, activo, created_at")
+      .select("id, nombre, foto, activo")
       .eq("activo", true)
       .order("created_at", { ascending: true }),
     supabase
@@ -82,7 +82,9 @@ export async function getPublicBookingData() {
     fetchAttentionConfigurations()
   ]);
 
-  const publicBarbers = (barbersResult.data ?? []) as Barber[];
+  const publicBarbers = (barbersResult.data ?? []).map(
+    ({ id, nombre, foto, activo }) => ({ id, nombre, foto, activo })
+  ) as unknown as Barber[];
   const publicBarberIds = new Set(publicBarbers.map(barber => barber.id));
 
   return {
