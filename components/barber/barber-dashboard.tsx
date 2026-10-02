@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CalendarClock, ChevronRight, Clock3, Scissors } from "lucide-react";
+import { toast } from "sonner";
 import {
   DAY_FULL_BLOCK_MARKER,
   extendAttentionSlots,
@@ -10,7 +11,11 @@ import {
   splitAttentionSlots,
   type AttentionConfiguration
 } from "@/lib/attention-configuration";
-import { formatHourDisplay } from "@/lib/date";
+import {
+  formatHourDisplay,
+  getWeekOffsetForDate,
+  type WeekOffset
+} from "@/lib/date";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/shared/logo";
 import { SignOutButton } from "@/components/shared/sign-out-button";
@@ -52,6 +57,7 @@ type BarberDashboardProps = {
       isoDate: string;
       isToday: boolean;
     }[];
+    weekOffset: WeekOffset;
     todayTotal: number;
   };
   initialViewState?: BarberDashboardViewState | null;
@@ -92,6 +98,8 @@ export function BarberDashboard({
   initialViewState
 }: BarberDashboardProps) {
   const [dashboardData, setDashboardData] = useState(initialData);
+  const [activeWeekOffset, setActiveWeekOffset] = useState<WeekOffset>(initialData.weekOffset);
+  const [isWeekLoading, setIsWeekLoading] = useState(false);
   const defaultDate = getCurrentIsoDateForDashboard(dashboardData.currentWeek);
   const initialSelectedDate =
     initialViewState?.selectedDate &&
@@ -107,8 +115,9 @@ export function BarberDashboard({
         : "days"
   );
   const [isLaborViewOpen, setIsLaborViewOpen] = useState(false);
-  const isRefreshingRef = useRef(false);
-  const shouldRefreshAgainRef = useRef(false);
+  const activeWeekOffsetRef = useRef<WeekOffset>(initialData.weekOffset);
+  const selectedDateRef = useRef(initialSelectedDate);
+  const requestSequenceRef = useRef(0);
   const refreshTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -117,55 +126,103 @@ export function BarberDashboard({
     }
 
     sessionStorage.removeItem("vipBarberOpenTodayScheduleOnce");
-    setSelectedDate(getCurrentIsoDateForDashboard(dashboardData.currentWeek));
-    setPanelView("hours");
-  }, [dashboardData.currentWeek]);
-
-  async function refreshData() {
-    if (isRefreshingRef.current) {
-      shouldRefreshAgainRef.current = true;
+    if (activeWeekOffsetRef.current === 0) {
+      setSelectedDate(getCurrentIsoDateForDashboard(dashboardData.currentWeek));
+      setPanelView("hours");
       return;
     }
 
-    isRefreshingRef.current = true;
+    void switchVisibleWeek(0, true);
+  }, [dashboardData.currentWeek]);
+
+  function getRefreshWeekOffset() {
+    if (selectedDateRef.current) {
+      try {
+        return getWeekOffsetForDate(selectedDateRef.current) ?? 0;
+      } catch {
+        return 0;
+      }
+    }
+
+    return activeWeekOffsetRef.current;
+  }
+
+  async function refreshData(requestedOffset = getRefreshWeekOffset()) {
+    const requestId = ++requestSequenceRef.current;
+    const response = await fetch(`/api/barber-dashboard?weekOffset=${requestedOffset}`, {
+      cache: "no-store"
+    });
+    const payload = await response.json();
+
+    if (!response.ok) {
+      throw new Error(payload.error ?? "No fue posible actualizar la agenda.");
+    }
+
+    if (requestId !== requestSequenceRef.current) return null;
+
+    setDashboardData(payload);
+    activeWeekOffsetRef.current = payload.weekOffset ?? requestedOffset;
+    setActiveWeekOffset(activeWeekOffsetRef.current);
+    setSelectedDate((current) => {
+      if (payload.currentWeek?.some((day: { isoDate: string }) => day.isoDate === current)) {
+        return current;
+      }
+
+      const nextDate =
+        payload.currentWeek?.find((day: { isToday: boolean; isoDate: string }) => day.isToday)
+          ?.isoDate ??
+        payload.currentWeek?.[0]?.isoDate ??
+        "";
+      selectedDateRef.current = nextDate;
+      return nextDate;
+    });
+    setPanelView((current) => (current === "hours" ? "hours" : payload.currentWeek?.length ? "days" : current));
+    return payload;
+  }
+
+  async function switchVisibleWeek(nextOffset: WeekOffset, preferToday = false) {
+    if (nextOffset === activeWeekOffsetRef.current || isWeekLoading) return;
+
+    const previousOffset = activeWeekOffsetRef.current;
+    const previousSelectedDate = selectedDateRef.current;
+    const selectedDayIndex = Math.max(
+      0,
+      dashboardData.currentWeek.findIndex(day => day.isoDate === selectedDateRef.current)
+    );
+    activeWeekOffsetRef.current = nextOffset;
+    selectedDateRef.current = "";
+    setIsWeekLoading(true);
 
     try {
-      const response = await fetch("/api/barber-dashboard", {
-        cache: "no-store"
-      });
-      const payload = await response.json();
+      const payload = await refreshData(nextOffset);
+      if (!payload) return;
 
-      if (!response.ok) {
-        throw new Error(payload.error ?? "No fue posible actualizar la agenda.");
-      }
-
-      setDashboardData(payload);
-      setSelectedDate((current) => {
-        if (payload.currentWeek?.some((day: { isoDate: string }) => day.isoDate === current)) {
-          return current;
-        }
-
-        return (
-          payload.currentWeek?.find((day: { isToday: boolean; isoDate: string }) => day.isToday)
-            ?.isoDate ??
-          payload.currentWeek?.[0]?.isoDate ??
-          ""
-        );
-      });
-      setPanelView((current) => (current === "hours" ? "hours" : payload.currentWeek?.length ? "days" : current));
+      const nextDate = preferToday
+        ? getCurrentIsoDateForDashboard(payload.currentWeek ?? [])
+        : payload.currentWeek?.[selectedDayIndex]?.isoDate ??
+          payload.currentWeek?.[0]?.isoDate ?? "";
+      selectedDateRef.current = nextDate;
+      setSelectedDate(nextDate);
+    } catch (error) {
+      activeWeekOffsetRef.current = previousOffset;
+      selectedDateRef.current = previousSelectedDate;
+      toast.error(
+        error instanceof Error ? error.message : "No fue posible cambiar de semana."
+      );
     } finally {
-      isRefreshingRef.current = false;
-
-      if (shouldRefreshAgainRef.current) {
-        shouldRefreshAgainRef.current = false;
-        void refreshData();
-      }
+      setIsWeekLoading(false);
     }
   }
 
   useEffect(() => {
     setDashboardData(initialData);
+    activeWeekOffsetRef.current = initialData.weekOffset;
+    setActiveWeekOffset(initialData.weekOffset);
   }, [initialData]);
+
+  useEffect(() => {
+    selectedDateRef.current = selectedDate;
+  }, [selectedDate]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -495,8 +552,22 @@ export function BarberDashboard({
                   </div>
                 ))}
               </div>
+              {activeWeekOffset === 1 ? (
+                <p className="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-sand/70">
+                  La próxima semana está disponible solo para consulta en esta fase.
+                </p>
+              ) : null}
             </>
           )}
+          <button
+            type="button"
+            disabled={isWeekLoading}
+            aria-busy={isWeekLoading}
+            onClick={() => void switchVisibleWeek(activeWeekOffset === 0 ? 1 : 0)}
+            className="mt-6 min-h-12 w-full rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-sand/80 transition hover:border-accent/40 hover:text-accent disabled:cursor-wait disabled:opacity-60"
+          >
+            {activeWeekOffset === 0 ? "Próxima semana" : "Semana actual"}
+          </button>
         </div>
       </section>
     </main>

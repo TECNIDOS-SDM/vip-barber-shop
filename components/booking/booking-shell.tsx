@@ -14,7 +14,12 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { formatHourDisplay, formatReservationDate } from "@/lib/date";
+import {
+  formatHourDisplay,
+  formatReservationDate,
+  getWeekOffsetForDate,
+  type WeekOffset
+} from "@/lib/date";
 import {
   extendAttentionSlots,
   getAttentionConfiguration,
@@ -44,6 +49,7 @@ type BookingShellProps = {
     isoDate: string;
     isToday: boolean;
   }[];
+  weekOffset: WeekOffset;
 };
 
 function TikTokIcon() {
@@ -80,7 +86,8 @@ export function BookingShell({
   services,
   additionalServices,
   attentionConfigurations,
-  week
+  week,
+  weekOffset
 }: BookingShellProps) {
   const todayIso = new Date().toLocaleDateString("en-CA", {
     timeZone: "America/Bogota"
@@ -91,6 +98,8 @@ export function BookingShell({
   const [liveAdditionalServices, setLiveAdditionalServices] = useState(additionalServices);
   const [liveAttentionConfigurations, setLiveAttentionConfigurations] = useState(attentionConfigurations);
   const [liveWeek, setLiveWeek] = useState(week);
+  const [activeWeekOffset, setActiveWeekOffset] = useState<WeekOffset>(weekOffset);
+  const [isWeekLoading, setIsWeekLoading] = useState(false);
   const [selectedBarber, setSelectedBarber] = useState<Barber | null>(null);
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedHour, setSelectedHour] = useState("");
@@ -102,41 +111,44 @@ export function BookingShell({
   const [loading, setLoading] = useState(false);
   const [confirmedWhatsAppUrl, setConfirmedWhatsAppUrl] = useState<string | null>(null);
   const [whatsAppError, setWhatsAppError] = useState<string | null>(null);
-  const isRefreshingRef = useRef(false);
-  const shouldRefreshAgainRef = useRef(false);
+  const activeWeekOffsetRef = useRef<WeekOffset>(weekOffset);
+  const selectedDateRef = useRef("");
+  const requestSequenceRef = useRef(0);
   const refreshTimeoutRef = useRef<number | null>(null);
-  async function refreshData() {
-    if (isRefreshingRef.current) {
-      shouldRefreshAgainRef.current = true;
-      return;
-    }
-
-    isRefreshingRef.current = true;
-
-    try {
-      const response = await fetch("/api/public-booking", {
-        cache: "no-store"
-      });
-      const payload = await response.json();
-
-      if (!response.ok) {
-        throw new Error(payload.error ?? "No fue posible actualizar la agenda.");
-      }
-
-      setLiveBarbers(payload.barbers ?? []);
-      setLiveReservations(payload.reservations ?? []);
-      setLiveServices(payload.services ?? []);
-      setLiveAdditionalServices(payload.additionalServices ?? []);
-      setLiveAttentionConfigurations(payload.attentionConfigurations ?? []);
-      setLiveWeek(payload.week ?? []);
-    } finally {
-      isRefreshingRef.current = false;
-
-      if (shouldRefreshAgainRef.current) {
-        shouldRefreshAgainRef.current = false;
-        void refreshData();
+  function getRefreshWeekOffset() {
+    if (selectedDateRef.current) {
+      try {
+        return getWeekOffsetForDate(selectedDateRef.current) ?? 0;
+      } catch {
+        return 0;
       }
     }
+
+    return activeWeekOffsetRef.current;
+  }
+
+  async function refreshData(requestedOffset = getRefreshWeekOffset()) {
+    const requestId = ++requestSequenceRef.current;
+    const response = await fetch(`/api/public-booking?weekOffset=${requestedOffset}`, {
+      cache: "no-store"
+    });
+    const payload = await response.json();
+
+    if (!response.ok) {
+      throw new Error(payload.error ?? "No fue posible actualizar la agenda.");
+    }
+
+    if (requestId !== requestSequenceRef.current) return false;
+
+    setLiveBarbers(payload.barbers ?? []);
+    setLiveReservations(payload.reservations ?? []);
+    setLiveServices(payload.services ?? []);
+    setLiveAdditionalServices(payload.additionalServices ?? []);
+    setLiveAttentionConfigurations(payload.attentionConfigurations ?? []);
+    setLiveWeek(payload.week ?? []);
+    activeWeekOffsetRef.current = payload.weekOffset ?? requestedOffset;
+    setActiveWeekOffset(activeWeekOffsetRef.current);
+    return true;
   }
 
   useEffect(() => {
@@ -146,7 +158,13 @@ export function BookingShell({
     setLiveAdditionalServices(additionalServices);
     setLiveAttentionConfigurations(attentionConfigurations);
     setLiveWeek(week);
-  }, [additionalServices, attentionConfigurations, barbers, reservations, services, week]);
+    activeWeekOffsetRef.current = weekOffset;
+    setActiveWeekOffset(weekOffset);
+  }, [additionalServices, attentionConfigurations, barbers, reservations, services, week, weekOffset]);
+
+  useEffect(() => {
+    selectedDateRef.current = selectedDate;
+  }, [selectedDate]);
 
   const activeServices = useMemo(
     () => liveServices.filter((service) => service.activo),
@@ -165,6 +183,15 @@ export function BookingShell({
   const hourStep = dateStep + 1;
   const detailsStep = hourStep + 1;
   const totalSteps = detailsStep;
+
+  useEffect(() => {
+    if (!selectedDate || liveWeek.some(day => day.isoDate === selectedDate)) return;
+
+    selectedDateRef.current = "";
+    setSelectedDate("");
+    setSelectedHour("");
+    setCurrentStep(current => current >= dateStep ? dateStep : current);
+  }, [dateStep, liveWeek, selectedDate]);
   const selectedAdditionalTotal = useMemo(
     () => selectedAdditionalServices.reduce((total, service) => total + service.precio, 0),
     [selectedAdditionalServices]
@@ -389,6 +416,34 @@ export function BookingShell({
     setClienteNombre("");
     setClienteWhatsapp("");
     setCurrentStep(1);
+  }
+
+  async function switchVisibleWeek(nextOffset: WeekOffset) {
+    if (nextOffset === activeWeekOffsetRef.current || isWeekLoading) return;
+
+    const previousOffset = activeWeekOffsetRef.current;
+    const previousSelectedDate = selectedDateRef.current;
+    activeWeekOffsetRef.current = nextOffset;
+    selectedDateRef.current = "";
+    setIsWeekLoading(true);
+
+    try {
+      const applied = await refreshData(nextOffset);
+      if (!applied) return;
+
+      selectedDateRef.current = "";
+      setSelectedDate("");
+      setSelectedHour("");
+      setCurrentStep(dateStep);
+    } catch (error) {
+      activeWeekOffsetRef.current = previousOffset;
+      selectedDateRef.current = previousSelectedDate;
+      toast.error(
+        error instanceof Error ? error.message : "No fue posible cambiar de semana."
+      );
+    } finally {
+      setIsWeekLoading(false);
+    }
   }
 
   function selectBarber(barber: Barber) {
@@ -914,6 +969,17 @@ export function BookingShell({
                     {loading ? "CONFIRMANDO..." : "CONFIRMAR RESERVA"}
                   </button>
                 </>
+              ) : null}
+              {currentStep >= dateStep && currentStep <= detailsStep ? (
+                <button
+                  type="button"
+                  disabled={isWeekLoading}
+                  aria-busy={isWeekLoading}
+                  onClick={() => void switchVisibleWeek(activeWeekOffset === 0 ? 1 : 0)}
+                  className="mt-6 min-h-12 w-full rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-sand/80 transition hover:border-accent/40 hover:text-accent disabled:cursor-wait disabled:opacity-60"
+                >
+                  {activeWeekOffset === 0 ? "Próxima semana" : "Semana actual"}
+                </button>
               ) : null}
             </div>
           </>

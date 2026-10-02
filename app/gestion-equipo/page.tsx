@@ -7,6 +7,7 @@ import {
   parseDashboardViewState,
   type BarberDashboardViewState
 } from "@/lib/dashboard-view-state";
+import { getWeekOffsetForDate, type WeekOffset } from "@/lib/date";
 import { getBarberDashboardData } from "@/lib/queries";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -37,11 +38,21 @@ export default async function GestionEquipoPage() {
     );
   }
 
-  const data = await getBarberDashboardData(profile.barbero_id);
   const cookieStore = await cookies();
   const initialViewState = parseDashboardViewState<BarberDashboardViewState>(
     cookieStore.get(BARBER_DASHBOARD_VIEW_COOKIE)?.value
   );
+  let initialWeekOffset: WeekOffset = 0;
+
+  if (initialViewState?.selectedDate) {
+    try {
+      initialWeekOffset = getWeekOffsetForDate(initialViewState.selectedDate) ?? 0;
+    } catch {
+      initialWeekOffset = 0;
+    }
+  }
+
+  const data = await getBarberDashboardData(profile.barbero_id, initialWeekOffset);
 
   return (
     <BarberDashboard

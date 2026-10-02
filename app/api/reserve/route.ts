@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { getWeekOffsetForDate } from "@/lib/date";
 import { cleanupExpiredReservations } from "@/lib/reservation-cleanup";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 
@@ -15,11 +16,28 @@ const schema = z.object({
 
 const SLOT_TAKEN_MESSAGE =
   "Este horario ya no está disponible. Por favor selecciona otro.";
+const DATE_OUT_OF_RANGE_MESSAGE =
+  "La fecha seleccionada no está disponible para reserva.";
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
     const values = schema.parse(body);
+
+    try {
+      if (getWeekOffsetForDate(values.fecha) === null) {
+        return NextResponse.json(
+          { error: DATE_OUT_OF_RANGE_MESSAGE },
+          { status: 400 }
+        );
+      }
+    } catch {
+      return NextResponse.json(
+        { error: DATE_OUT_OF_RANGE_MESSAGE },
+        { status: 400 }
+      );
+    }
+
     await cleanupExpiredReservations();
 
     const supabase = getSupabaseAdminClient();
@@ -57,10 +75,24 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
+    if (
+      error instanceof z.ZodError &&
+      error.issues.some((issue) => issue.path[0] === "fecha")
+    ) {
+      return NextResponse.json(
+        { error: DATE_OUT_OF_RANGE_MESSAGE },
+        { status: 400 }
+      );
+    }
+
     return NextResponse.json(
       {
         error:
-          error instanceof Error ? error.message : "Solicitud inválida."
+          error instanceof z.ZodError
+            ? "Solicitud inválida."
+            : error instanceof Error
+              ? error.message
+              : "Solicitud inválida."
       },
       { status: 400 }
     );

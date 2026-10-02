@@ -17,7 +17,12 @@ import {
   ADMIN_DASHBOARD_VIEW_COOKIE,
   type AdminDashboardViewState
 } from "@/lib/dashboard-view-state";
-import { formatHourDisplay } from "@/lib/date";
+import {
+  formatHourDisplay,
+  getCurrentWeek,
+  getWeekOffsetForDate,
+  type WeekOffset
+} from "@/lib/date";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { SignOutButton } from "@/components/shared/sign-out-button";
 import { Logo } from "@/components/shared/logo";
@@ -49,6 +54,7 @@ type DashboardProps = {
       isoDate: string;
       isToday: boolean;
     }[];
+    weekOffset: WeekOffset;
     weeklyStats: {
       totalReservations: number;
       activeBarbers: number;
@@ -168,6 +174,8 @@ export function AdminDashboard({
   initialViewState
 }: DashboardProps) {
   const [dashboardWeek, setDashboardWeek] = useState(initialData.currentWeek);
+  const [activeWeekOffset, setActiveWeekOffset] = useState<WeekOffset>(initialData.weekOffset);
+  const [isWeekLoading, setIsWeekLoading] = useState(false);
   const currentDayIsoDate = useMemo(
     () => getCurrentIsoDateForDashboard(dashboardWeek),
     [dashboardWeek]
@@ -232,53 +240,56 @@ export function AdminDashboard({
   const [showAgendaObservationModal, setShowAgendaObservationModal] = useState(false);
   const [agendaObservationJustification, setAgendaObservationJustification] = useState("");
   const [savingAgendaObservation, setSavingAgendaObservation] = useState(false);
-  const isRefreshingRef = useRef(false);
-  const shouldRefreshAgainRef = useRef(false);
+  const activeWeekOffsetRef = useRef<WeekOffset>(initialData.weekOffset);
+  const scheduleDateRef = useRef(scheduleForm.fecha);
+  const requestSequenceRef = useRef(0);
   const refreshTimeoutRef = useRef<number | null>(null);
 
-  async function refreshData() {
-    if (isRefreshingRef.current) {
-      shouldRefreshAgainRef.current = true;
-      return;
-    }
-
-    isRefreshingRef.current = true;
-    try {
-      const response = await fetch("/api/admin-dashboard", {
-        cache: "no-store"
-      });
-      const payload = await response.json();
-
-      if (!response.ok) {
-        throw new Error(payload.error ?? "No fue posible actualizar el panel.");
-      }
-
-      setBarbers(payload.barbers ?? []);
-      setReservations(payload.reservations ?? []);
-      setAttentionConfigurations(payload.attentionConfigurations ?? []);
-      setProfiles(payload.profiles ?? []);
-      const nextWeekStart = payload.currentWeek?.[0]?.isoDate ?? "";
-      if (nextWeekStart && nextWeekStart !== dashboardWeek[0]?.isoDate) {
-        setLaborSummaries({});
-      }
-
-      setDashboardWeek(payload.currentWeek ?? []);
-      setActiveBarberId((current) => {
-        if (current && (payload.barbers ?? []).some((barber: any) => barber.id === current)) {
-          return current;
-        }
-
-        return payload.barbers?.[0]?.id ?? null;
-      });
-    } finally {
-      isRefreshingRef.current = false;
-
-      if (shouldRefreshAgainRef.current) {
-        shouldRefreshAgainRef.current = false;
-        void refreshData();
+  function getRefreshWeekOffset() {
+    if (scheduleDateRef.current) {
+      try {
+        return getWeekOffsetForDate(scheduleDateRef.current) ?? 0;
+      } catch {
+        return 0;
       }
     }
+
+    return activeWeekOffsetRef.current;
   }
+
+  async function refreshData(requestedOffset = getRefreshWeekOffset()) {
+    const requestId = ++requestSequenceRef.current;
+    const response = await fetch(`/api/admin-dashboard?weekOffset=${requestedOffset}`, {
+      cache: "no-store"
+    });
+    const payload = await response.json();
+
+    if (!response.ok) {
+      throw new Error(payload.error ?? "No fue posible actualizar el panel.");
+    }
+
+    if (requestId !== requestSequenceRef.current) return null;
+
+    setBarbers(payload.barbers ?? []);
+    setReservations(payload.reservations ?? []);
+    setAttentionConfigurations(payload.attentionConfigurations ?? []);
+    setProfiles(payload.profiles ?? []);
+    setDashboardWeek(payload.currentWeek ?? []);
+    activeWeekOffsetRef.current = payload.weekOffset ?? requestedOffset;
+    setActiveWeekOffset(activeWeekOffsetRef.current);
+    setActiveBarberId((current) => {
+      if (current && (payload.barbers ?? []).some((barber: any) => barber.id === current)) {
+        return current;
+      }
+
+      return payload.barbers?.[0]?.id ?? null;
+    });
+    return payload;
+  }
+
+  useEffect(() => {
+    scheduleDateRef.current = scheduleForm.fecha;
+  }, [scheduleForm.fecha]);
 
   useEffect(() => {
     let lastSeenDate = new Date().toLocaleDateString("en-CA", {
@@ -824,6 +835,45 @@ export function AdminDashboard({
     }
   }
 
+  async function switchVisibleWeek(nextOffset: WeekOffset) {
+    if (nextOffset === activeWeekOffsetRef.current || isWeekLoading) return;
+
+    const previousOffset = activeWeekOffsetRef.current;
+    const previousScheduleDate = scheduleDateRef.current;
+    const selectedDayIndex = Math.max(
+      0,
+      dashboardWeek.findIndex(day => day.isoDate === scheduleDateRef.current)
+    );
+    activeWeekOffsetRef.current = nextOffset;
+    scheduleDateRef.current = "";
+    closeScheduleActionModal();
+    closeReleaseActionModal();
+    setShowAgendaObservationModal(false);
+    setIsWeekLoading(true);
+
+    try {
+      const payload = await refreshData(nextOffset);
+      if (!payload) return;
+
+      const nextDate = payload.currentWeek?.[selectedDayIndex]?.isoDate ??
+        payload.currentWeek?.[0]?.isoDate ?? "";
+      scheduleDateRef.current = nextDate;
+      updateScheduleForBarber(
+        activeBarberId ?? "",
+        { fecha: nextDate, cliente_nombre: "", cliente_whatsapp: "" },
+        true
+      );
+    } catch (error) {
+      activeWeekOffsetRef.current = previousOffset;
+      scheduleDateRef.current = previousScheduleDate;
+      toast.error(
+        error instanceof Error ? error.message : "No fue posible cambiar de semana."
+      );
+    } finally {
+      setIsWeekLoading(false);
+    }
+  }
+
   async function saveScheduleAction() {
     const hoursToSave =
       scheduleMode === "bloqueado" && fullDayBlock
@@ -984,7 +1034,7 @@ export function AdminDashboard({
     }
   }, []);
 
-  const currentLaborWeekStart = dashboardWeek[0]?.isoDate ?? "";
+  const currentLaborWeekStart = getCurrentWeek()[0]?.isoDate ?? "";
 
   useEffect(() => {
     if (
@@ -1645,7 +1695,7 @@ export function AdminDashboard({
                                         toggleHour(hour);
                                       }}
                                       className={cn(
-                                        "w-full rounded-2xl px-4 py-3 text-sm font-semibold transition",
+                                        "w-full rounded-2xl px-4 py-3 text-sm font-semibold transition disabled:cursor-default",
                                         selectedReleaseReservations.some(
                                           (item) => item.id === reservation?.id
                                         )
@@ -1703,6 +1753,7 @@ export function AdminDashboard({
                               </div>
                             ))}
                           </div>
+                          {activeWeekOffset === 0 ? (
                           <div className="mt-4">
                             {(activeBarberLaborSummary?.observationsCount ?? 0) < 5 ? (
                               <button
@@ -1718,6 +1769,7 @@ export function AdminDashboard({
                               </p>
                             )}
                           </div>
+                          ) : null}
                         </div>
                       ) : (
                         <div>
@@ -1752,6 +1804,15 @@ export function AdminDashboard({
                           </div>
                         </div>
                       )}
+                      <button
+                        type="button"
+                        disabled={isWeekLoading}
+                        aria-busy={isWeekLoading}
+                        onClick={() => void switchVisibleWeek(activeWeekOffset === 0 ? 1 : 0)}
+                        className="min-h-12 w-full rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-sand/80 transition hover:border-accent/40 hover:text-accent disabled:cursor-wait disabled:opacity-60"
+                      >
+                        {activeWeekOffset === 0 ? "Próxima semana" : "Semana actual"}
+                      </button>
                     </div>
                   </div>
                 ) : null}

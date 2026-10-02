@@ -28,10 +28,19 @@ test('target identity uses UID and rollback restores legacy semantics', () => {
 
 test('application uses server-side admin CRUD and exposes no stored password DTO', () => {
   const route = fs.readFileSync('app/api/barbers/route.ts', 'utf8');
+  const scheduleRoute = fs.readFileSync('app/api/admin-schedule/route.ts', 'utf8');
+  const adminAccess = fs.readFileSync('lib/admin-labor-access.ts', 'utf8');
   const dashboard = fs.readFileSync('components/admin/admin-dashboard.tsx', 'utf8');
   const queries = fs.readFileSync('lib/queries.ts', 'utf8');
   assert.match(route, /adminCheck\.adminSupabase[\s\S]*?\.from\("barberos"\)/);
+  assert.match(scheduleRoute, /adminSupabase[\s\S]*?\.from\("reservas"\)/);
+  assert.match(adminAccess, /return \{ supabase: adminSupabase as any, userId: user\.id \}/);
+  assert.match(
+    queries,
+    /getAdminDashboardData[\s\S]*?getSupabaseAdminClient\(\) \?\? sessionSupabase/
+  );
   assert.doesNotMatch(dashboard, /\.from\("barberos"\)[\s\S]*?\.(?:insert|update|delete)\(/);
+  assert.doesNotMatch(dashboard, /\.from\("reservas"\)[\s\S]*?\.(?:insert|update|delete)\(/);
   assert.doesNotMatch(queries, /select\([^\n]*access_password/);
   assert.doesNotMatch(route, /select\([^\n]*access_password/);
 });

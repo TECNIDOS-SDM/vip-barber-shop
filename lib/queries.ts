@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { getCurrentWeek } from "@/lib/date";
+import { getCurrentWeek, getWeekByOffset, type WeekOffset } from "@/lib/date";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabasePublicClient } from "@/lib/supabase/public";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -38,7 +38,7 @@ async function fetchAdminBarbers(supabase: any) {
     .order("created_at", { ascending: true });
 }
 
-export async function getPublicBookingData() {
+export async function getPublicBookingData(weekOffset: WeekOffset = 0) {
   // Public data is assembled on the server so anonymous clients never need
   // direct access to barber account fields protected by RLS.
   const supabase = getSupabaseAdminClient();
@@ -51,11 +51,12 @@ export async function getPublicBookingData() {
       services: [] as GlobalService[],
       additionalServices: [] as GlobalAdditionalService[],
       attentionConfigurations: [] as AttentionConfiguration[],
-      week: getCurrentWeek()
+      week: getWeekByOffset(weekOffset),
+      weekOffset
     };
   }
 
-  const week = getCurrentWeek();
+  const week = getWeekByOffset(weekOffset);
   const weekDates = week.map((item) => item.isoDate);
   await cleanupExpiredReservations();
 
@@ -108,11 +109,15 @@ export async function getPublicBookingData() {
     attentionConfigurations: attentionConfigurations.filter(configuration =>
       publicBarberIds.has(configuration.barbero_id)
     ),
-    week
+    week,
+    weekOffset
   };
 }
 
-export async function getAdminDashboardData(existingSupabase?: SupabaseClient) {
+export async function getAdminDashboardData(
+  existingSupabase?: SupabaseClient,
+  weekOffset: WeekOffset = 0
+) {
   const sessionSupabase = existingSupabase ?? (await getSupabaseServerClient("admin"));
   // The page and API validate the administrator session before reaching this
   // function. Read the agenda with the internal server client so an RLS read
@@ -126,7 +131,8 @@ export async function getAdminDashboardData(existingSupabase?: SupabaseClient) {
       todayReservations: [] as any[],
       attentionConfigurations: [] as AttentionConfiguration[],
       profiles: [] as any[],
-      currentWeek: getCurrentWeek(),
+      currentWeek: getWeekByOffset(weekOffset),
+      weekOffset,
       weeklyStats: {
         totalReservations: 0,
         activeBarbers: 0,
@@ -136,7 +142,7 @@ export async function getAdminDashboardData(existingSupabase?: SupabaseClient) {
     };
   }
 
-  const week = getCurrentWeek();
+  const week = getWeekByOffset(weekOffset);
   const weekDates = week.map((item) => item.isoDate);
   const today = week.find((item) => item.isToday)?.isoDate ?? week[0].isoDate;
   await cleanupExpiredReservations();
@@ -171,6 +177,7 @@ export async function getAdminDashboardData(existingSupabase?: SupabaseClient) {
     attentionConfigurations,
     profiles: profilesResult.error ? [] : profilesResult.data ?? [],
     currentWeek: week,
+    weekOffset,
     weeklyStats: {
       totalReservations: reservations.length,
       activeBarbers:
@@ -232,7 +239,10 @@ export async function getAdminDashboardShellData() {
   };
 }
 
-export async function getBarberDashboardData(barberoId: string) {
+export async function getBarberDashboardData(
+  barberoId: string,
+  weekOffset: WeekOffset = 0
+) {
   const sessionSupabase = await getSupabaseServerClient("barber");
   // The page and API verify that the signed-in barber owns barberoId first.
   // This query stays scoped to that barber while avoiding a silent RLS read.
@@ -243,12 +253,13 @@ export async function getBarberDashboardData(barberoId: string) {
       barber: null,
       reservations: [] as any[],
       attentionConfigurations: [] as AttentionConfiguration[],
-      currentWeek: getCurrentWeek(),
+      currentWeek: getWeekByOffset(weekOffset),
+      weekOffset,
       todayTotal: 0
     };
   }
 
-  const week = getCurrentWeek();
+  const week = getWeekByOffset(weekOffset);
   const weekDates = week.map((item) => item.isoDate);
   const today = week.find((item) => item.isToday)?.isoDate ?? week[0].isoDate;
   await cleanupExpiredReservations();
@@ -277,6 +288,7 @@ export async function getBarberDashboardData(barberoId: string) {
     reservations: filteredReservations,
     attentionConfigurations,
     currentWeek: week,
+    weekOffset,
     todayTotal:
       filteredReservations.filter((reservation: any) => reservation.fecha === today)
         .length ?? 0

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getCurrentUserRole } from "@/lib/auth";
 import { DAY_FULL_BLOCK_MARKER } from "@/lib/attention-configuration";
+import { getWeekOffsetForDate } from "@/lib/date";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -37,6 +38,23 @@ const updateStatusSchema = z.object({
 const schema = z.union([createSchema, unblockSchema, releaseSchema, updateStatusSchema]);
 const SLOT_TAKEN_MESSAGE =
   "Este horario ya no está disponible. Por favor selecciona otro.";
+const DATE_OUT_OF_RANGE_MESSAGE =
+  "La fecha seleccionada no está disponible para esta acción.";
+
+function isManagedAgendaDate(fecha: string) {
+  try {
+    return getWeekOffsetForDate(fecha) !== null;
+  } catch {
+    return false;
+  }
+}
+
+function dateOutOfRangeResponse() {
+  return NextResponse.json(
+    { error: DATE_OUT_OF_RANGE_MESSAGE },
+    { status: 400 }
+  );
+}
 
 async function getAdminRoleFallback(
   adminSupabase: NonNullable<ReturnType<typeof getSupabaseAdminClient>>,
@@ -108,15 +126,27 @@ export async function POST(request: Request) {
   try {
     const payload = schema.parse(await request.json());
 
+    if ("fecha" in payload && !isManagedAgendaDate(payload.fecha)) {
+      return dateOutOfRangeResponse();
+    }
+
     if (payload.action === "release") {
       const { data: existingReservations, error: existingReservationsError } =
         await adminSupabase
           .from("reservas")
-          .select("id")
+          .select("id, fecha")
           .in("id", payload.reservation_ids);
 
       if (existingReservationsError) {
         throw existingReservationsError;
+      }
+
+      if (
+        ((existingReservations ?? []) as Array<{ fecha: string }>).some(
+          (reservation) => !isManagedAgendaDate(reservation.fecha)
+        )
+      ) {
+        return dateOutOfRangeResponse();
       }
 
       const { error } = await adminSupabase
@@ -137,6 +167,24 @@ export async function POST(request: Request) {
     }
 
     if (payload.action === "update_status") {
+      const { data: existingReservations, error: existingReservationsError } =
+        await adminSupabase
+          .from("reservas")
+          .select("id, fecha")
+          .in("id", payload.reservation_ids);
+
+      if (existingReservationsError) {
+        throw existingReservationsError;
+      }
+
+      if (
+        ((existingReservations ?? []) as Array<{ fecha: string }>).some(
+          (reservation) => !isManagedAgendaDate(reservation.fecha)
+        )
+      ) {
+        return dateOutOfRangeResponse();
+      }
+
       const { data: updatedReservations, error } = await (adminSupabase
         .from("reservas") as any)
         .update({ estado: payload.estado })
@@ -256,12 +304,21 @@ export async function POST(request: Request) {
       createdReservations: createdReservations ?? []
     });
   } catch (error) {
+    if (
+      error instanceof z.ZodError &&
+      error.issues.some((issue) => issue.path[0] === "fecha")
+    ) {
+      return dateOutOfRangeResponse();
+    }
+
     return NextResponse.json(
       {
         error:
-          error instanceof Error
-            ? error.message
-            : "No fue posible guardar la accion de agenda."
+          error instanceof z.ZodError
+            ? "Solicitud inválida."
+            : error instanceof Error
+              ? error.message
+              : "No fue posible guardar la accion de agenda."
       },
       { status: 400 }
     );

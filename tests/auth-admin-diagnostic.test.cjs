@@ -29,6 +29,7 @@ function fixture(user, { strict = false, profileError = false } = {}) {
     ],
     administradores: [],
     configuracion_atencion_barberos: [],
+    reservas: [],
     barberos: [
       { id: barberA, nombre: 'SYNTHETIC A', activo: true, auth_email: 'a@example.invalid' },
       { id: barberB, nombre: 'SYNTHETIC B', activo: true, auth_email: 'b@example.invalid' }
@@ -229,13 +230,14 @@ test('admin dashboard GET authorizes before loading data; barber/generic/anon ar
     const r = load('app/api/admin-dashboard/route.ts', {
       'next/server': { NextResponse: { json: (body, init) => Response.json(body, init) } },
       '@/lib/auth': auth,
+      '@/lib/date': { parseWeekOffset: () => 0 },
       '@/lib/supabase/server': { getSupabaseServerClient: async () => f.client },
       '@/lib/queries': { getAdminDashboardData: async client => {
         assert.equal(client, f.client); loaded++;
         return { barbers: [{ id: barberA, nombre: 'SYNTHETIC A' }] };
       } }
     });
-    assert.equal((await r.GET()).status, status);
+    assert.equal((await r.GET(new Request('http://localhost/api/admin-dashboard'))).status, status);
     assert.equal(loaded, status === 200 ? 1 : 0);
   }
 });
@@ -254,5 +256,33 @@ test('admin shell listing uses the internal server client under restricted sessi
     const result = await queries.getAdminDashboardShellData();
     assert.equal(result.barbers.length, 2);
     assert.equal(service.calls.some(c => c.operation !== 'select'), false);
+  }
+});
+
+test('admin dashboard refresh uses the internal server client under restricted session grants', async () => {
+  for (const strict of [false, true]) {
+    const session = fixture({ id: admin }, { strict });
+    const service = fixture({ id: admin });
+    const queries = load('lib/queries.ts', {
+      '@/lib/date': {
+        getCurrentWeek: () => [{ isoDate: '2099-01-01', isToday: true }],
+        getWeekByOffset: () => [{ isoDate: '2099-01-01', isToday: true }]
+      },
+      '@/lib/supabase/server': { getSupabaseServerClient: async () => session.client },
+      '@/lib/supabase/public': {
+        getSupabasePublicClient: () => { throw Error('Unexpected public client'); }
+      },
+      '@/lib/supabase/admin': { getSupabaseAdminClient: () => service.client },
+      '@/lib/reservation-cleanup': { cleanupExpiredReservations: async () => {} }
+    });
+
+    const result = await queries.getAdminDashboardData(session.client);
+
+    assert.equal(result.barbers.length, 2);
+    assert.equal(result.reservations.length, 0);
+    assert.equal(session.calls.length, 0);
+    assert.ok(service.calls.some(call => call.table === 'barberos'));
+    assert.ok(service.calls.some(call => call.table === 'reservas'));
+    assert.equal(service.calls.some(call => call.operation !== 'select'), false);
   }
 });
