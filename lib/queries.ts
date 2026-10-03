@@ -4,6 +4,10 @@ import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabasePublicClient } from "@/lib/supabase/public";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { AttentionConfiguration } from "@/lib/attention-configuration";
+import {
+  mergeDatedAndRecurringAgenda,
+  type RecurringAgendaRule
+} from "@/lib/recurring-agenda";
 import type { Barber, GlobalAdditionalService, GlobalService, ReservationSlot } from "@/types";
 
 const attentionConfigurationColumns =
@@ -58,7 +62,14 @@ export async function getPublicBookingData(weekOffset: WeekOffset = 0) {
   const week = getWeekByOffset(weekOffset);
   const weekDates = week.map((item) => item.isoDate);
 
-  const [barbersResult, reservationsResult, servicesResult, additionalServicesResult, attentionConfigurations] = await Promise.all([
+  const [
+    barbersResult,
+    reservationsResult,
+    servicesResult,
+    additionalServicesResult,
+    recurringRulesResult,
+    attentionConfigurations
+  ] = await Promise.all([
     supabase
       .from("barberos")
       .select("id, nombre, foto, activo")
@@ -78,6 +89,10 @@ export async function getPublicBookingData(weekOffset: WeekOffset = 0) {
       .select("id,nombre,precio,activo,created_at")
       .eq("activo", true)
       .order("created_at", { ascending: true }),
+    supabase
+      .from("reglas_agenda_recurrentes")
+      .select("id,barbero_id,tipo,dia_semana,hora,dia_completo,activo,fecha_inicio,fecha_fin")
+      .eq("activo", true),
     fetchAttentionConfigurations()
   ]);
 
@@ -86,10 +101,18 @@ export async function getPublicBookingData(weekOffset: WeekOffset = 0) {
   ) as unknown as Barber[];
   const publicBarberIds = new Set(publicBarbers.map(barber => barber.id));
 
+  const publicReservations = mergeDatedAndRecurringAgenda(
+    (reservationsResult.data ?? []) as unknown as ReservationSlot[],
+    ((recurringRulesResult.error ? [] : recurringRulesResult.data ?? []) as RecurringAgendaRule[])
+      .filter(rule => publicBarberIds.has(rule.barbero_id)),
+    weekDates,
+    "public"
+  );
+
   return {
     isConfigured: true,
     barbers: publicBarbers,
-    reservations: (reservationsResult.data ?? []) as ReservationSlot[],
+    reservations: publicReservations,
     services: (servicesResult.data ?? [])
       .map((service: { id: string; nombre: string; precio: number }) => ({
         id: service.id,
@@ -144,7 +167,13 @@ export async function getAdminDashboardData(
   const weekDates = week.map((item) => item.isoDate);
   const today = week.find((item) => item.isToday)?.isoDate ?? week[0].isoDate;
 
-  const [barbersResult, reservationsResult, profilesResult, attentionConfigurations] =
+  const [
+    barbersResult,
+    reservationsResult,
+    profilesResult,
+    recurringRulesResult,
+    attentionConfigurations
+  ] =
     await Promise.all([
       fetchAdminBarbers(supabase),
       supabase
@@ -159,10 +188,19 @@ export async function getAdminDashboardData(
         .from("perfiles_usuario")
         .select("user_id, rol, barbero_id, barberos(nombre)")
         .order("created_at", { ascending: true }),
+      supabase
+        .from("reglas_agenda_recurrentes")
+        .select("id,barbero_id,tipo,dia_semana,hora,dia_completo,activo,fecha_inicio,fecha_fin,cliente_nombre,cliente_whatsapp")
+        .eq("activo", true),
       fetchAttentionConfigurations()
     ]);
 
-  const reservations = reservationsResult.data ?? [];
+  const reservations = mergeDatedAndRecurringAgenda(
+    (reservationsResult.data ?? []) as unknown as ReservationSlot[],
+    (recurringRulesResult.error ? [] : recurringRulesResult.data ?? []) as RecurringAgendaRule[],
+    weekDates,
+    "admin"
+  );
   const todayReservations = reservations.filter(
     (reservation) => reservation.fecha === today
   );
@@ -258,7 +296,12 @@ export async function getBarberDashboardData(
   const weekDates = week.map((item) => item.isoDate);
   const today = week.find((item) => item.isToday)?.isoDate ?? week[0].isoDate;
 
-  const [{ data: reservations }, { data: barber }, attentionConfigurations] = await Promise.all([
+  const [
+    { data: reservations },
+    { data: barber },
+    recurringRulesResult,
+    attentionConfigurations
+  ] = await Promise.all([
     supabase
       .from("reservas")
       .select("id, cliente_nombre, cliente_whatsapp, fecha, hora, estado, bloqueo_dia_completo, servicio_id, servicio_nombre_snapshot, servicio_precio_snapshot, precio_total_snapshot, reserva_servicios_adicionales(nombre_snapshot,precio_snapshot)")
@@ -272,10 +315,23 @@ export async function getBarberDashboardData(
       .select("id, nombre, foto")
       .eq("id", barberoId)
       .maybeSingle(),
+    supabase
+      .from("reglas_agenda_recurrentes")
+      .select("id,barbero_id,tipo,dia_semana,hora,dia_completo,activo,fecha_inicio,fecha_fin,cliente_nombre,cliente_whatsapp")
+      .eq("barbero_id", barberoId)
+      .eq("activo", true),
     fetchAttentionConfigurations([barberoId])
   ]);
 
-  const filteredReservations = reservations ?? [];
+  const filteredReservations = mergeDatedAndRecurringAgenda(
+    (reservations ?? []).map((reservation) => ({
+      ...reservation,
+      barbero_id: barberoId
+    })) as ReservationSlot[],
+    (recurringRulesResult.error ? [] : recurringRulesResult.data ?? []) as RecurringAgendaRule[],
+    weekDates,
+    "barber"
+  );
 
   return {
     barber,

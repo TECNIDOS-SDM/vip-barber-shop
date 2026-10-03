@@ -29,6 +29,7 @@ function fixture(user, { strict = false, profileError = false } = {}) {
     ],
     administradores: [],
     configuracion_atencion_barberos: [],
+    reglas_agenda_recurrentes: [],
     reservas: [],
     barberos: [
       { id: barberA, nombre: 'SYNTHETIC A', activo: true, auth_email: 'a@example.invalid' },
@@ -251,6 +252,7 @@ test('admin shell listing uses the internal server client under restricted sessi
       '@/lib/supabase/server': { getSupabaseServerClient: async () => session.client },
       '@/lib/supabase/public': { getSupabasePublicClient: () => { throw Error('Unexpected public client'); } },
       '@/lib/supabase/admin': { getSupabaseAdminClient: () => service.client },
+      '@/lib/recurring-agenda': { mergeDatedAndRecurringAgenda: dated => dated },
       '@/lib/reservation-cleanup': { cleanupExpiredReservations: async () => {} }
     });
     const result = await queries.getAdminDashboardShellData();
@@ -273,6 +275,7 @@ test('admin dashboard refresh uses the internal server client under restricted s
         getSupabasePublicClient: () => { throw Error('Unexpected public client'); }
       },
       '@/lib/supabase/admin': { getSupabaseAdminClient: () => service.client },
+      '@/lib/recurring-agenda': { mergeDatedAndRecurringAgenda: dated => dated },
       '@/lib/reservation-cleanup': { cleanupExpiredReservations: async () => {} }
     });
 

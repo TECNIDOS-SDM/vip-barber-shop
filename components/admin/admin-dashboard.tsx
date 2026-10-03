@@ -605,6 +605,50 @@ export function AdminDashboard({
     }
   }
 
+  async function deactivateRecurringReservations(recurringReservations: any[]) {
+    const firstReservation = recurringReservations[0];
+
+    try {
+      const response = await fetch("/api/admin-schedule", {
+        method: "POST",
+        headers: await getAdminScheduleRequestHeaders(),
+        body: JSON.stringify({
+          action: "deactivate_recurrence",
+          barbero_id: firstReservation.barbero_id,
+          fecha: firstReservation.fecha,
+          horas: recurringReservations.map((reservation) =>
+            normalizeHourKey(reservation.hora)
+          ),
+          tipo: firstReservation.recurrence_type
+        })
+      });
+
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? "No fue posible liberar la recurrencia.");
+      }
+
+      const ruleIds = new Set(
+        recurringReservations.map((reservation) => reservation.recurrence_rule_id)
+      );
+      setReservations((current) =>
+        current.filter((reservation) => !ruleIds.has(reservation.recurrence_rule_id))
+      );
+      toast.success(
+        recurringReservations.length === 1
+          ? "Horario recurrente liberado."
+          : "Horarios recurrentes liberados."
+      );
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "No fue posible liberar la recurrencia."
+      );
+    }
+  }
+
   async function unblockDayForBarber(barberoId: string, fecha: string, horas: string[]) {
     try {
       const response = await fetch("/api/admin-schedule", {
@@ -652,7 +696,11 @@ export function AdminDashboard({
       return;
     }
 
-    await releaseReservation(selectedReleaseReservations.map((reservation) => reservation.id));
+    if (selectedReleaseReservations.every((reservation) => reservation.recurrente)) {
+      await deactivateRecurringReservations(selectedReleaseReservations);
+    } else {
+      await releaseReservation(selectedReleaseReservations.map((reservation) => reservation.id));
+    }
     closeReleaseActionModal();
   }
 
@@ -718,8 +766,16 @@ export function AdminDashboard({
   function toggleReleaseReservation(reservation: any) {
     setSelectedReleaseReservations((current) => {
       const exists = current.some((item) => item.id === reservation.id);
-      return exists
-        ? current.filter((item) => item.id !== reservation.id)
+      if (exists) return current.filter((item) => item.id !== reservation.id);
+
+      const first = current[0];
+      const mixesStorageModels = first &&
+        Boolean(first.recurrente) !== Boolean(reservation.recurrente);
+      const mixesRecurringTypes = first?.recurrente &&
+        first.recurrence_type !== reservation.recurrence_type;
+
+      return mixesStorageModels || mixesRecurringTypes
+        ? [reservation]
         : [...current, reservation];
     });
 
@@ -951,12 +1007,16 @@ export function AdminDashboard({
           : "Horario bloqueado correctamente."
       );
       if (payload.createdReservations?.length) {
-        setReservations((current) =>
-          sortReservationsByDateAndHour([
-            ...current,
+        setReservations((current) => {
+          const createdIds = new Set(
+            payload.createdReservations.map((reservation: any) => reservation.id)
+          );
+
+          return sortReservationsByDateAndHour([
+            ...current.filter((reservation) => !createdIds.has(reservation.id)),
             ...payload.createdReservations
-          ])
-        );
+          ]);
+        });
       }
       closeScheduleActionModal();
     } catch (error) {
@@ -1005,7 +1065,7 @@ export function AdminDashboard({
     if (!dayFullBlockReservation) return operationalScheduleSlotMap;
     const map = new Map(operationalScheduleSlotMap);
     for (const hour of currentScheduleSlots) {
-      if (!map.has(hour)) map.set(hour, dayFullBlockReservation);
+      map.set(hour, dayFullBlockReservation);
     }
     return map;
   }, [currentScheduleSlots, dayFullBlockReservation, operationalScheduleSlotMap]);
@@ -1118,6 +1178,9 @@ export function AdminDashboard({
       scheduleForm.barbero_id === activeBarber.id &&
       scheduleForm.fecha &&
       selectedReleaseReservations.length > 0
+  );
+  const hasSelectedRecurringRules = selectedReleaseReservations.some(
+    (reservation) => reservation.recurrente
   );
   const scheduleHourColumns = useMemo(() => {
     return splitAttentionSlots(currentScheduleSlots);
@@ -2051,6 +2114,7 @@ export function AdminDashboard({
                 ))}
               </div>
             </div>
+            {!hasSelectedRecurringRules ? (
             <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
               <button
                 type="button"
@@ -2089,6 +2153,11 @@ export function AdminDashboard({
                 Bloquear
               </button>
             </div>
+            ) : (
+              <p className="mt-4 rounded-2xl border border-accent/20 bg-accent/10 px-4 py-3 text-sm text-sand/80">
+                Esta acción desactiva únicamente la regla recurrente seleccionada.
+              </p>
+            )}
             <div className="mt-6 flex gap-3">
               <button
                 type="button"

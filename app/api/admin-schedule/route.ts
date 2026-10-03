@@ -4,6 +4,11 @@ import { getCurrentUserRole } from "@/lib/auth";
 import { DAY_FULL_BLOCK_MARKER } from "@/lib/attention-configuration";
 import { getWeekOffsetForDate } from "@/lib/date";
 import { isWeekOffsetEnabled } from "@/lib/feature-flags";
+import {
+  getIsoWeekday,
+  projectRecurringAgendaRules,
+  type RecurringAgendaRule
+} from "@/lib/recurring-agenda";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -36,7 +41,21 @@ const updateStatusSchema = z.object({
   estado: z.enum(["confirmada", "cita_fijada", "bloqueado"])
 });
 
-const schema = z.union([createSchema, unblockSchema, releaseSchema, updateStatusSchema]);
+const deactivateRecurringSchema = z.object({
+  action: z.literal("deactivate_recurrence"),
+  barbero_id: z.string().uuid(),
+  fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  horas: z.array(z.string().regex(/^\d{2}:\d{2}$/)).min(1),
+  tipo: z.enum(["bloqueo", "cita_fijada"])
+});
+
+const schema = z.union([
+  createSchema,
+  unblockSchema,
+  releaseSchema,
+  updateStatusSchema,
+  deactivateRecurringSchema
+]);
 const SLOT_TAKEN_MESSAGE =
   "Este horario ya no está disponible. Por favor selecciona otro.";
 const DATE_OUT_OF_RANGE_MESSAGE =
@@ -56,6 +75,13 @@ function dateOutOfRangeResponse() {
     { error: DATE_OUT_OF_RANGE_MESSAGE },
     { status: 400 }
   );
+}
+
+function isAgendaConflictError(error: unknown) {
+  return typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    ["23505", "22023"].includes((error as { code?: string }).code ?? "");
 }
 
 async function getAdminRoleFallback(
@@ -130,6 +156,27 @@ export async function POST(request: Request) {
 
     if ("fecha" in payload && !isManagedAgendaDate(payload.fecha)) {
       return dateOutOfRangeResponse();
+    }
+
+    if (payload.action === "deactivate_recurrence") {
+      let deactivatedCount = 0;
+
+      for (const hora of payload.horas) {
+        const { data, error } = await (adminSupabase as any).rpc(
+          "desactivar_regla_agenda_recurrente",
+          {
+            p_barbero_id: payload.barbero_id,
+            p_tipo: payload.tipo,
+            p_dia_semana: getIsoWeekday(payload.fecha),
+            p_hora: hora
+          }
+        );
+
+        if (error) throw error;
+        deactivatedCount += Number(data ?? 0);
+      }
+
+      return NextResponse.json({ success: true, deactivatedCount });
     }
 
     if (payload.action === "release") {
@@ -255,6 +302,61 @@ export async function POST(request: Request) {
       });
     }
 
+    const recurringType = payload.estado === "cita_fijada"
+      ? "cita_fijada"
+      : payload.estado === "bloqueado" && payload.bloqueo_origen !== "dia_completo"
+        ? "bloqueo"
+        : null;
+
+    if (recurringType) {
+      const createdRecurringRules = [];
+
+      for (const hora of payload.horas) {
+        const { data, error } = await (adminSupabase as any).rpc(
+          "guardar_regla_agenda_recurrente",
+          {
+            p_barbero_id: payload.barbero_id,
+            p_tipo: recurringType,
+            p_dia_semana: getIsoWeekday(payload.fecha),
+            p_hora: hora,
+            p_fecha_inicio: payload.fecha,
+            p_fecha_fin: null,
+            p_cliente_nombre: recurringType === "cita_fijada"
+              ? payload.cliente_nombre?.trim() || null
+              : null,
+            p_cliente_whatsapp: recurringType === "cita_fijada"
+              ? payload.cliente_whatsapp?.trim() || null
+              : null
+          }
+        );
+
+        if (error) {
+          if (isAgendaConflictError(error)) {
+            return NextResponse.json({ error: SLOT_TAKEN_MESSAGE }, { status: 409 });
+          }
+
+          throw error;
+        }
+
+        if (Array.isArray(data)) {
+          createdRecurringRules.push(...data);
+        } else if (data) {
+          createdRecurringRules.push(data);
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        createdRecurringRules,
+        createdReservations: projectRecurringAgendaRules(
+          createdRecurringRules as RecurringAgendaRule[],
+          [payload.fecha],
+          [],
+          "admin"
+        )
+      });
+    }
+
     const clienteNombre = payload.estado === "bloqueado"
       ? "Horario bloqueado"
       : payload.estado === "cita_fijada"
@@ -280,12 +382,7 @@ export async function POST(request: Request) {
     );
 
     if (error) {
-      if (
-        typeof error === "object" &&
-        error &&
-        "code" in error &&
-        ["23505", "22023"].includes((error as { code?: string }).code ?? "")
-      ) {
+      if (isAgendaConflictError(error)) {
         return NextResponse.json({ error: SLOT_TAKEN_MESSAGE }, { status: 409 });
       }
 

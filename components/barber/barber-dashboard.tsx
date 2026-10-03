@@ -27,6 +27,7 @@ import {
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { formatCop } from "@/lib/currency";
 import { NEXT_WEEK_ENABLED, isWeekOffsetEnabled } from "@/lib/feature-flags";
+import type { ReservationSlot } from "@/types";
 
 type BarberDashboardProps = {
   barberEmail: string;
@@ -36,20 +37,7 @@ type BarberDashboardProps = {
       nombre: string;
       foto?: string | null;
     } | null;
-    reservations: {
-      id: string;
-      cliente_nombre: string;
-      fecha: string;
-      hora: string;
-      estado: string;
-      cliente_whatsapp?: string | null;
-      bloqueo_dia_completo?: boolean | null;
-      servicio_id?: string | null;
-      servicio_nombre_snapshot?: string | null;
-      servicio_precio_snapshot?: number | null;
-      precio_total_snapshot?: number | null;
-      reserva_servicios_adicionales?: { nombre_snapshot: string; precio_snapshot: number }[];
-    }[];
+    reservations: ReservationSlot[];
     attentionConfigurations: AttentionConfiguration[];
     currentWeek: {
       key: string;
@@ -492,7 +480,7 @@ export function BarberDashboard({
                 {hourColumns.map((column, columnIndex) => (
                   <div key={`column-${columnIndex}`} className="space-y-3">
                     {column.map((hour) => {
-                      const reservation = reservationMap.get(hour) ?? dayFullBlock;
+                      const reservation = dayFullBlock ?? reservationMap.get(hour);
                       const status = reservation?.estado;
 
                       return (

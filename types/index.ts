@@ -49,6 +49,9 @@ export type ReservationSlot = {
   precio_total_snapshot?: number | null;
   reserva_servicios_adicionales?: ReservationAdditionalService[];
   bloqueo_dia_completo?: boolean;
+  recurrente?: boolean;
+  recurrence_rule_id?: string;
+  recurrence_type?: "bloqueo" | "cita_fijada";
   barberos?: {
     nombre: string;
   } | null;
