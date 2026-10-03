@@ -72,6 +72,24 @@ export function getCurrentWeek(reference = new Date()): WeekDayItem[] {
   return getWeekByOffset(0, reference);
 }
 
+export function getWeekdayIndex(
+  week: Array<Pick<WeekDayItem, "isoDate">>,
+  isoDate: string,
+  fallbackIndex = 0
+) {
+  const index = week.findIndex((day) => day.isoDate === isoDate);
+
+  if (index >= 0) return index;
+  return fallbackIndex >= 0 && fallbackIndex < week.length ? fallbackIndex : 0;
+}
+
+export function getDateAtWeekdayIndex(
+  week: Array<Pick<WeekDayItem, "isoDate">>,
+  weekdayIndex: number
+) {
+  return week[weekdayIndex]?.isoDate ?? week[0]?.isoDate ?? "";
+}
+
 export function getWeekOffsetForDate(
   isoDate: string,
   reference = new Date()

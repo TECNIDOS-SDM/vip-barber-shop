@@ -13,6 +13,8 @@ import {
 } from "@/lib/attention-configuration";
 import {
   formatHourDisplay,
+  getDateAtWeekdayIndex,
+  getWeekdayIndex,
   getWeekOffsetForDate,
   type WeekOffset
 } from "@/lib/date";
@@ -107,6 +109,9 @@ export function BarberDashboard({
   const [isLaborViewOpen, setIsLaborViewOpen] = useState(false);
   const activeWeekOffsetRef = useRef<WeekOffset>(initialData.weekOffset);
   const selectedDateRef = useRef(initialSelectedDate);
+  const selectedWeekdayIndexRef = useRef(
+    getWeekdayIndex(initialData.currentWeek, initialSelectedDate)
+  );
   const requestSequenceRef = useRef(0);
   const refreshTimeoutRef = useRef<number | null>(null);
 
@@ -117,7 +122,10 @@ export function BarberDashboard({
 
     sessionStorage.removeItem("vipBarberOpenTodayScheduleOnce");
     if (activeWeekOffsetRef.current === 0) {
-      setSelectedDate(getCurrentIsoDateForDashboard(dashboardData.currentWeek));
+      const today = getCurrentIsoDateForDashboard(dashboardData.currentWeek);
+      selectedWeekdayIndexRef.current = getWeekdayIndex(dashboardData.currentWeek, today);
+      selectedDateRef.current = today;
+      setSelectedDate(today);
       setPanelView("hours");
       return;
     }
@@ -158,11 +166,10 @@ export function BarberDashboard({
         return current;
       }
 
-      const nextDate =
-        payload.currentWeek?.find((day: { isToday: boolean; isoDate: string }) => day.isToday)
-          ?.isoDate ??
-        payload.currentWeek?.[0]?.isoDate ??
-        "";
+      const nextDate = getDateAtWeekdayIndex(
+        payload.currentWeek ?? [],
+        selectedWeekdayIndexRef.current
+      );
       selectedDateRef.current = nextDate;
       return nextDate;
     });
@@ -179,12 +186,8 @@ export function BarberDashboard({
 
     const previousOffset = activeWeekOffsetRef.current;
     const previousSelectedDate = selectedDateRef.current;
-    const selectedDayIndex = Math.max(
-      0,
-      dashboardData.currentWeek.findIndex(day => day.isoDate === selectedDateRef.current)
-    );
+    const selectedDayIndex = selectedWeekdayIndexRef.current;
     activeWeekOffsetRef.current = nextOffset;
-    selectedDateRef.current = "";
     setIsWeekLoading(true);
 
     try {
@@ -193,10 +196,15 @@ export function BarberDashboard({
 
       const nextDate = preferToday
         ? getCurrentIsoDateForDashboard(payload.currentWeek ?? [])
-        : payload.currentWeek?.[selectedDayIndex]?.isoDate ??
-          payload.currentWeek?.[0]?.isoDate ?? "";
+        : getDateAtWeekdayIndex(payload.currentWeek ?? [], selectedDayIndex);
+      selectedWeekdayIndexRef.current = getWeekdayIndex(
+        payload.currentWeek ?? [],
+        nextDate,
+        selectedDayIndex
+      );
       selectedDateRef.current = nextDate;
       setSelectedDate(nextDate);
+      setPanelView("days");
     } catch (error) {
       activeWeekOffsetRef.current = previousOffset;
       selectedDateRef.current = previousSelectedDate;
@@ -232,7 +240,7 @@ export function BarberDashboard({
   }, [panelView, selectedDate]);
 
   useEffect(() => {
-    if (panelView !== "hours") {
+    if (panelView !== "hours" || isWeekLoading) {
       return;
     }
 
@@ -244,8 +252,13 @@ export function BarberDashboard({
       return;
     }
 
-    setSelectedDate(getCurrentIsoDateForDashboard(dashboardData.currentWeek));
-  }, [dashboardData.currentWeek, panelView, selectedDate]);
+    const nextDate = getDateAtWeekdayIndex(
+      dashboardData.currentWeek,
+      selectedWeekdayIndexRef.current
+    );
+    selectedDateRef.current = nextDate;
+    setSelectedDate(nextDate);
+  }, [dashboardData.currentWeek, isWeekLoading, panelView, selectedDate]);
 
   useEffect(() => {
     // The barber receives only their own reservation changes through the
@@ -460,6 +473,12 @@ export function BarberDashboard({
                   key={day.key}
                   type="button"
                   onClick={() => {
+                    selectedWeekdayIndexRef.current = getWeekdayIndex(
+                      dashboardData.currentWeek,
+                      day.isoDate,
+                      selectedWeekdayIndexRef.current
+                    );
+                    selectedDateRef.current = day.isoDate;
                     setSelectedDate(day.isoDate);
                     setPanelView("hours");
                   }}

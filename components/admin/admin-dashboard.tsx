@@ -18,8 +18,10 @@ import {
   type AdminDashboardViewState
 } from "@/lib/dashboard-view-state";
 import {
+  getDateAtWeekdayIndex,
   formatHourDisplay,
   getCurrentWeek,
+  getWeekdayIndex,
   getWeekOffsetForDate,
   type WeekOffset
 } from "@/lib/date";
@@ -244,6 +246,13 @@ export function AdminDashboard({
   const [savingAgendaObservation, setSavingAgendaObservation] = useState(false);
   const activeWeekOffsetRef = useRef<WeekOffset>(initialData.weekOffset);
   const scheduleDateRef = useRef(scheduleForm.fecha);
+  const selectedWeekdayIndexRef = useRef(
+    getWeekdayIndex(
+      dashboardWeek,
+      scheduleForm.fecha,
+      getWeekdayIndex(dashboardWeek, currentDayIsoDate)
+    )
+  );
   const requestSequenceRef = useRef(0);
   const refreshTimeoutRef = useRef<number | null>(null);
 
@@ -879,6 +888,14 @@ export function AdminDashboard({
     patch: Partial<typeof emptyScheduleForm>,
     resetHours = false
   ) {
+    if (patch.fecha) {
+      selectedWeekdayIndexRef.current = getWeekdayIndex(
+        dashboardWeek,
+        patch.fecha,
+        selectedWeekdayIndexRef.current
+      );
+    }
+
     setScheduleForm((current) => ({
       ...current,
       ...patch,
@@ -907,12 +924,8 @@ export function AdminDashboard({
 
     const previousOffset = activeWeekOffsetRef.current;
     const previousScheduleDate = scheduleDateRef.current;
-    const selectedDayIndex = Math.max(
-      0,
-      dashboardWeek.findIndex(day => day.isoDate === scheduleDateRef.current)
-    );
+    const selectedDayIndex = selectedWeekdayIndexRef.current;
     activeWeekOffsetRef.current = nextOffset;
-    scheduleDateRef.current = "";
     closeScheduleActionModal();
     closeReleaseActionModal();
     setShowAgendaObservationModal(false);
@@ -922,12 +935,11 @@ export function AdminDashboard({
       const payload = await refreshData(nextOffset);
       if (!payload) return;
 
-      const nextDate = payload.currentWeek?.[selectedDayIndex]?.isoDate ??
-        payload.currentWeek?.[0]?.isoDate ?? "";
-      scheduleDateRef.current = nextDate;
+      selectedWeekdayIndexRef.current = selectedDayIndex;
+      scheduleDateRef.current = "";
       updateScheduleForBarber(
         activeBarberId ?? "",
-        { fecha: nextDate, cliente_nombre: "", cliente_whatsapp: "" },
+        { fecha: "", cliente_nombre: "", cliente_whatsapp: "" },
         true
       );
     } catch (error) {
@@ -1120,25 +1132,30 @@ export function AdminDashboard({
   }, [activeBarber?.id, activeBarberView, currentLaborWeekStart, refreshLaborSummary]);
 
   useEffect(() => {
-    if (activeBarberView !== "agenda" || !activeBarber) {
+    if (activeBarberView !== "agenda" || !activeBarber || isWeekLoading) {
       return;
     }
 
     const selectedDateIsValid = dashboardWeek.some(
       (day) => day.isoDate === scheduleForm.fecha
     );
+    const isSameBarber = scheduleForm.barbero_id === activeBarber.id;
 
     if (
-      scheduleForm.barbero_id === activeBarber.id &&
+      isSameBarber &&
       (!scheduleForm.fecha || selectedDateIsValid)
     ) {
       return;
     }
 
+    const nextDate = isSameBarber
+      ? getDateAtWeekdayIndex(dashboardWeek, selectedWeekdayIndexRef.current)
+      : currentDayIsoDate;
+
     updateScheduleForBarber(
       activeBarber.id,
       {
-        fecha: currentDayIsoDate,
+        fecha: nextDate,
         cliente_nombre: "",
         cliente_whatsapp: ""
       },
@@ -1148,6 +1165,7 @@ export function AdminDashboard({
     activeBarber,
     activeBarberView,
     currentDayIsoDate,
+    isWeekLoading,
     scheduleForm.barbero_id,
     scheduleForm.fecha
   ]);
@@ -1194,11 +1212,41 @@ export function AdminDashboard({
     setSelectedHours((current) => current.filter(hour => configuredScheduleSlots.includes(hour)));
   }, [configuredScheduleSlots]);
 
-  function openCurrentDayAgenda(barberId: string) {
+  async function openCurrentDayAgenda(barberId: string) {
     setActiveBarberId(barberId);
     setActiveBarberView("agenda");
     setSelectedAction("confirmada");
     setScheduleMode("confirmada");
+
+    if (activeWeekOffsetRef.current !== 0) {
+      setIsWeekLoading(true);
+
+      try {
+        const payload = await refreshData(0);
+        if (!payload) return;
+
+        const today = getCurrentIsoDateForDashboard(payload.currentWeek ?? []);
+        selectedWeekdayIndexRef.current = getWeekdayIndex(
+          payload.currentWeek ?? [],
+          today
+        );
+        scheduleDateRef.current = today;
+        updateScheduleForBarber(
+          barberId,
+          { fecha: today, cliente_nombre: "", cliente_whatsapp: "" },
+          true
+        );
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : "No fue posible abrir la agenda del barbero."
+        );
+      } finally {
+        setIsWeekLoading(false);
+      }
+
+      return;
+    }
+
     updateScheduleForBarber(
       barberId,
       {
@@ -1409,7 +1457,7 @@ export function AdminDashboard({
                     <button
                       key={barber.id}
                       type="button"
-                      onClick={() => openCurrentDayAgenda(barber.id)}
+                      onClick={() => void openCurrentDayAgenda(barber.id)}
                       className={cn(
                         "rounded-[1.5rem] border bg-white/5 p-4 text-left transition",
                         activeBarberId === barber.id
