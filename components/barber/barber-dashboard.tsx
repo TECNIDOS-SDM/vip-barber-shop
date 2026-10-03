@@ -280,6 +280,11 @@ export function BarberDashboard({
     const channel = supabase
       .channel("barber-dashboard-realtime")
       .on(
+        "broadcast",
+        { event: "reservation_availability_changed" },
+        queueRefresh
+      )
+      .on(
         "postgres_changes",
         {
           event: "*",

@@ -334,6 +334,11 @@ export function AdminDashboard({
     const channel = supabase
       .channel("admin-dashboard-realtime")
       .on(
+        "broadcast",
+        { event: "reservation_availability_changed" },
+        queueRefresh
+      )
+      .on(
         "postgres_changes",
         {
           event: "*",
