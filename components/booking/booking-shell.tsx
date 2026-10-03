@@ -31,6 +31,7 @@ import { buildWhatsAppUrl } from "@/lib/whatsapp";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { formatCop } from "@/lib/currency";
 import { NEXT_WEEK_ENABLED, isWeekOffsetEnabled } from "@/lib/feature-flags";
+import { WeekDayLabel } from "@/components/shared/week-day-label";
 import type { Barber, GlobalAdditionalService, GlobalService, ReservationSlot } from "@/types";
 
 const BARBER_FALLBACK_IMAGE = "/vip-barbertop-logo.jpeg";
@@ -813,16 +814,7 @@ export function BookingShell({
                                 : "border-white/10 bg-white/5 text-sand hover:border-accent/60"
                           )}
                         >
-                          <p className="text-sm font-semibold">
-                            {day.shortLabel.toUpperCase()}
-                          </p>
-                          <p className="mt-1 text-xs opacity-75">
-                            {isPastDay
-                        ? "NO DISPONIBLE"
-                        : day.isToday
-                                ? "HOY"
-                                : day.label.toUpperCase()}
-                          </p>
+                          <WeekDayLabel day={day} unavailable={isPastDay} />
                         </button>
                       );
                     })}

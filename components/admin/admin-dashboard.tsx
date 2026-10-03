@@ -31,6 +31,7 @@ import { buildWhatsAppUrl } from "@/lib/whatsapp";
 import { formatCop } from "@/lib/currency";
 import { NEXT_WEEK_ENABLED, isWeekOffsetEnabled } from "@/lib/feature-flags";
 import { GlobalServices } from "@/components/admin/global-services";
+import { WeekDayLabel } from "@/components/shared/week-day-label";
 
 const AdminLaborSchedules = dynamic(
   () =>
@@ -1182,6 +1183,9 @@ export function AdminDashboard({
   const hasSelectedRecurringRules = selectedReleaseReservations.some(
     (reservation) => reservation.recurrente
   );
+  const selectedScheduleDay = dashboardWeek.find(
+    (day) => day.isoDate === scheduleForm.fecha
+  );
   const scheduleHourColumns = useMemo(() => {
     return splitAttentionSlots(currentScheduleSlots);
   }, [currentScheduleSlots]);
@@ -1603,9 +1607,15 @@ export function AdminDashboard({
                               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sand/60">
                                 Horarios del dia
                               </p>
-                              <p className="mt-1 text-sm font-semibold uppercase text-sand">
-                                {dashboardWeek.find((day) => day.isoDate === scheduleForm.fecha)?.label.split(" ")[0] ?? "Dia seleccionado"}
-                              </p>
+                              {selectedScheduleDay ? (
+                                <div className="mt-1 text-sand">
+                                  <WeekDayLabel day={selectedScheduleDay} />
+                                </div>
+                              ) : (
+                                <p className="mt-1 text-sm font-semibold uppercase text-sand">
+                                  Dia seleccionado
+                                </p>
+                              )}
                             </div>
                             <button
                               type="button"
@@ -1869,9 +1879,7 @@ export function AdminDashboard({
                                     : "border-white/10 bg-white/5 hover:border-accent/40"
                                 )}
                               >
-                                <p className="text-sm font-semibold uppercase">
-                                  {day.label.split(" ")[0]}
-                                </p>
+                                <WeekDayLabel day={day} />
                               </button>
                             ))}
                           </div>
@@ -2201,8 +2209,7 @@ export function AdminDashboard({
                 </h3>
                 <p className="mt-2 text-sm text-sand/70">
                   {dashboardWeek
-                    .find((day) => day.isoDate === scheduleForm.fecha)
-                    ?.label.split(" ")[0] ?? "Dia seleccionado"}
+                    .find((day) => day.isoDate === scheduleForm.fecha)?.label ?? "Dia seleccionado"}
                 </p>
               </div>
               <button

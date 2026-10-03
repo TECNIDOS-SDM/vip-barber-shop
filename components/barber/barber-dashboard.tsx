@@ -27,6 +27,7 @@ import {
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { formatCop } from "@/lib/currency";
 import { NEXT_WEEK_ENABLED, isWeekOffsetEnabled } from "@/lib/feature-flags";
+import { WeekDayLabel } from "@/components/shared/week-day-label";
 import type { ReservationSlot } from "@/types";
 
 type BarberDashboardProps = {
@@ -374,6 +375,9 @@ export function BarberDashboard({
   const hourColumns = useMemo(() => {
     return splitAttentionSlots(currentSlots);
   }, [currentSlots]);
+  const selectedCalendarDay = dashboardData.currentWeek.find(
+    (day) => day.isoDate === selectedDate
+  );
 
   if (isLaborViewOpen) {
     return (
@@ -428,13 +432,11 @@ export function BarberDashboard({
                   {panelView === "days" ? "Selecciona el dia" : "Agenda del dia"}
                 </h2>
                 {panelView === "hours" ? (
-                  <p className="mt-1 text-sm text-sand/65">
-                    {
-                      dashboardData.currentWeek
-                        .find((day) => day.isoDate === selectedDate)
-                        ?.label.split(" ")[0]
-                    }
-                  </p>
+                  selectedCalendarDay ? (
+                    <div className="mt-1 text-sand/65">
+                      <WeekDayLabel day={selectedCalendarDay} />
+                    </div>
+                  ) : null
                 ) : null}
               </div>
             </div>
@@ -452,7 +454,7 @@ export function BarberDashboard({
           </div>
 
           {panelView === "days" ? (
-            <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-7">
               {dashboardData.currentWeek.map((day) => (
                 <button
                   key={day.key}
@@ -468,9 +470,7 @@ export function BarberDashboard({
                       : "border-white/10 bg-white/5 text-sand/75"
                   )}
                 >
-                  <p className="text-sm font-semibold uppercase">
-                    {day.label.split(" ")[0]}
-                  </p>
+                  <WeekDayLabel day={day} />
                 </button>
               ))}
             </div>
