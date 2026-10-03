@@ -8,7 +8,7 @@ const booking = read('components/booking/booking-shell.tsx');
 const admin = read('components/admin/admin-dashboard.tsx');
 const barber = read('components/barber/barber-dashboard.tsx');
 
-test('public reservations temporarily accept only enabled dates while preserving real offset validation', () => {
+test('public reservations accept enabled dates while preserving real offset validation', () => {
   assert.match(reserveRoute, /const weekOffset = getWeekOffsetForDate\(values\.fecha\)/);
   assert.match(reserveRoute, /weekOffset === null \|\| !isWeekOffsetEnabled\(weekOffset\)/);
   assert.match(reserveRoute, /La fecha seleccionada no está disponible para reserva\./);
@@ -22,7 +22,7 @@ test('public reservations temporarily accept only enabled dates while preserving
   assert.doesNotMatch(reserveRoute, /cleanupExpiredReservations|reservation-cleanup/);
 });
 
-test('next-week reservation implementation remains intact behind the temporary gate', () => {
+test('next-week reservation implementation remains intact through the central gate', () => {
   assert.match(booking, /disabled=\{isWeekLoading \|\| !NEXT_WEEK_ENABLED\}/);
   assert.match(booking, /!isWeekOffsetEnabled\(nextOffset\)/);
   assert.match(booking, /fetch\("\/api\/reserve"/);

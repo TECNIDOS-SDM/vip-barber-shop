@@ -8,7 +8,7 @@ const admin = read('components/admin/admin-dashboard.tsx');
 const barber = read('components/barber/barber-dashboard.tsx');
 const queries = read('lib/queries.ts');
 
-test('admin schedule writes validate real dates and the temporary week gate on the server', () => {
+test('admin schedule writes validate real dates and the central week gate on the server', () => {
   assert.match(route, /const weekOffset = getWeekOffsetForDate\(fecha\)/);
   assert.match(route, /weekOffset !== null && isWeekOffsetEnabled\(weekOffset\)/);
   assert.match(route, /"fecha" in payload && !isManagedAgendaDate\(payload\.fecha\)/);
@@ -29,7 +29,7 @@ test('release and status changes read persisted dates before any mutation', () =
   assert.ok(statusBranch.indexOf('!isManagedAgendaDate(reservation.fecha)') < statusBranch.indexOf('.update({ estado: payload.estado })'));
 });
 
-test('admin keeps every agenda action while next-week navigation is temporarily disabled', () => {
+test('admin keeps every agenda action while next-week navigation is enabled', () => {
   assert.doesNotMatch(admin, /preventFutureWeekWrite|solo para consulta en esta fase/);
   assert.match(admin, /disabled=\{isWeekLoading \|\| !NEXT_WEEK_ENABLED\}/);
   assert.match(admin, /!isWeekOffsetEnabled\(nextOffset\)/);

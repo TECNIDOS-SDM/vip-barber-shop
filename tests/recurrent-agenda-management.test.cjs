@@ -166,8 +166,8 @@ test('rollover and retention remain calculated windows with no weekly persistenc
   assert.doesNotMatch(route, /update.*fecha|insert.*reservas.*recurrent/i);
 });
 
-test('cleanup and next-week gate remain untouched', () => {
-  assert.match(flags, /export const NEXT_WEEK_ENABLED = false/);
+test('cleanup remains untouched while the next-week gate is enabled', () => {
+  assert.match(flags, /export const NEXT_WEEK_ENABLED = true/);
   for (const source of [admin, barber, booking]) {
     assert.match(source, /disabled=\{isWeekLoading \|\| !NEXT_WEEK_ENABLED\}/);
   }

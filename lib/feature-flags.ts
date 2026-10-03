@@ -1,7 +1,7 @@
 import type { WeekOffset } from "@/lib/date";
 
-// Temporary product gate. The complete two-week implementation remains intact.
-export const NEXT_WEEK_ENABLED = false;
+// Central product gate for the validated two-week implementation.
+export const NEXT_WEEK_ENABLED = true;
 
 export function isWeekOffsetEnabled(weekOffset: WeekOffset) {
   return weekOffset === 0 || NEXT_WEEK_ENABLED;

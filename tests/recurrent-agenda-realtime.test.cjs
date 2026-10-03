@@ -85,8 +85,8 @@ test('barber refetch remains authorized by session identity rather than broadcas
   assert.match(adminRoute, /role !== "administrador"/);
 });
 
-test('next week remains visible, disabled and protected on the server', () => {
-  assert.match(featureFlags, /export const NEXT_WEEK_ENABLED = false/);
+test('next week remains visible, enabled and protected on the server', () => {
+  assert.match(featureFlags, /export const NEXT_WEEK_ENABLED = true/);
   for (const panel of panels) {
     assert.match(panel.source, /"Próxima semana"/);
     assert.match(panel.source, /disabled=\{isWeekLoading \|\| !NEXT_WEEK_ENABLED\}/);

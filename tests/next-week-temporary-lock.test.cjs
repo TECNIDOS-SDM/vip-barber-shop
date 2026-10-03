@@ -26,12 +26,12 @@ function loadFeatureFlags() {
   return featureModule.exports;
 }
 
-test('one reversible flag disables next week without removing its implementation', () => {
+test('one reversible flag enables next week through the existing implementation', () => {
   const { NEXT_WEEK_ENABLED, isWeekOffsetEnabled } = loadFeatureFlags();
-  assert.equal(NEXT_WEEK_ENABLED, false);
+  assert.equal(NEXT_WEEK_ENABLED, true);
   assert.equal(isWeekOffsetEnabled(0), true);
-  assert.equal(isWeekOffsetEnabled(1), false);
-  assert.match(flag, /export const NEXT_WEEK_ENABLED = false/);
+  assert.equal(isWeekOffsetEnabled(1), true);
+  assert.match(flag, /export const NEXT_WEEK_ENABLED = true/);
   assert.match(flag, /weekOffset === 0 \|\| NEXT_WEEK_ENABLED/);
 
   for (const component of [booking, admin, barber]) {
@@ -42,7 +42,7 @@ test('one reversible flag disables next week without removing its implementation
   }
 });
 
-test('disabled controls return before any next-week request or state change', () => {
+test('week controls keep the centralized guard before any request or state change', () => {
   for (const component of [booking, admin, barber]) {
     const switchStart = component.indexOf('async function switchVisibleWeek');
     const guard = component.indexOf('!isWeekOffsetEnabled(nextOffset)', switchStart);
@@ -51,7 +51,7 @@ test('disabled controls return before any next-week request or state change', ()
   }
 });
 
-test('server rejects next-week public and admin writes before mutation', () => {
+test('server validates enabled week offsets before public and admin mutations', () => {
   assert.match(reserveRoute, /weekOffset === null \|\| !isWeekOffsetEnabled\(weekOffset\)/);
   assert.ok(
     reserveRoute.indexOf('!isWeekOffsetEnabled(weekOffset)') <
@@ -69,7 +69,7 @@ test('server rejects next-week public and admin writes before mutation', () => {
   assert.match(adminRoute, /!isManagedAgendaDate\(reservation\.fecha\)/);
 });
 
-test('saved next-week view state is clamped to current week on both authenticated pages', () => {
+test('saved week state is validated on both authenticated pages', () => {
   assert.match(adminPage, /!isWeekOffsetEnabled\(initialWeekOffset\)\) initialWeekOffset = 0/);
   assert.match(barberPage, /!isWeekOffsetEnabled\(initialWeekOffset\)\) initialWeekOffset = 0/);
 });
