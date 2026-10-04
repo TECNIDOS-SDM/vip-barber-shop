@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getWeekOffsetForDate } from "@/lib/date";
+import {
+  getTodayIsoInAppTimezone,
+  getWeekOffsetForDate
+} from "@/lib/date";
 import { isWeekOffsetEnabled } from "@/lib/feature-flags";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 
@@ -18,6 +21,8 @@ const SLOT_TAKEN_MESSAGE =
   "Este horario ya no está disponible. Por favor selecciona otro.";
 const DATE_OUT_OF_RANGE_MESSAGE =
   "La fecha seleccionada no está disponible para reserva.";
+const PAST_DATE_MESSAGE =
+  "No se pueden realizar reservas en fechas pasadas.";
 
 export async function POST(request: Request) {
   try {
@@ -29,6 +34,13 @@ export async function POST(request: Request) {
       if (weekOffset === null || !isWeekOffsetEnabled(weekOffset)) {
         return NextResponse.json(
           { error: DATE_OUT_OF_RANGE_MESSAGE },
+          { status: 400 }
+        );
+      }
+
+      if (values.fecha < getTodayIsoInAppTimezone()) {
+        return NextResponse.json(
+          { error: PAST_DATE_MESSAGE },
           { status: 400 }
         );
       }
@@ -61,6 +73,10 @@ export async function POST(request: Request) {
     });
 
     if (error) {
+      if (error.code === "22023" && /fechas pasadas/i.test(error.message ?? "")) {
+        return NextResponse.json({ error: PAST_DATE_MESSAGE }, { status: 400 });
+      }
+
       if (error.code === "22023" && /servicio/i.test(error.message ?? "")) {
         return NextResponse.json({ error: error.message }, { status: 409 });
       }

@@ -72,6 +72,10 @@ export function getCurrentWeek(reference = new Date()): WeekDayItem[] {
   return getWeekByOffset(0, reference);
 }
 
+export function getTodayIsoInAppTimezone(reference = new Date()) {
+  return format(toZonedTime(reference, APP_TIMEZONE), "yyyy-MM-dd");
+}
+
 export function getWeekdayIndex(
   week: Array<Pick<WeekDayItem, "isoDate">>,
   isoDate: string,
