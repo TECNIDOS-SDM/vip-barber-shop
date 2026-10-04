@@ -190,7 +190,7 @@ export async function getAdminDashboardData(
         .order("created_at", { ascending: true }),
       supabase
         .from("reglas_agenda_recurrentes")
-        .select("id,barbero_id,tipo,dia_semana,hora,dia_completo,activo,fecha_inicio,fecha_fin,cliente_nombre,cliente_whatsapp")
+        .select("id,barbero_id,tipo,dia_semana,hora,dia_completo,activo,fecha_inicio,fecha_fin,cliente_nombre,cliente_whatsapp,servicio_id,servicio_nombre_snapshot,servicio_precio_snapshot,precio_total_snapshot")
         .eq("activo", true),
       fetchAttentionConfigurations()
     ]);
@@ -317,7 +317,7 @@ export async function getBarberDashboardData(
       .maybeSingle(),
     supabase
       .from("reglas_agenda_recurrentes")
-      .select("id,barbero_id,tipo,dia_semana,hora,dia_completo,activo,fecha_inicio,fecha_fin,cliente_nombre,cliente_whatsapp")
+      .select("id,barbero_id,tipo,dia_semana,hora,dia_completo,activo,fecha_inicio,fecha_fin,cliente_nombre,cliente_whatsapp,servicio_id,servicio_nombre_snapshot,servicio_precio_snapshot,precio_total_snapshot")
       .eq("barbero_id", barberoId)
       .eq("activo", true),
     fetchAttentionConfigurations([barberoId])

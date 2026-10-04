@@ -42,7 +42,7 @@ function project(rule, dates, dated = []) {
 test('new admin slot blocks and fixed appointments use the recurrence RPC only', () => {
   assert.match(route, /const recurringType = payload\.estado === "cita_fijada"/);
   assert.match(route, /payload\.estado === "bloqueado" && payload\.bloqueo_origen !== "dia_completo"/);
-  assert.match(route, /\.rpc\(\s*"guardar_regla_agenda_recurrente"/);
+  assert.match(route, /\.rpc\(\s*"guardar_regla_agenda_recurrente_con_servicio"/);
   assert.match(route, /p_barbero_id: payload\.barbero_id/);
   assert.match(route, /p_dia_semana: getIsoWeekday\(payload\.fecha\)/);
   assert.match(route, /p_fecha_inicio: payload\.fecha/);

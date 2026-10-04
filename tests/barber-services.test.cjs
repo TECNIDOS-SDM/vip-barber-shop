@@ -47,7 +47,8 @@ test('admin CRUD is global, server-authorized and deactivates used services', ()
   assert.equal((route.match(/\.from\("servicios"\)/g) ?? []).length, 5);
   assert.doesNotMatch(route, /servicios_barberos|barbero_id/);
   assert.match(route, /\.from\("reservas"\)[\s\S]*\.eq\("servicio_id", payload\.id\)/);
-  assert.match(route, /if \(\(count \?\? 0\) > 0\)[\s\S]*\.update\(\{ activo: false \}\)/);
+  assert.match(route, /\.from\("reglas_agenda_recurrentes"\)[\s\S]*\.eq\("servicio_id", payload\.id\)/);
+  assert.match(route, /if \(\(reservationUsage\.count \?\? 0\) > 0 \|\| \(recurringUsage\.count \?\? 0\) > 0\)[\s\S]*\.update\(\{ activo: false \}\)/);
   assert.doesNotMatch(route, /service_role|SUPABASE_SERVICE_ROLE_KEY/);
 });
 

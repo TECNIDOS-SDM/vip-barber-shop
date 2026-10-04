@@ -28,13 +28,24 @@ export async function GET(request: Request) {
     const ids = (data ?? []).map((service: { id: string }) => service.id);
     const usedIds = new Set<string>();
     if (ids.length) {
-      const { data: reservations, error: reservationError } = await access.supabase
-        .from("reservas")
-        .select("servicio_id")
-        .in("servicio_id", ids);
-      if (reservationError) throw reservationError;
+      const [reservationsResult, recurringRulesResult] = await Promise.all([
+        access.supabase
+          .from("reservas")
+          .select("servicio_id")
+          .in("servicio_id", ids),
+        access.supabase
+          .from("reglas_agenda_recurrentes")
+          .select("servicio_id")
+          .in("servicio_id", ids)
+      ]);
+      if (reservationsResult.error) throw reservationsResult.error;
+      if (recurringRulesResult.error) throw recurringRulesResult.error;
+      const reservations = reservationsResult.data;
       for (const reservation of reservations ?? []) {
         if (reservation.servicio_id) usedIds.add(reservation.servicio_id);
+      }
+      for (const rule of recurringRulesResult.data ?? []) {
+        if (rule.servicio_id) usedIds.add(rule.servicio_id);
       }
     }
 
@@ -102,13 +113,20 @@ export async function DELETE(request: Request) {
 
   try {
     const payload = z.object({ id: z.string().uuid() }).parse(await request.json());
-    const { count, error: usageError } = await access.supabase
-      .from("reservas")
-      .select("id", { count: "exact", head: true })
-      .eq("servicio_id", payload.id);
-    if (usageError) throw usageError;
+    const [reservationUsage, recurringUsage] = await Promise.all([
+      access.supabase
+        .from("reservas")
+        .select("id", { count: "exact", head: true })
+        .eq("servicio_id", payload.id),
+      access.supabase
+        .from("reglas_agenda_recurrentes")
+        .select("id", { count: "exact", head: true })
+        .eq("servicio_id", payload.id)
+    ]);
+    if (reservationUsage.error) throw reservationUsage.error;
+    if (recurringUsage.error) throw recurringUsage.error;
 
-    if ((count ?? 0) > 0) {
+    if ((reservationUsage.count ?? 0) > 0 || (recurringUsage.count ?? 0) > 0) {
       const { data, error } = await access.supabase
         .from("servicios")
         .update({ activo: false })

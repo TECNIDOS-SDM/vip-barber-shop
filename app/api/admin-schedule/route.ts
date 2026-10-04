@@ -20,6 +20,7 @@ const createSchema = z.object({
   estado: z.enum(["confirmada", "cita_fijada", "bloqueado"]),
   cliente_nombre: z.string().optional(),
   cliente_whatsapp: z.string().optional(),
+  servicio_id: z.string().uuid().nullable().optional(),
   bloqueo_origen: z.enum(["manual", "dia_completo"]).optional()
 });
 
@@ -49,12 +50,19 @@ const deactivateRecurringSchema = z.object({
   tipo: z.enum(["bloqueo", "cita_fijada"])
 });
 
+const updateRecurringServiceSchema = z.object({
+  action: z.literal("update_recurrence_service"),
+  recurrence_rule_id: z.string().uuid(),
+  servicio_id: z.string().uuid().nullable()
+});
+
 const schema = z.union([
   createSchema,
   unblockSchema,
   releaseSchema,
   updateStatusSchema,
-  deactivateRecurringSchema
+  deactivateRecurringSchema,
+  updateRecurringServiceSchema
 ]);
 const SLOT_TAKEN_MESSAGE =
   "Este horario ya no está disponible. Por favor selecciona otro.";
@@ -156,6 +164,26 @@ export async function POST(request: Request) {
 
     if ("fecha" in payload && !isManagedAgendaDate(payload.fecha)) {
       return dateOutOfRangeResponse();
+    }
+
+    if (payload.action === "update_recurrence_service") {
+      const { data, error } = await (adminSupabase as any).rpc(
+        "actualizar_servicio_cita_fijada_recurrente",
+        {
+          p_regla_id: payload.recurrence_rule_id,
+          p_servicio_id: payload.servicio_id
+        }
+      );
+
+      if (error) {
+        if (isAgendaConflictError(error)) {
+          return NextResponse.json({ error: error.message }, { status: 409 });
+        }
+
+        throw error;
+      }
+
+      return NextResponse.json({ success: true, updatedRule: data });
     }
 
     if (payload.action === "deactivate_recurrence") {
@@ -313,7 +341,7 @@ export async function POST(request: Request) {
 
       for (const hora of payload.horas) {
         const { data, error } = await (adminSupabase as any).rpc(
-          "guardar_regla_agenda_recurrente",
+          "guardar_regla_agenda_recurrente_con_servicio",
           {
             p_barbero_id: payload.barbero_id,
             p_tipo: recurringType,
@@ -326,6 +354,9 @@ export async function POST(request: Request) {
               : null,
             p_cliente_whatsapp: recurringType === "cita_fijada"
               ? payload.cliente_whatsapp?.trim() || null
+              : null,
+            p_servicio_id: recurringType === "cita_fijada"
+              ? payload.servicio_id ?? null
               : null
           }
         );

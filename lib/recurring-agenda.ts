@@ -12,6 +12,10 @@ export type RecurringAgendaRule = {
   fecha_fin: string | null;
   cliente_nombre?: string | null;
   cliente_whatsapp?: string | null;
+  servicio_id?: string | null;
+  servicio_nombre_snapshot?: string | null;
+  servicio_precio_snapshot?: number | null;
+  precio_total_snapshot?: number | null;
 };
 
 type ProjectionVisibility = "public" | "admin" | "barber";
@@ -83,6 +87,18 @@ export function projectRecurringAgendaRules(
           : rule.cliente_nombre ?? "Cliente fijo";
         projection.cliente_whatsapp = rule.tipo === "cita_fijada"
           ? rule.cliente_whatsapp ?? null
+          : null;
+        projection.servicio_id = rule.tipo === "cita_fijada"
+          ? rule.servicio_id ?? null
+          : null;
+        projection.servicio_nombre_snapshot = rule.tipo === "cita_fijada"
+          ? rule.servicio_nombre_snapshot ?? null
+          : null;
+        projection.servicio_precio_snapshot = rule.tipo === "cita_fijada"
+          ? rule.servicio_precio_snapshot ?? null
+          : null;
+        projection.precio_total_snapshot = rule.tipo === "cita_fijada"
+          ? rule.precio_total_snapshot ?? null
           : null;
       }
 

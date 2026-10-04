@@ -34,6 +34,7 @@ import { formatCop } from "@/lib/currency";
 import { NEXT_WEEK_ENABLED, isWeekOffsetEnabled } from "@/lib/feature-flags";
 import { GlobalServices } from "@/components/admin/global-services";
 import { WeekDayLabel } from "@/components/shared/week-day-label";
+import type { GlobalService } from "@/types";
 
 const AdminLaborSchedules = dynamic(
   () =>
@@ -128,7 +129,8 @@ const emptyScheduleForm = {
   barbero_id: "",
   fecha: "",
   cliente_nombre: "",
-  cliente_whatsapp: ""
+  cliente_whatsapp: "",
+  servicio_id: ""
 };
 
 function normalizeHourKey(hour?: string | null) {
@@ -239,6 +241,9 @@ export function AdminDashboard({
   const [selectedReleaseReservations, setSelectedReleaseReservations] = useState<any[]>([]);
   const [showReleaseActionModal, setShowReleaseActionModal] = useState(false);
   const [isAddingMoreReleaseHours, setIsAddingMoreReleaseHours] = useState(false);
+  const [fixedAppointmentServices, setFixedAppointmentServices] = useState<GlobalService[]>([]);
+  const [fixedAppointmentServicesLoaded, setFixedAppointmentServicesLoaded] = useState(false);
+  const [recurringServiceId, setRecurringServiceId] = useState("");
   const [originalBarberPhotoUrl, setOriginalBarberPhotoUrl] = useState("");
   const [uploadedPhotoPath, setUploadedPhotoPath] = useState<string | null>(null);
   const [showAgendaObservationModal, setShowAgendaObservationModal] = useState(false);
@@ -298,9 +303,41 @@ export function AdminDashboard({
     return payload;
   }
 
+  async function loadFixedAppointmentServices() {
+    if (fixedAppointmentServicesLoaded) return;
+
+    const response = await fetch("/api/admin/barber-services", { cache: "no-store" });
+    const payload = await response.json();
+
+    if (!response.ok) {
+      throw new Error(payload.error ?? "No fue posible cargar los servicios.");
+    }
+
+    setFixedAppointmentServices(payload.services ?? []);
+    setFixedAppointmentServicesLoaded(true);
+  }
+
   useEffect(() => {
     scheduleDateRef.current = scheduleForm.fecha;
   }, [scheduleForm.fecha]);
+
+  useEffect(() => {
+    const reservation = selectedReleaseReservations.length === 1
+      ? selectedReleaseReservations[0]
+      : null;
+
+    setRecurringServiceId(
+      reservation?.recurrente && reservation.recurrence_type === "cita_fijada"
+        ? reservation.servicio_id ?? ""
+        : ""
+    );
+
+    if (reservation?.recurrente && reservation.recurrence_type === "cita_fijada") {
+      void loadFixedAppointmentServices().catch((error) => {
+        toast.error(error instanceof Error ? error.message : "No fue posible cargar los servicios.");
+      });
+    }
+  }, [selectedReleaseReservations]);
 
   useEffect(() => {
     let lastSeenDate = new Date().toLocaleDateString("en-CA", {
@@ -714,6 +751,50 @@ export function AdminDashboard({
     closeReleaseActionModal();
   }
 
+  async function saveRecurringFixedAppointmentService() {
+    const reservation = selectedReleaseReservations.length === 1
+      ? selectedReleaseReservations[0]
+      : null;
+
+    if (!reservation?.recurrente || reservation.recurrence_type !== "cita_fijada") {
+      toast.error("Selecciona una sola cita fijada recurrente.");
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      const response = await fetch("/api/admin-schedule", {
+        method: "POST",
+        headers: await getAdminScheduleRequestHeaders(),
+        body: JSON.stringify({
+          action: "update_recurrence_service",
+          recurrence_rule_id: reservation.recurrence_rule_id,
+          servicio_id: recurringServiceId || null
+        })
+      });
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? "No fue posible actualizar el servicio.");
+      }
+
+      await refreshData();
+      toast.success(
+        recurringServiceId
+          ? "Servicio de la cita fijada actualizado."
+          : "La cita fijada quedó sin servicio."
+      );
+      closeReleaseActionModal();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "No fue posible actualizar el servicio."
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function updateReservationStatus(
     ids: string[],
     estado: "confirmada" | "cita_fijada" | "bloqueado"
@@ -798,6 +879,7 @@ export function AdminDashboard({
     setShowReleaseActionModal(false);
     setIsAddingMoreReleaseHours(false);
     setSelectedReleaseReservations([]);
+    setRecurringServiceId("");
   }
 
   function toggleHour(hour: string) {
@@ -822,7 +904,8 @@ export function AdminDashboard({
     setScheduleForm((current) => ({
       ...current,
       cliente_nombre: "",
-      cliente_whatsapp: ""
+      cliente_whatsapp: "",
+      servicio_id: ""
     }));
   }
 
@@ -899,6 +982,7 @@ export function AdminDashboard({
     setScheduleForm((current) => ({
       ...current,
       ...patch,
+      ...(resetHours ? { servicio_id: "" } : {}),
       barbero_id: barberId
     }));
 
@@ -994,6 +1078,9 @@ export function AdminDashboard({
           estado: scheduleMode,
           cliente_nombre: scheduleForm.cliente_nombre,
           cliente_whatsapp: scheduleForm.cliente_whatsapp,
+          servicio_id: scheduleMode === "cita_fijada"
+            ? scheduleForm.servicio_id || null
+            : undefined,
           bloqueo_origen:
             scheduleMode === "bloqueado"
               ? fullDayBlock
@@ -2170,6 +2257,40 @@ export function AdminDashboard({
                 ))}
               </div>
             </div>
+            {selectedReleaseReservations.length === 1 &&
+            selectedReleaseReservations[0]?.recurrente &&
+            selectedReleaseReservations[0]?.recurrence_type === "cita_fijada" ? (
+              <div className="mt-4 rounded-2xl border border-accent/20 bg-accent/10 p-4">
+                <label className="block space-y-2 text-sm text-sand/80">
+                  <span>Servicio opcional de la cita fijada</span>
+                  <select
+                    value={recurringServiceId}
+                    onChange={(event) => setRecurringServiceId(event.target.value)}
+                    className="w-full rounded-2xl border border-white/10 bg-[#120f0b] px-4 py-3 text-sand outline-none focus:border-accent"
+                  >
+                    <option value="">Sin servicio</option>
+                    {fixedAppointmentServices.map((service) => (
+                      <option
+                        key={service.id}
+                        value={service.id}
+                        disabled={!service.activo && service.id !== recurringServiceId}
+                      >
+                        {service.nombre} - {formatCop(service.precio)}
+                        {!service.activo ? " (inactivo)" : ""}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button
+                  type="button"
+                  disabled={saving}
+                  onClick={() => void saveRecurringFixedAppointmentService()}
+                  className="mt-3 w-full rounded-2xl bg-accent px-4 py-3 text-sm font-bold text-ink disabled:opacity-60"
+                >
+                  Guardar servicio
+                </button>
+              </div>
+            ) : null}
             {!hasSelectedRecurringRules ? (
             <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
               <button
@@ -2291,6 +2412,7 @@ export function AdminDashboard({
                 onClick={() => {
                   setSelectedAction("confirmada");
                   setScheduleMode("confirmada");
+                  updateScheduleForBarber(activeBarber.id, { servicio_id: "" });
                 }}
                 className={cn(
                   "rounded-2xl px-4 py-3 text-sm font-semibold transition",
@@ -2306,6 +2428,11 @@ export function AdminDashboard({
                 onClick={() => {
                   setSelectedAction("cita_fijada");
                   setScheduleMode("cita_fijada");
+                  void loadFixedAppointmentServices().catch((error) => {
+                    toast.error(
+                      error instanceof Error ? error.message : "No fue posible cargar los servicios."
+                    );
+                  });
                 }}
                 className={cn(
                   "rounded-2xl px-4 py-3 text-sm font-semibold transition",
@@ -2321,6 +2448,7 @@ export function AdminDashboard({
                 onClick={() => {
                   setSelectedAction("bloqueado");
                   setScheduleMode("bloqueado");
+                  updateScheduleForBarber(activeBarber.id, { servicio_id: "" });
                 }}
                 className={cn(
                   "rounded-2xl px-4 py-3 text-sm font-semibold transition",
@@ -2356,6 +2484,29 @@ export function AdminDashboard({
                     placeholder="WhatsApp cliente"
                     className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-accent"
                   />
+                  {selectedAction === "cita_fijada" ? (
+                    <label className="block space-y-2 text-sm text-sand/70">
+                      <span>Servicio opcional</span>
+                      <select
+                        value={scheduleForm.servicio_id}
+                        onChange={(event) =>
+                          updateScheduleForBarber(activeBarber.id, {
+                            servicio_id: event.target.value
+                          })
+                        }
+                        className="w-full rounded-2xl border border-white/10 bg-[#120f0b] px-4 py-3 text-sand outline-none focus:border-accent"
+                      >
+                        <option value="">Sin servicio</option>
+                        {fixedAppointmentServices
+                          .filter((service) => service.activo)
+                          .map((service) => (
+                            <option key={service.id} value={service.id}>
+                              {service.nombre} - {formatCop(service.precio)}
+                            </option>
+                          ))}
+                      </select>
+                    </label>
+                  ) : null}
                 </>
               ) : (
                 <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-sand/80">

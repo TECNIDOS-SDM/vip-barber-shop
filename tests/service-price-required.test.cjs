@@ -149,8 +149,8 @@ test('historical and fixed-appointment compatibility remains explicit', () => {
     recurringMigration,
     /add column (servicio_id|servicio_nombre_snapshot|servicio_precio_snapshot|precio_total_snapshot)/i
   );
-  assert.match(adminRoute, /payload\.estado === "cita_fijada"[\s\S]*guardar_regla_agenda_recurrente/);
-  assert.doesNotMatch(adminRoute, /p_servicio_id/);
+  assert.match(adminRoute, /payload\.estado === "cita_fijada"[\s\S]*guardar_regla_agenda_recurrente_con_servicio/);
+  assert.match(adminRoute, /p_servicio_id: recurringType === "cita_fijada"/);
 });
 
 test('WhatsApp confirmation includes the already calculated authorized total', () => {
