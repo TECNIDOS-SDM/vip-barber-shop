@@ -5,18 +5,21 @@ import { toast } from "sonner";
 import { attentionConfigurationSchema, type AttentionConfiguration } from "@/lib/attention-configuration";
 
 type RelocationPlan = {
+  canApply: boolean;
   total: number;
   reservations: number;
   fixedAppointments: number;
   blocks: number;
+  compatibleRecurringRules: number;
+  physicalMoves: Array<{ estado: string; fecha: string; desde: string; hasta: string }>;
+  recurringBlockMoves: Array<{ type: string; day: number; from: string; to: string }>;
+  conflicts: Array<{ type: string; day: number; time: string; date?: string; reason: string }>;
   examples: Array<{ estado: string; fecha: string; desde: string; hasta: string }>;
   requestedEnd: string;
   effectiveEnd: string;
   extensions: Record<string, string>;
   firstRecords: Record<string, {
-    id: string;
     estado: string;
-    cliente: string | null;
     hora: string;
   }>;
   affectedDates: number;
@@ -139,7 +142,7 @@ export function AdminAttentionConfiguration({
   }
 
   async function confirmChange() {
-    if (inFlight.current || !pendingChange) return;
+    if (inFlight.current || !pendingChange || !pendingChange.plan.canApply) return;
     inFlight.current = true;
     setSaving(true);
     setError("");
@@ -190,10 +193,11 @@ export function AdminAttentionConfiguration({
               <p>{pendingChange.configuration.intervalo_citas} minutos</p>
             </div>
           </div>
-          <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+          <div className="mt-4 grid grid-cols-2 gap-2 text-center sm:grid-cols-4">
             <div className="rounded-xl border border-white/10 bg-white/5 p-3"><strong className="block text-xl text-accent">{pendingChange.plan.reservations}</strong><span className="text-xs text-sand/65">Reservas</span></div>
             <div className="rounded-xl border border-white/10 bg-white/5 p-3"><strong className="block text-xl text-accent">{pendingChange.plan.fixedAppointments}</strong><span className="text-xs text-sand/65">Citas fijadas</span></div>
             <div className="rounded-xl border border-white/10 bg-white/5 p-3"><strong className="block text-xl text-accent">{pendingChange.plan.blocks}</strong><span className="text-xs text-sand/65">Bloqueos</span></div>
+            <div className="rounded-xl border border-white/10 bg-white/5 p-3"><strong className="block text-xl text-accent">{pendingChange.plan.recurringBlockMoves.length}</strong><span className="text-xs text-sand/65">Recurrentes</span></div>
           </div>
           <p className="mt-3 text-sm text-sand/65">
             Fechas actuales o futuras con registros: <strong className="text-sand">{pendingChange.plan.affectedDates}</strong>
@@ -203,7 +207,7 @@ export function AdminAttentionConfiguration({
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sand/50">Primer registro activo por fecha</p>
               {Object.entries(pendingChange.plan.firstRecords).map(([date, record]) => (
                 <p key={date} className="mt-2">
-                  {date}: {record.hora} - {record.estado}{record.cliente ? ` - ${record.cliente}` : ""}
+                  {date}: {record.hora} - {record.estado}
                 </p>
               ))}
             </div>
@@ -226,19 +230,36 @@ export function AdminAttentionConfiguration({
               <p key={date} className="mt-1 text-accent">{date}: se extiende hasta {end}</p>
             ))}
           </div>
-          {pendingChange.plan.examples.length ? (
-            <div className="mt-4 space-y-2">
-              {pendingChange.plan.examples.map((example, index) => (
-                <p key={`${example.fecha}-${example.desde}-${index}`} className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-sand/75">
-                  {example.fecha}: {example.desde} {" -> "} {example.hasta}
+          {pendingChange.plan.physicalMoves.length || pendingChange.plan.recurringBlockMoves.length ? (
+            <div className="mt-4 rounded-xl border border-emerald-400/25 bg-emerald-400/10 p-3 text-sm text-emerald-50">
+              <p className="font-semibold">Se reubicarán automáticamente</p>
+              {pendingChange.plan.physicalMoves.slice(0, 8).map((move, index) => (
+                <p key={`${move.fecha}-${move.desde}-${index}`} className="mt-2">
+                  {move.fecha}: {move.desde} {" -> "} {move.hasta} ({move.estado})
+                </p>
+              ))}
+              {pendingChange.plan.recurringBlockMoves.map((move, index) => (
+                <p key={`${move.day}-${move.from}-${index}`} className="mt-2">
+                  Bloqueo recurrente: {move.from} {" -> "} {move.to}
                 </p>
               ))}
             </div>
           ) : null}
-          <p className="mt-4 text-sm text-sand/65">Se conservaran los IDs, clientes, estados y demas datos. Solo cambiaran las horas de los turnos indicados.</p>
+          {pendingChange.plan.conflicts.length ? (
+            <div className="mt-4 rounded-xl border border-red-400/30 bg-red-400/10 p-3 text-sm text-red-100">
+              <p className="font-semibold">Requieren resolución manual</p>
+              {pendingChange.plan.conflicts.map((conflict, index) => (
+                <p key={`${conflict.type}-${conflict.date ?? conflict.day}-${conflict.time}-${index}`} className="mt-2">
+                  {conflict.date ? `${conflict.date}: ` : ""}{conflict.time} - {conflict.type === "cita_fijada" ? "cita fijada recurrente fuera de la nueva malla" : "sin destino seguro"}
+                </p>
+              ))}
+              <p className="mt-2 text-xs text-red-100/75">La configuración no se aplicará hasta resolver estos conflictos.</p>
+            </div>
+          ) : null}
+          <p className="mt-4 text-sm text-sand/65">Se conservarán los IDs, clientes, estados y demás datos. Solo cambiarán las horas incluidas en el plan automático.</p>
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
             <button type="button" disabled={saving} onClick={() => setPendingChange(null)} className="rounded-xl border border-white/15 px-4 py-3 font-semibold text-sand disabled:opacity-60">Cancelar</button>
-            <button type="button" disabled={saving} onClick={() => void confirmChange()} className="rounded-xl bg-accent px-4 py-3 font-bold text-ink disabled:opacity-60">{saving ? "Guardando..." : "Confirmar cambio"}</button>
+            <button type="button" disabled={saving || !pendingChange.plan.canApply} onClick={() => void confirmChange()} className="rounded-xl bg-accent px-4 py-3 font-bold text-ink disabled:opacity-60">{saving ? "Guardando..." : pendingChange.plan.canApply ? "Confirmar cambio" : "Resuelve los conflictos"}</button>
           </div>
         </section>
       </div>

@@ -72,8 +72,17 @@ test('endpoint scopes reads and writes to barber ID, rejects malformed requests'
         };
       },
       rpc(functionName, parameters) {
-        assert.equal(functionName, 'actualizar_configuracion_atencion_barbero');
         rpcCalls++;
+        if (functionName === 'planificar_cambio_configuracion_atencion') {
+          return Promise.resolve({ data: {
+            can_apply: true,
+            physical_moves: [],
+            recurring_block_moves: [],
+            conflicts: [],
+            plan_id: 'test-plan'
+          }, error: null });
+        }
+        assert.equal(functionName, 'actualizar_configuracion_atencion_barbero');
         return { async maybeSingle() {
           const rowKey = key(parameters.p_barbero_id, parameters.p_dia_semana);
           const current = rows.get(rowKey);
@@ -141,29 +150,26 @@ test('endpoint reports an atomic relocation conflict without exposing database d
 
 test('endpoint normalizes preview metadata required for administrator confirmation', async () => {
   const rpcResult = {
-      barbero_id: a,
-      dia_semana: 1,
-      hora_inicio_atencion: '09:00:00',
-      hora_fin_atencion: '21:00:00',
-      intervalo_citas: 60,
-      turnos_reubicados: 1,
-      reservas_afectadas: 1,
-      citas_fijadas_afectadas: 0,
-      bloqueos_afectados: 0,
-      ejemplos: [],
-      hora_fin_objetivo: '21:00:00',
-      hora_fin_efectiva: '22:00:00',
-      extensiones_por_fecha: { '2026-09-24': '22:00' },
-      primeros_registros: { '2026-09-24': { id: 'x', estado: 'confirmada', hora: '20:30' } },
-      advertencias_laborales: [{ fecha: '2026-09-24', salida_laboral: '20:00', fin_efectivo: '22:00' }],
+      can_apply: false,
+      physical_moves: [{ id: 'private-row-id', estado: 'confirmada', fecha: '2026-09-24', desde: '20:30', hasta: '21:30' }],
+      recurring_block_moves: [{ rule_id: 'private-rule-id', type: 'bloqueo', day: 1, from: '20:00', to: '21:00' }],
+      conflicts: [{ rule_id: 'private-fixed-rule', type: 'cita_fijada', day: 1, time: '20:30', reason: 'fuera_grid' }],
+      compatible_recurring_rules: 2,
+      reservation_moves: 1,
+      fixed_appointment_moves: 0,
+      physical_block_moves: 0,
+      requested_end: '21:00:00',
+      effective_end: '22:00:00',
+      extensions: { '2026-09-24': '22:00' },
+      first_records: { '2026-09-24': { id: 'private-row-id', cliente: 'Private name', estado: 'confirmada', hora: '20:30' } },
+      labor_warnings: [{ fecha: '2026-09-24', salida_laboral: '20:00', fin_efectivo: '22:00' }],
       plan_id: 'plan',
-      aplicado: false
   };
   const routes = load('app/api/admin/attention-configuration/route.ts', {
     '@/lib/attention-configuration': validation,
     '@/lib/admin-labor-access': { requireAdministrator: async () => ({ userId: a, supabase: {
       rpc() {
-        return { async maybeSingle() { return { data: rpcResult, error: null }; } };
+        return Promise.resolve({ data: rpcResult, error: null });
       }
     } }) }
   });
@@ -173,6 +179,13 @@ test('endpoint normalizes preview metadata required for administrator confirmati
   const payload = await response.json();
   assert.equal(response.status, 200);
   assert.equal(payload.plan.firstRecords['2026-09-24'].hora, '20:30');
+  assert.equal(payload.plan.firstRecords['2026-09-24'].id, undefined);
+  assert.equal(payload.plan.firstRecords['2026-09-24'].cliente, undefined);
+  assert.equal(payload.plan.physicalMoves[0].id, undefined);
+  assert.equal(payload.plan.recurringBlockMoves[0].rule_id, undefined);
+  assert.equal(payload.plan.conflicts[0].rule_id, undefined);
+  assert.equal(payload.plan.canApply, false);
+  assert.equal(payload.plan.compatibleRecurringRules, 2);
   assert.equal(payload.plan.laborWarnings[0].salida_laboral, '20:00');
   assert.equal(payload.plan.extensions['2026-09-24'], '22:00');
 });
