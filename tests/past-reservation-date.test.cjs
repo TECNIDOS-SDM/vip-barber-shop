@@ -59,7 +59,7 @@ function requestFor(fecha) {
       cliente_whatsapp: '3000000000',
       fecha,
       hora: '10:00',
-      servicio_id: null,
+      servicio_id: '22222222-2222-4222-8222-222222222222',
       servicios_adicionales: []
     })
   });

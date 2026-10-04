@@ -5,7 +5,10 @@ const { confirmedFixture, clickSend, renderCard } = require('./helpers/whatsapp-
 
 const bookingSource = fs.readFileSync('components/booking/booking-shell.tsx', 'utf8');
 
-const suffix = ' el d\u00eda martes 29 de septiembre a las 2:40 PM.\n\nMuchas gracias \ud83d\udc88';
+const formattedDefaultTotal = new Intl.NumberFormat('es-CO', {
+  style: 'currency', currency: 'COP', maximumFractionDigits: 0
+}).format(20000);
+const suffix = ` el d\u00eda martes 29 de septiembre a las 2:40 PM por un total de ${formattedDefaultTotal}.\n\nMuchas gracias \ud83d\udc88`;
 for (const [names, expected] of [
   [[], ''],
   [['Mascarilla'], ' con Mascarilla'],
@@ -29,11 +32,13 @@ test('accented names and separators round-trip without leaking extra fields', ()
   const { state } = confirmedFixture(['Ba\u00f1o & cuidado'], {
     clienteNombre: 'Jos\u00e9 Pe\u00f1a', clienteWhatsapp: '0000000000',
     selectedBarber: { nombre: 'Camilo Delgado', id: 'PRIVATE-ID' },
-    selectedService: { nombre: 'Corte', precio: 987654 }
+    selectedService: { nombre: 'Corte', precio: 987654 },
+    reservationTotal: 27000
   });
   const message = new URL(state.url).searchParams.get('text');
   assert.match(message, /Jos\u00e9 Pe\u00f1a/);
   assert.match(message, /Ba\u00f1o & cuidado/);
+  assert.match(message, /por un total de \$\s?27\.000/);
   assert.doesNotMatch(message, /0000000000|PRIVATE-ID|987654/);
 });
 

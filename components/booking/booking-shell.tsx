@@ -179,9 +179,9 @@ export function BookingShell({
   );
   const hasAdditionalServices = hasServices && activeAdditionalServices.length > 0;
   const hadAdditionalServicesRef = useRef(hasAdditionalServices);
-  const serviceStep = hasServices ? 2 : null;
+  const serviceStep = 2;
   const additionalSelectionStep = hasAdditionalServices ? 3 : null;
-  const dateStep = hasServices ? (hasAdditionalServices ? 4 : 3) : 2;
+  const dateStep = hasAdditionalServices ? 4 : 3;
   const hourStep = dateStep + 1;
   const detailsStep = hourStep + 1;
   const totalSteps = detailsStep;
@@ -512,7 +512,7 @@ export function BookingShell({
       return;
     }
 
-    if (hasServices && !selectedService) {
+    if (!selectedService) {
       toast.error("Selecciona un servicio antes de confirmar.");
       setCurrentStep(2);
       return;
@@ -544,7 +544,7 @@ export function BookingShell({
           hora: selectedHour,
           cliente_nombre: clienteNombre,
           cliente_whatsapp: clienteWhatsapp,
-          servicio_id: selectedService?.id ?? null,
+          servicio_id: selectedService.id,
           servicios_adicionales: selectedAdditionalServices.map((service) => service.id)
         })
       });
@@ -564,8 +564,9 @@ export function BookingShell({
           ? ` con ${additionalNames.slice(0, -1).join(", ")} y ${additionalNames[additionalNames.length - 1]}`
           : "";
       const serviceMessage = selectedService ? ` para ${selectedService.nombre}` : "";
+      const totalMessage = ` por un total de ${formatCop(reservationTotal)}`;
       const whatsappBarberPole = String.fromCodePoint(0x1f488);
-      const message = `Hola soy ${clienteNombre}, agendé una cita con ${selectedBarber.nombre}${serviceMessage}${additionalMessage} el día ${formatReservationDate(selectedDate)} a las ${formatHourDisplay(selectedHour)}.\n\nMuchas gracias ${whatsappBarberPole}`;
+      const message = `Hola soy ${clienteNombre}, agendé una cita con ${selectedBarber.nombre}${serviceMessage}${additionalMessage} el día ${formatReservationDate(selectedDate)} a las ${formatHourDisplay(selectedHour)}${totalMessage}.\n\nMuchas gracias ${whatsappBarberPole}`;
       setConfirmedWhatsAppUrl(`https://api.whatsapp.com/send?phone=${RESERVATION_WHATSAPP_NUMBER}&text=${encodeURIComponent(message)}`);
       setWhatsAppError(null);
       resetBookingFlow();
@@ -713,7 +714,7 @@ export function BookingShell({
                     <h4 className="font-semibold text-sand">SELECCIONA EL SERVICIO</h4>
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2">
-                    {activeServices.map((service) => (
+                    {activeServices.length ? activeServices.map((service) => (
                       <button
                         key={service.id}
                         type="button"
@@ -731,7 +732,11 @@ export function BookingShell({
                         <span className="block font-semibold">{service.nombre}</span>
                         <span className="mt-2 block text-lg font-black">{formatCop(service.precio)}</span>
                       </button>
-                    ))}
+                    )) : (
+                      <p className="sm:col-span-2 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-sand/75">
+                        No hay servicios disponibles para reservar en este momento.
+                      </p>
+                    )}
                   </div>
                 </>
               ) : null}

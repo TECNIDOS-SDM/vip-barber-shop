@@ -36,7 +36,7 @@ test('public reservation validates an active global service and stores snapshots
   assert.doesNotMatch(sql, /servicio\.barbero_id = p_barbero_id/i);
   assert.match(sql, /for share/i);
   assert.match(sql, /set servicio_id = v_servicio\.id,[\s\S]*servicio_nombre_snapshot = v_servicio\.nombre,[\s\S]*servicio_precio_snapshot = v_servicio\.precio/i);
-  assert.match(route, /p_servicio_id: values\.servicio_id \?\? null/);
+  assert.match(route, /p_servicio_id: values\.servicio_id/);
   assert.match(route, /error\.code === "23505"/);
 });
 
@@ -63,13 +63,15 @@ test('admin exposes one exclusive global services view outside barber profiles',
   assert.doesNotMatch(services, /barbero_id|barberId|barberName/);
 });
 
-test('public flow uses the same active catalog for every barber and skips an empty catalog', () => {
+test('public flow requires the same active catalog for every barber', () => {
   const booking = read('components/booking/booking-shell.tsx');
   const queries = read('lib/queries.ts');
 
   assert.match(booking, /liveServices\.filter\(\(service\) => service\.activo\)/);
   assert.match(booking, /const hasServices = activeServices\.length > 0/);
-  assert.match(booking, /const dateStep = hasServices \? \(hasAdditionalServices \? 4 : 3\) : 2/);
+  assert.match(booking, /const serviceStep = 2/);
+  assert.match(booking, /const dateStep = hasAdditionalServices \? 4 : 3/);
+  assert.match(booking, /No hay servicios disponibles para reservar en este momento\./);
   assert.match(booking, /setSelectedService\(null\)/);
   assert.doesNotMatch(booking, /service\.barbero_id/);
   assert.match(queries, /\.from\("servicios"\)/);

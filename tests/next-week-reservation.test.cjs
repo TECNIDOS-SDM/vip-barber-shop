@@ -27,7 +27,7 @@ test('next-week reservation implementation remains intact through the central ga
   assert.match(booking, /!isWeekOffsetEnabled\(nextOffset\)/);
   assert.match(booking, /fetch\("\/api\/reserve"/);
   assert.match(booking, /fecha: selectedDate/);
-  assert.match(booking, /servicio_id: selectedService\?\.id \?\? null/);
+  assert.match(booking, /servicio_id: selectedService\.id/);
   assert.match(booking, /servicios_adicionales: selectedAdditionalServices\.map/);
   assert.match(booking, /toast\.success\("Reservado", \{ duration: 4000 \}\)/);
   assert.match(booking, /formatReservationDate\(selectedDate\)/);
@@ -36,7 +36,7 @@ test('next-week reservation implementation remains intact through the central ga
 test('atomic RPC, server totals and controlled conflicts remain unchanged', () => {
   assert.match(reserveRoute, /\.rpc\("crear_turnos_agenda_seguros"/);
   assert.match(reserveRoute, /p_fecha: values\.fecha/);
-  assert.match(reserveRoute, /p_servicio_id: values\.servicio_id \?\? null/);
+  assert.match(reserveRoute, /p_servicio_id: values\.servicio_id/);
   assert.match(reserveRoute, /p_servicios_adicionales: values\.servicios_adicionales \?\? \[\]/);
   assert.doesNotMatch(reserveRoute, /precio_total|precio_snapshot/);
   assert.match(reserveRoute, /error\.code === "23505" \|\| error\.code === "22023"/);

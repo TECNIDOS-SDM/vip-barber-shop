@@ -23,6 +23,7 @@ function loadDateModule(file) {
   return module.exports;
 }
 const dates = loadDateModule('lib/date.ts');
+const currency = loadDateModule('lib/currency.ts');
 const confirm = findFunction('confirmReservation');
 const successStatements = confirm.body.statements.find(ts.isTryStatement).tryBlock.statements;
 const first = successStatements.findIndex(node => node.getText(ast).startsWith('const additionalNames ='));
@@ -39,11 +40,13 @@ function confirmedFixture(additionalNames = [], overrides = {}) {
   const denyNetwork = () => { state.requests++; throw new Error('Network forbidden in isolated test'); };
   const context = {
     ...dates,
+    ...currency,
     RESERVATION_WHATSAPP_NUMBER: number,
     clienteNombre: 'Davison',
     selectedBarber: { nombre: 'Rodrigo Miranda' },
     selectedService: { nombre: 'Corte' },
     selectedAdditionalServices: additionalNames.map(nombre => ({ nombre })),
+    reservationTotal: 20000,
     selectedDate: '2026-09-29', selectedHour: '14:40',
     ...overrides,
     setConfirmedWhatsAppUrl: url => { state.url = url; },
