@@ -47,6 +47,52 @@ function slotKey(barberoId: string, isoDate: string, hour: string) {
   return `${barberoId}:${isoDate}:${normalizeHour(hour)}`;
 }
 
+function enrichDatedFixedAppointments(
+  datedReservations: ReservationSlot[],
+  recurringRules: RecurringAgendaRule[],
+  weekDates: string[],
+  visibility: ProjectionVisibility
+) {
+  if (visibility === "public") return datedReservations;
+
+  const fixedRulesBySlot = new Map<string, RecurringAgendaRule[]>();
+
+  for (const rule of recurringRules) {
+    if (rule.tipo !== "cita_fijada" || !rule.hora) continue;
+
+    for (const isoDate of weekDates) {
+      if (!isRuleActiveOnDate(rule, isoDate)) continue;
+
+      const key = slotKey(rule.barbero_id, isoDate, rule.hora);
+      const matches = fixedRulesBySlot.get(key) ?? [];
+      matches.push(rule);
+      fixedRulesBySlot.set(key, matches);
+    }
+  }
+
+  return datedReservations.map((reservation) => {
+    if (reservation.estado !== "cita_fijada") return reservation;
+
+    const matches = fixedRulesBySlot.get(
+      slotKey(reservation.barbero_id, reservation.fecha, reservation.hora)
+    );
+
+    // Ambiguous legacy slots stay untouched rather than inheriting the wrong rule.
+    if (matches?.length !== 1) return reservation;
+
+    const [rule] = matches;
+    if (!rule.servicio_id) return reservation;
+
+    return {
+      ...reservation,
+      servicio_id: rule.servicio_id,
+      servicio_nombre_snapshot: rule.servicio_nombre_snapshot ?? null,
+      servicio_precio_snapshot: rule.servicio_precio_snapshot ?? null,
+      precio_total_snapshot: rule.precio_total_snapshot ?? null
+    };
+  });
+}
+
 export function projectRecurringAgendaRules(
   rules: RecurringAgendaRule[],
   weekDates: string[],
@@ -115,8 +161,15 @@ export function mergeDatedAndRecurringAgenda(
   weekDates: string[],
   visibility: ProjectionVisibility
 ) {
+  const enrichedDatedReservations = enrichDatedFixedAppointments(
+    datedReservations,
+    recurringRules,
+    weekDates,
+    visibility
+  );
+
   return [
-    ...datedReservations,
+    ...enrichedDatedReservations,
     ...projectRecurringAgendaRules(
       recurringRules,
       weekDates,

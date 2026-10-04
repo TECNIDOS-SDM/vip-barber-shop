@@ -97,6 +97,97 @@ test('current and next week receive the same private snapshots without physical 
   assert.doesNotMatch(projectionSource, /insert|update|delete|supabase/i);
 });
 
+test('physical current-week fixed appointment inherits only optional service snapshots', () => {
+  const physical = {
+    id: 'physical-1', barbero_id: 'barber-1', fecha: '2026-10-06', hora: '10:00',
+    estado: 'cita_fijada', cliente_nombre: 'Nombre fisico', cliente_whatsapp: '3111111111'
+  };
+  const merged = recurringAgenda.mergeDatedAndRecurringAgenda(
+    [physical], [fixedRule], ['2026-10-06'], 'admin'
+  );
+
+  assert.equal(merged.length, 1);
+  assert.equal(merged[0].id, 'physical-1');
+  assert.equal(merged[0].fecha, '2026-10-06');
+  assert.equal(merged[0].estado, 'cita_fijada');
+  assert.equal(merged[0].cliente_nombre, 'Nombre fisico');
+  assert.equal(merged[0].cliente_whatsapp, '3111111111');
+  assert.equal(merged[0].servicio_id, 'service-1');
+  assert.equal(merged[0].servicio_nombre_snapshot, 'Corte');
+  assert.equal(merged[0].servicio_precio_snapshot, 20000);
+  assert.equal(merged[0].precio_total_snapshot, 20000);
+});
+
+test('physical fixed appointment stays unchanged without a service or with an ambiguous match', () => {
+  const physical = {
+    id: 'physical-1', barbero_id: 'barber-1', fecha: '2026-10-06', hora: '10:00',
+    estado: 'cita_fijada'
+  };
+  const noServiceRule = {
+    ...fixedRule,
+    servicio_id: null,
+    servicio_nombre_snapshot: null,
+    servicio_precio_snapshot: null,
+    precio_total_snapshot: null
+  };
+
+  const withoutService = recurringAgenda.mergeDatedAndRecurringAgenda(
+    [physical], [noServiceRule], ['2026-10-06'], 'admin'
+  );
+  const ambiguous = recurringAgenda.mergeDatedAndRecurringAgenda(
+    [physical], [fixedRule, { ...fixedRule, id: 'rule-2' }], ['2026-10-06'], 'admin'
+  );
+  const mixedAmbiguous = recurringAgenda.mergeDatedAndRecurringAgenda(
+    [physical], [fixedRule, { ...noServiceRule, id: 'rule-2' }], ['2026-10-06'], 'admin'
+  );
+
+  assert.deepEqual(withoutService, [physical]);
+  assert.deepEqual(ambiguous, [physical]);
+  assert.deepEqual(mixedAmbiguous, [physical]);
+});
+
+test('enrichment requires the same barber and an active rule valid on that date', () => {
+  const physical = {
+    id: 'physical-1', barbero_id: 'barber-1', fecha: '2026-10-06', hora: '10:00',
+    estado: 'cita_fijada'
+  };
+  const candidates = [
+    { ...fixedRule, barbero_id: 'barber-2' },
+    { ...fixedRule, id: 'inactive', activo: false },
+    { ...fixedRule, id: 'expired', fecha_fin: '2026-10-05' },
+    { ...fixedRule, id: 'future', fecha_inicio: '2026-10-07' }
+  ];
+
+  for (const rule of candidates) {
+    const merged = recurringAgenda.mergeDatedAndRecurringAgenda(
+      [physical], [rule], ['2026-10-06'], 'barber'
+    );
+    const physicalResult = merged.find(item => item.id === 'physical-1');
+    assert.deepEqual(physicalResult, physical);
+    assert.equal(Object.hasOwn(physicalResult, 'servicio_id'), false);
+  }
+});
+
+test('enrichment is private and never affects other dated occupation types', () => {
+  const rows = [
+    { id: 'normal', barbero_id: 'barber-1', fecha: '2026-10-06', hora: '10:00', estado: 'confirmada' },
+    { id: 'block', barbero_id: 'barber-1', fecha: '2026-10-06', hora: '10:00', estado: 'bloqueado' },
+    { id: 'full-day', barbero_id: 'barber-1', fecha: '2026-10-06', hora: '10:00', estado: 'bloqueado', bloqueo_dia_completo: true }
+  ];
+  const adminRows = recurringAgenda.mergeDatedAndRecurringAgenda(
+    rows, [fixedRule], ['2026-10-06'], 'admin'
+  );
+  const publicFixed = recurringAgenda.mergeDatedAndRecurringAgenda(
+    [{ id: 'physical', barbero_id: 'barber-1', fecha: '2026-10-06', hora: '10:00', estado: 'cita_fijada' }],
+    [fixedRule], ['2026-10-06'], 'public'
+  );
+
+  assert.deepEqual(adminRows, rows);
+  assert.equal(publicFixed.length, 1);
+  assert.equal(Object.hasOwn(publicFixed[0], 'servicio_id'), false);
+  assert.equal(Object.hasOwn(publicFixed[0], 'precio_total_snapshot'), false);
+});
+
 test('public projection and query never expose fixed appointment service data', () => {
   const publicProjection = recurringAgenda.projectRecurringAgendaRules(
     [fixedRule],

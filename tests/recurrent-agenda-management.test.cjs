@@ -98,6 +98,28 @@ test('dated occupation wins over a recurring projection at the same slot', () =>
   assert.match(projection, /occupiedDatedSlots\.has\(slotKey\(rule\.barbero_id, isoDate, hour\)\)/);
 });
 
+test('dated fixed appointment remains the single base row when enriched by its rule', () => {
+  const dated = {
+    id: 'physical-row', barbero_id: 'camilo', fecha: '2026-10-06', hora: '10:00',
+    estado: 'cita_fijada', cliente_nombre: 'Cliente legado'
+  };
+  const rule = {
+    id: 'fixed-rule', barbero_id: 'camilo', tipo: 'cita_fijada', dia_semana: 2,
+    hora: '10:00', dia_completo: false, activo: true, fecha_inicio: '2026-10-01',
+    fecha_fin: null, servicio_id: 'service-1', servicio_nombre_snapshot: 'Corte',
+    servicio_precio_snapshot: 20000, precio_total_snapshot: 20000
+  };
+  const merged = recurringAgenda.mergeDatedAndRecurringAgenda(
+    [dated], [rule], ['2026-10-06'], 'admin'
+  );
+
+  assert.equal(merged.length, 1);
+  assert.equal(merged[0].id, 'physical-row');
+  assert.equal(merged[0].cliente_nombre, 'Cliente legado');
+  assert.equal(merged[0].servicio_nombre_snapshot, 'Corte');
+  assert.equal(merged[0].precio_total_snapshot, 20000);
+});
+
 test('fixed appointment privacy differs explicitly between public and authorized projections', () => {
   const publicRuleQuery = queries.match(/\.from\("reglas_agenda_recurrentes"\)\s*\.select\("id,barbero_id,tipo,dia_semana,hora,dia_completo,activo,fecha_inicio,fecha_fin"\)/)?.[0] ?? '';
   assert.ok(publicRuleQuery);
