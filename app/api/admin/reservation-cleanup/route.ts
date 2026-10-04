@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdministrator } from "@/lib/admin-labor-access";
-import { cleanupExpiredReservations } from "@/lib/reservation-cleanup";
+import { getReservationCleanupDryRun } from "@/lib/reservation-cleanup";
 
 export async function POST(request: Request) {
   const access = await requireAdministrator(request);
@@ -9,7 +9,7 @@ export async function POST(request: Request) {
     return access.error;
   }
 
-  const result = await cleanupExpiredReservations();
+  const result = await getReservationCleanupDryRun();
 
   return NextResponse.json(result, {
     headers: {

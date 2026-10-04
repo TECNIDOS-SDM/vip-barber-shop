@@ -73,6 +73,9 @@ test('labor entry and Realtime use the flag first and retain legacy compatibilit
   assert.doesNotMatch(migration, /drop trigger/i);
 });
 
-test('cleanup remains untouched by the dedicated day-block implementation', () => {
-  assert.doesNotMatch(cleanup, /bloqueo_dia_completo|__vip_barber_top_day_full_block__/);
+test('cleanup dry-run counts full-day blocks as protected and never mutates them', () => {
+  assert.match(cleanup, /isFullDayBlock/);
+  assert.match(cleanup, /__vip_barber_top_day_full_block__/);
+  assert.match(cleanup, /fullDayBlocks/);
+  assert.doesNotMatch(cleanup, /\.delete\(|\.update\(|\.insert\(/);
 });

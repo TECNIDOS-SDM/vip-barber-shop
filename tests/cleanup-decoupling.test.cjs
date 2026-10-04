@@ -47,9 +47,9 @@ test('cleanup is exposed only by an explicit admin-only POST endpoint', () => {
   assert.match(cleanupRoute, /if \("error" in access\) \{[\s\S]*?return access\.error;/);
 
   const authorizationIndex = cleanupRoute.indexOf('await requireAdministrator(request)');
-  const cleanupIndex = cleanupRoute.indexOf('await cleanupExpiredReservations()');
+  const cleanupIndex = cleanupRoute.indexOf('await getReservationCleanupDryRun()');
   assert.ok(authorizationIndex >= 0 && authorizationIndex < cleanupIndex);
-  assert.equal((cleanupRoute.match(/cleanupExpiredReservations\(\)/g) ?? []).length, 1);
+  assert.equal((cleanupRoute.match(/getReservationCleanupDryRun\(\)/g) ?? []).length, 1);
   assert.match(cleanupRoute, /"Cache-Control": "no-store"/);
 });
 
@@ -83,9 +83,9 @@ test('only an authorized administrator reaches cleanup', async () => {
             }
       },
       '@/lib/reservation-cleanup': {
-        cleanupExpiredReservations: async () => {
+        getReservationCleanupDryRun: async () => {
           cleanupCalls += 1;
-          return { ran: true, deleted: 0, error: null };
+          return { mode: 'dry-run', writesEnabled: false, deleted: 0, updated: 0 };
         }
       }
     });
@@ -98,10 +98,11 @@ test('only an authorized administrator reaches cleanup', async () => {
   }
 });
 
-test('cleanup criteria and mutation implementation remain unchanged', () => {
-  assert.match(cleanupImplementation, /\.lt\("fecha", weekStartIso\)/);
-  assert.match(cleanupImplementation, /\.in\("estado", \["confirmada", "cancelada"\]\)/);
-  assert.match(cleanupImplementation, /\.in\("estado", \["cita_fijada", "bloqueado"\]\)/);
-  assert.match(cleanupImplementation, /getNextRecurringDate/);
-  assert.match(cleanupImplementation, /\.update\(\{ fecha: nextDate \}\)/);
+test('cleanup endpoint is now a read-only dry-run', () => {
+  assert.match(cleanupImplementation, /mode: "dry-run"/);
+  assert.match(cleanupImplementation, /writesEnabled: false/);
+  assert.match(cleanupImplementation, /reservation\.estado === "confirmada"/);
+  assert.match(cleanupImplementation, /reservation\.fecha < policy\.cutoff/);
+  assert.match(cleanupImplementation, /RESERVATION_RETENTION_DAYS = 60/);
+  assert.doesNotMatch(cleanupImplementation, /\.delete\(|\.update\(|\.insert\(|getNextRecurringDate/);
 });

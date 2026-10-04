@@ -166,15 +166,14 @@ test('rollover and retention remain calculated windows with no weekly persistenc
   assert.doesNotMatch(route, /update.*fecha|insert.*reservas.*recurrent/i);
 });
 
-test('cleanup remains untouched while the next-week gate is enabled', () => {
+test('cleanup dry-run observes recurrence without mutating it', () => {
   assert.match(flags, /export const NEXT_WEEK_ENABLED = true/);
   for (const source of [admin, barber, booking]) {
     assert.match(source, /disabled=\{isWeekLoading \|\| !NEXT_WEEK_ENABLED\}/);
   }
   assert.match(route, /isWeekOffsetEnabled\(weekOffset\)/);
-  assert.doesNotMatch(
-    cleanup,
-    /reglas_agenda_recurrentes|guardar_regla_agenda_recurrente|desactivar_regla_agenda_recurrente/i
-  );
+  assert.match(cleanup, /from\("reglas_agenda_recurrentes"\)/);
+  assert.doesNotMatch(cleanup, /guardar_regla_agenda_recurrente|desactivar_regla_agenda_recurrente/i);
+  assert.doesNotMatch(cleanup, /\.delete\(|\.update\(|\.insert\(/);
   assert.doesNotMatch(route, /reservation-cleanup|cleanupExpiredReservations/);
 });
