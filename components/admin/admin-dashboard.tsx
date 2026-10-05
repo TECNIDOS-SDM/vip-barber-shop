@@ -30,6 +30,7 @@ import { SignOutButton } from "@/components/shared/sign-out-button";
 import { Logo } from "@/components/shared/logo";
 import { cn } from "@/lib/utils";
 import { buildWhatsAppUrl } from "@/lib/whatsapp";
+import { getBarberPasswordError } from "@/lib/auth-password";
 import { formatCop } from "@/lib/currency";
 import { NEXT_WEEK_ENABLED, isWeekOffsetEnabled } from "@/lib/feature-flags";
 import { GlobalServices } from "@/components/admin/global-services";
@@ -121,7 +122,7 @@ const emptyBarberForm = {
   foto: "",
   whatsapp: "",
   auth_email: "",
-  access_password: "12345678",
+  access_password: "",
   activo: true
 };
 
@@ -496,6 +497,18 @@ export function AdminDashboard({
   async function saveBarber() {
     if (!barberForm.nombre.trim()) {
       toast.error("Ingresa el nombre del barbero.");
+      return;
+    }
+
+    const passwordError = getBarberPasswordError(
+      barberForm.access_password,
+      {
+        required: !editingId && Boolean(barberForm.auth_email.trim())
+      }
+    );
+
+    if (passwordError) {
+      toast.error(passwordError);
       return;
     }
 
@@ -1502,6 +1515,8 @@ export function AdminDashboard({
                     className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-accent"
                   />
                   <input
+                    type="password"
+                    autoComplete="new-password"
                     value={barberForm.access_password}
                     onChange={(event) =>
                       setBarberForm((current) => ({
@@ -2121,6 +2136,8 @@ export function AdminDashboard({
                 className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-accent"
               />
               <input
+                type="password"
+                autoComplete="new-password"
                 value={barberForm.access_password}
                 onChange={(event) =>
                   setBarberForm((current) => ({

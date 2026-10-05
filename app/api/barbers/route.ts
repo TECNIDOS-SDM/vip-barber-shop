@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 import { adminIdentifierToEmail } from "@/lib/admin-auth";
+import {
+  BARBER_PASSWORD_REQUIRED_MESSAGE,
+  getBarberPasswordError
+} from "@/lib/auth-password";
 import { getCurrentUserRole } from "@/lib/auth";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
@@ -144,9 +148,13 @@ async function syncBarberAccess(
   }
 
   if (!authUserId) {
+    if (!accessPassword) {
+      throw new Error(BARBER_PASSWORD_REQUIRED_MESSAGE);
+    }
+
     const { data, error } = await adminSupabase.auth.admin.createUser({
       email: authEmail,
-      password: accessPassword || "12345678",
+      password: accessPassword,
       email_confirm: true,
       user_metadata: {
         role: "barbero"
@@ -270,6 +278,17 @@ export async function POST(request: Request) {
       payload.auth_email && payload.auth_email.trim()
         ? adminIdentifierToEmail(payload.auth_email)
         : null;
+    const accessPassword =
+      typeof payload.access_password === "string"
+        ? payload.access_password
+        : null;
+    const passwordError = getBarberPasswordError(accessPassword, {
+      required: Boolean(authEmail)
+    });
+
+    if (passwordError) {
+      return NextResponse.json({ error: passwordError }, { status: 400 });
+    }
 
     const insertPayload = {
       nombre,
@@ -295,7 +314,7 @@ export async function POST(request: Request) {
     const access = await syncBarberAccess(
       barber.id,
       authEmail,
-      payload.access_password?.trim() || null
+      accessPassword
     );
 
     return NextResponse.json({
@@ -342,6 +361,18 @@ export async function PATCH(request: Request) {
       payload.auth_email && payload.auth_email.trim()
         ? adminIdentifierToEmail(payload.auth_email)
         : null;
+    const accessPassword =
+      typeof payload.access_password === "string" &&
+      payload.access_password.trim()
+        ? payload.access_password
+        : null;
+    const passwordError = getBarberPasswordError(accessPassword, {
+      required: false
+    });
+
+    if (passwordError) {
+      return NextResponse.json({ error: passwordError }, { status: 400 });
+    }
 
     const updatePayload = {
       nombre,
@@ -368,7 +399,7 @@ export async function PATCH(request: Request) {
     const access = await syncBarberAccess(
       barber.id,
       authEmail,
-      payload.access_password?.trim() || null
+      accessPassword
     );
 
     return NextResponse.json({

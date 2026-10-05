@@ -17,6 +17,7 @@ function load(file, dependencies = {}) {
   return module.exports;
 }
 const auth = load('lib/auth.ts');
+const passwordPolicy = load('lib/auth-password.ts');
 const uid = n => `${n.repeat(8)}-${n.repeat(4)}-4${n.repeat(3)}-8${n.repeat(3)}-${n.repeat(12)}`;
 const [admin, a, b, generic, barberA, barberB, future] = '1234567'.split('').map(uid);
 
@@ -91,6 +92,7 @@ function routes(f, service = null) {
   return load('app/api/barbers/route.ts', {
     'next/server': { NextResponse: { json: (body, init) => Response.json(body, init) } },
     '@/lib/admin-auth': { adminIdentifierToEmail: email => email.trim().toLowerCase() },
+    '@/lib/auth-password': passwordPolicy,
     '@/lib/auth': auth,
     '@/lib/supabase/server': { getSupabaseServerClient: async scope => {
       assert.equal(scope, 'admin'); return f.client;
@@ -175,6 +177,31 @@ test('admin route uses the internal server client and never returns a stored pas
   assert.deepEqual(f.tables.barberos.map(x => x.id), [barberA, barberB]);
 });
 
+test('new Auth access rejects missing or weak passwords before database or Auth writes', async () => {
+  for (const access_password of [undefined, '', 'Short1', 'alllowercase1', 'ALLUPPERCASE1', 'NoNumbers']) {
+    const session = fixture({ id: admin });
+    const service = fixture({ id: admin });
+    let authCreates = 0;
+    service.client.auth.admin = {
+      listUsers: async () => ({ data: { users: [] }, error: null }),
+      createUser: async () => {
+        authCreates += 1;
+        return { data: { user: { id: future } }, error: null };
+      }
+    };
+
+    const result = await routes(session, service.client).POST(request('POST', {
+      nombre: 'SYNTHETIC INVALID',
+      auth_email: 'invalid@example.invalid',
+      access_password
+    }));
+
+    assert.equal(result.status, 400);
+    assert.equal(authCreates, 0);
+    assert.equal(service.calls.some(call => call.operation !== 'select'), false);
+  }
+});
+
 test('restricted session permissions do not block server-side admin CRUD', async () => {
   for (const method of ['POST', 'PATCH', 'DELETE']) {
     const session = fixture({ id: admin }, { strict: true });
@@ -192,10 +219,15 @@ test('restricted session permissions do not block server-side admin CRUD', async
 test('current new-barber flow writes the Auth-returned UUID into perfiles_usuario (mock Auth only)', async () => {
   const f = fixture({ id: admin });
   const futureUser = uid('8');
+  const strongPassword = 'Temporary9A';
+  let createAttributes = null;
   const service = {
     auth: { admin: {
       listUsers: async () => ({ data: { users: [] }, error: null }),
-      createUser: async () => ({ data: { user: { id: futureUser } }, error: null })
+      createUser: async attributes => {
+        createAttributes = attributes;
+        return { data: { user: { id: futureUser } }, error: null };
+      }
     } },
     from(table) {
       if (table === 'barberos') return f.client.from(table);
@@ -217,9 +249,13 @@ test('current new-barber flow writes the Auth-returned UUID into perfiles_usuari
     }
   };
   const result = await routes(f, service).POST(request('POST', {
-    nombre: 'SYNTHETIC NEW', auth_email: 'future@example.invalid'
+    nombre: 'SYNTHETIC NEW',
+    auth_email: 'future@example.invalid',
+    access_password: strongPassword
   }));
   assert.equal(result.status, 200);
+  assert.equal(createAttributes.password, strongPassword);
+  assert.equal(JSON.stringify(await result.clone().json()).includes(strongPassword), false);
   assert.equal((await result.json()).accessReady, true);
   assert.equal((await auth.getCurrentUserRole(f.client, { id: futureUser, email: 'changed@example.invalid' })).profile.barbero_id, future);
 });
