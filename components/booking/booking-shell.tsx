@@ -564,9 +564,8 @@ export function BookingShell({
           ? ` con ${additionalNames.slice(0, -1).join(", ")} y ${additionalNames[additionalNames.length - 1]}`
           : "";
       const serviceMessage = selectedService ? ` para ${selectedService.nombre}` : "";
-      const totalMessage = ` por un total de ${formatCop(reservationTotal)}`;
       const whatsappBarberPole = String.fromCodePoint(0x1f488);
-      const message = `Hola soy ${clienteNombre}, agendé una cita con ${selectedBarber.nombre}${serviceMessage}${additionalMessage} el día ${formatReservationDate(selectedDate)} a las ${formatHourDisplay(selectedHour)}${totalMessage}.\n\nMuchas gracias ${whatsappBarberPole}`;
+      const message = `Hola soy ${clienteNombre}, agendé una cita con ${selectedBarber.nombre}${serviceMessage}${additionalMessage} el día ${formatReservationDate(selectedDate)} a las ${formatHourDisplay(selectedHour)}.\n\nMuchas gracias ${whatsappBarberPole}`;
       setConfirmedWhatsAppUrl(`https://api.whatsapp.com/send?phone=${RESERVATION_WHATSAPP_NUMBER}&text=${encodeURIComponent(message)}`);
       setWhatsAppError(null);
       resetBookingFlow();

@@ -5,10 +5,7 @@ const { confirmedFixture, clickSend, renderCard } = require('./helpers/whatsapp-
 
 const bookingSource = fs.readFileSync('components/booking/booking-shell.tsx', 'utf8');
 
-const formattedDefaultTotal = new Intl.NumberFormat('es-CO', {
-  style: 'currency', currency: 'COP', maximumFractionDigits: 0
-}).format(20000);
-const suffix = ` el d\u00eda martes 29 de septiembre a las 2:40 PM por un total de ${formattedDefaultTotal}.\n\nMuchas gracias \ud83d\udc88`;
+const suffix = ' el d\u00eda martes 29 de septiembre a las 2:40 PM.\n\nMuchas gracias \ud83d\udc88';
 for (const [names, expected] of [
   [[], ''],
   [['Mascarilla'], ' con Mascarilla'],
@@ -24,6 +21,7 @@ for (const [names, expected] of [
     assert.equal(url.search, `?phone=573024400088&text=${encodeURIComponent(message)}`);
     assert.match(state.url, /Muchas%20gracias%20%F0%9F%92%88$/);
     assert.doesNotMatch(state.url, /%EF%BF%BD|%25F0%259F%2592%2588/);
+    assert.doesNotMatch(message, /por un total de|\$|20[.]?000/);
     assert.equal(state.requests, 0);
   });
 }
@@ -37,9 +35,14 @@ test('accented names and separators round-trip without leaking extra fields', ()
   });
   const message = new URL(state.url).searchParams.get('text');
   assert.match(message, /Jos\u00e9 Pe\u00f1a/);
+  assert.match(message, /Camilo Delgado/);
+  assert.match(message, /Corte/);
   assert.match(message, /Ba\u00f1o & cuidado/);
-  assert.match(message, /por un total de \$\s?27\.000/);
-  assert.doesNotMatch(message, /0000000000|PRIVATE-ID|987654/);
+  assert.match(message, /martes 29 de septiembre/);
+  assert.match(message, /2:40 PM/);
+  assert.doesNotMatch(message, /por un total de|\$|27[.]?000|987[.]?654/);
+  assert.doesNotMatch(message, /0000000000|PRIVATE-ID/);
+  assert.equal(new URL(state.url).searchParams.get('phone'), '573024400088');
 });
 
 test('Enviar opens the link, closes the final view and makes no reservation request', () => {

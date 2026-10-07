@@ -153,8 +153,9 @@ test('historical and fixed-appointment compatibility remains explicit', () => {
   assert.match(adminRoute, /p_servicio_id: recurringType === "cita_fijada"/);
 });
 
-test('WhatsApp confirmation includes the already calculated authorized total', () => {
+test('WhatsApp confirmation excludes prices without changing internal totals', () => {
   const booking = fs.readFileSync('components/booking/booking-shell.tsx', 'utf8');
-  assert.match(booking, /const totalMessage = ` por un total de \$\{formatCop\(reservationTotal\)\}`/);
-  assert.match(booking, /\$\{totalMessage\}\.\\n\\nMuchas gracias/);
+  assert.doesNotMatch(booking, /const totalMessage|por un total de|\$\{totalMessage\}/);
+  assert.match(booking, /Total actual: \{formatCop\(reservationTotal\)\}/);
+  assert.match(booking, /Total: \{formatCop\(reservationTotal\)\}/);
 });
