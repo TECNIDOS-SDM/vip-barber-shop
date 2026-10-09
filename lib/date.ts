@@ -76,6 +76,19 @@ export function getTodayIsoInAppTimezone(reference = new Date()) {
   return format(toZonedTime(reference, APP_TIMEZONE), "yyyy-MM-dd");
 }
 
+export function isReservationSlotExpired(
+  isoDate: string,
+  hour: string,
+  reference = new Date()
+) {
+  const zoned = toZonedTime(reference, APP_TIMEZONE);
+  const currentDate = format(zoned, "yyyy-MM-dd");
+
+  if (isoDate !== currentDate) return isoDate < currentDate;
+
+  return hour.slice(0, 5) <= format(zoned, "HH:mm");
+}
+
 export function getWeekdayIndex(
   week: Array<Pick<WeekDayItem, "isoDate">>,
   isoDate: string,

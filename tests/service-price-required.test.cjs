@@ -31,7 +31,8 @@ function loadRoute() {
         if (date >= '2026-09-28' && date <= '2026-10-04') return 0;
         if (date >= '2026-10-05' && date <= '2026-10-11') return 1;
         return null;
-      }
+      },
+      isReservationSlotExpired: () => false
     },
     '@/lib/feature-flags': { isWeekOffsetEnabled: () => true },
     '@/lib/supabase/admin': {

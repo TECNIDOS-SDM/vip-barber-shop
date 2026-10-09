@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import {
   getTodayIsoInAppTimezone,
-  getWeekOffsetForDate
+  getWeekOffsetForDate,
+  isReservationSlotExpired
 } from "@/lib/date";
 import { isWeekOffsetEnabled } from "@/lib/feature-flags";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -42,6 +43,13 @@ export async function POST(request: Request) {
         return NextResponse.json(
           { error: PAST_DATE_MESSAGE },
           { status: 400 }
+        );
+      }
+
+      if (isReservationSlotExpired(values.fecha, values.hora)) {
+        return NextResponse.json(
+          { error: SLOT_TAKEN_MESSAGE },
+          { status: 409 }
         );
       }
     } catch {

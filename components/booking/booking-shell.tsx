@@ -18,6 +18,7 @@ import {
   formatHourDisplay,
   formatReservationDate,
   getWeekOffsetForDate,
+  isReservationSlotExpired,
   type WeekOffset
 } from "@/lib/date";
 import {
@@ -113,6 +114,7 @@ export function BookingShell({
   const [loading, setLoading] = useState(false);
   const [confirmedWhatsAppUrl, setConfirmedWhatsAppUrl] = useState<string | null>(null);
   const [whatsAppError, setWhatsAppError] = useState<string | null>(null);
+  const [availabilityNow, setAvailabilityNow] = useState(() => new Date());
   const activeWeekOffsetRef = useRef<WeekOffset>(weekOffset);
   const selectedDateRef = useRef("");
   const requestSequenceRef = useRef(0);
@@ -336,6 +338,28 @@ export function BookingShell({
   }, []);
 
   useEffect(() => {
+    let timeout: number;
+
+    const scheduleNextMinute = () => {
+      const delay = 60000 - (Date.now() % 60000) + 50;
+      timeout = window.setTimeout(() => {
+        setAvailabilityNow(new Date());
+        scheduleNextMinute();
+      }, delay);
+    };
+
+    const refreshClock = () => setAvailabilityNow(new Date());
+
+    scheduleNextMinute();
+    document.addEventListener("visibilitychange", refreshClock);
+
+    return () => {
+      window.clearTimeout(timeout);
+      document.removeEventListener("visibilitychange", refreshClock);
+    };
+  }, []);
+
+  useEffect(() => {
     if (!selectedBarber) {
       setCurrentStep(1);
     }
@@ -379,10 +403,15 @@ export function BookingShell({
 
   useEffect(() => {
     if (!selectedHour || currentStep !== detailsStep) return;
-    if (!isDayFullyBlocked && configuredSlots.includes(selectedHour) && !slotMap.has(selectedHour)) return;
+    if (
+      !isDayFullyBlocked &&
+      configuredSlots.includes(selectedHour) &&
+      !slotMap.has(selectedHour) &&
+      !isReservationSlotExpired(selectedDate, selectedHour, availabilityNow)
+    ) return;
     setSelectedHour("");
     setCurrentStep(hourStep);
-  }, [configuredSlots, currentStep, detailsStep, hourStep, isDayFullyBlocked, selectedHour, slotMap]);
+  }, [availabilityNow, configuredSlots, currentStep, detailsStep, hourStep, isDayFullyBlocked, selectedDate, selectedHour, slotMap]);
 
   function getPublicSlotState(hour: string) {
     if (isDayFullyBlocked) {
@@ -394,18 +423,26 @@ export function BookingShell({
     }
     const status = slotMap.get(hour);
 
-    if (!status) {
+    if (status) {
       return {
-        busy: false,
-        label: "DISPONIBLE",
-        className: "bg-emerald-500 text-slate-950 hover:brightness-110"
+        busy: true,
+        label: "OCUPADO",
+        className: "bg-danger text-white"
+      };
+    }
+
+    if (isReservationSlotExpired(selectedDate, hour, availabilityNow)) {
+      return {
+        busy: true,
+        label: "NO DISPONIBLE",
+        className: "border border-white/10 bg-white/[0.03] text-sand/35"
       };
     }
 
     return {
-      busy: true,
-      label: "OCUPADO",
-      className: "bg-danger text-white"
+      busy: false,
+      label: "DISPONIBLE",
+      className: "bg-emerald-500 text-slate-950 hover:brightness-110"
     };
   }
 
@@ -509,6 +546,13 @@ export function BookingShell({
   async function confirmReservation() {
     if (!selectedBarber || !selectedDate || !selectedHour) {
       toast.error("Completa barbero, dia y hora antes de confirmar.");
+      return;
+    }
+
+    if (isReservationSlotExpired(selectedDate, selectedHour)) {
+      setSelectedHour("");
+      setCurrentStep(hourStep);
+      toast.error("Este horario ya no está disponible. Por favor selecciona otro.");
       return;
     }
 
