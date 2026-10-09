@@ -13,7 +13,7 @@ import { getSupabaseServerClient } from "@/lib/supabase/server";
 type WeeklyPenalty = {
   fecha: string;
   asistencia_id: string | null;
-  tipo: "tardanza" | "sin_marcacion" | "cinco_observaciones";
+  tipo: "tardanza" | "sin_marcacion" | "cinco_observaciones" | "observacion_manual";
   valor: number;
 };
 

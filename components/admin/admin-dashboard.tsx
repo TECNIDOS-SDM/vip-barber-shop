@@ -249,6 +249,9 @@ export function AdminDashboard({
   const [uploadedPhotoPath, setUploadedPhotoPath] = useState<string | null>(null);
   const [showAgendaObservationModal, setShowAgendaObservationModal] = useState(false);
   const [agendaObservationJustification, setAgendaObservationJustification] = useState("");
+  const [agendaObservationHasFine, setAgendaObservationHasFine] = useState(false);
+  const [agendaObservationFineValue, setAgendaObservationFineValue] = useState("");
+  const [agendaObservationOperationId, setAgendaObservationOperationId] = useState<string | null>(null);
   const [savingAgendaObservation, setSavingAgendaObservation] = useState(false);
   const activeWeekOffsetRef = useRef<WeekOffset>(initialData.weekOffset);
   const scheduleDateRef = useRef(scheduleForm.fecha);
@@ -1369,6 +1372,17 @@ export function AdminDashboard({
   function closeAgendaObservationModal() {
     setShowAgendaObservationModal(false);
     setAgendaObservationJustification("");
+    setAgendaObservationHasFine(false);
+    setAgendaObservationFineValue("");
+    setAgendaObservationOperationId(null);
+  }
+
+  function openAgendaObservationModal() {
+    setAgendaObservationJustification("");
+    setAgendaObservationHasFine(false);
+    setAgendaObservationFineValue("");
+    setAgendaObservationOperationId(crypto.randomUUID());
+    setShowAgendaObservationModal(true);
   }
 
   async function saveAgendaObservation() {
@@ -1377,13 +1391,29 @@ export function AdminDashboard({
     }
 
     const justificacion = agendaObservationJustification.trim();
+    const valorMulta = agendaObservationHasFine ? Number(agendaObservationFineValue) : null;
 
     if (justificacion.length < 3) {
       toast.error("La justificacion debe tener al menos 3 caracteres.");
       return;
     }
 
-    if (!window.confirm(`¿Agregar esta observacion a ${activeBarber.nombre}?\n\n${justificacion}`)) {
+    if (
+      agendaObservationHasFine &&
+      (!Number.isInteger(valorMulta) || valorMulta === null || valorMulta <= 0 || valorMulta > 2147483647)
+    ) {
+      toast.error("Ingresa un valor entero mayor que cero.");
+      return;
+    }
+
+    const operationId = agendaObservationOperationId ?? crypto.randomUUID();
+    setAgendaObservationOperationId(operationId);
+
+    const fineConfirmation = valorMulta === null
+      ? ""
+      : `\n\nMulta: ${formatCop(valorMulta)}`;
+
+    if (!window.confirm(`¿Agregar esta observacion a ${activeBarber.nombre}?\n\n${justificacion}${fineConfirmation}`)) {
       return;
     }
 
@@ -1396,7 +1426,9 @@ export function AdminDashboard({
         body: JSON.stringify({
           barbero_id: activeBarber.id,
           fecha: scheduleForm.fecha,
-          justificacion
+          justificacion,
+          valor_multa: valorMulta,
+          operacion_id: operationId
         })
       });
       const payload = await response.json();
@@ -1991,7 +2023,7 @@ export function AdminDashboard({
                             {(activeBarberLaborSummary?.observationsCount ?? 0) < 5 ? (
                               <button
                                 type="button"
-                                onClick={() => setShowAgendaObservationModal(true)}
+                                onClick={openAgendaObservationModal}
                                 className="w-full rounded-2xl border border-accent/40 px-4 py-3 text-sm font-semibold text-accent transition hover:bg-accent/10"
                               >
                                 Observaciones
@@ -2608,6 +2640,33 @@ export function AdminDashboard({
                   className="w-full resize-y rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sand outline-none"
                 />
               </label>
+              <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-sand/80">
+                <input
+                  type="checkbox"
+                  checked={agendaObservationHasFine}
+                  onChange={(event) => {
+                    setAgendaObservationHasFine(event.target.checked);
+                    if (!event.target.checked) setAgendaObservationFineValue("");
+                  }}
+                  className="h-4 w-4 accent-[var(--accent)]"
+                />
+                Observacion con multa
+              </label>
+              {agendaObservationHasFine ? (
+                <label className="block space-y-2 text-sm text-sand/70">
+                  <span>Valor de la multa (COP)</span>
+                  <input
+                    type="number"
+                    min="1"
+                    max="2147483647"
+                    step="1"
+                    inputMode="numeric"
+                    value={agendaObservationFineValue}
+                    onChange={(event) => setAgendaObservationFineValue(event.target.value)}
+                    className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sand outline-none"
+                  />
+                </label>
+              ) : null}
               <div className="flex gap-3">
                 <button
                   type="button"

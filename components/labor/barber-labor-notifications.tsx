@@ -92,8 +92,13 @@ export function BarberLaborNotifications({ active, revision, onUnreadCount }: Ba
             <p className="font-semibold text-sand">{formatRecargoText(notification.titulo)}</p>
             <p className="mt-1">{formatRecargoText(notification.mensaje)}</p>
             {notification.valor_penalidad !== null ? (
-              <p className="mt-2 text-xs text-sand/60">{formatLaborDate(notification.fecha)} · {formatLaborTimestamp(notification.created_at)}</p>
+              <p className="mt-2 font-semibold text-amber-200">
+                Valor: ${notification.valor_penalidad.toLocaleString("es-CO")}
+              </p>
             ) : null}
+            <p className="mt-2 text-xs text-sand/60">
+              {formatLaborDate(notification.fecha)} · {formatLaborTimestamp(notification.created_at)}
+            </p>
           </div>
         ))
       ) : (

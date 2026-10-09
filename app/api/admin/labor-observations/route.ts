@@ -13,7 +13,9 @@ const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const observationSchema = z.object({
   barbero_id: z.string().uuid(),
   fecha: dateSchema,
-  justificacion: z.string().trim().min(3).max(500)
+  justificacion: z.string().trim().min(3).max(500),
+  valor_multa: z.number().int().positive().max(2147483647).nullable().optional(),
+  operacion_id: z.string().uuid()
 });
 const configurationSchema = z.object({
   valor_penalidad: z.coerce.number().int().min(0).max(1000000)
@@ -127,11 +129,22 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: penaltyError.message }, { status: 400 });
   }
 
+  const { data: manualPenalties, error: manualPenaltiesError } = await penaltiesTable
+    .select(laborPenaltyColumns)
+    .eq("barbero_id", parsedBarberId.data)
+    .eq("semana_inicio", weekStart)
+    .eq("tipo", "observacion_manual");
+
+  if (manualPenaltiesError) {
+    return NextResponse.json({ error: manualPenaltiesError.message }, { status: 400 });
+  }
+
   return NextResponse.json({
     configuration: configuration ?? null,
     observationsCount: count ?? 0,
     observations: observations ?? [],
-    observationsPenalty: observationsPenalty ?? null
+    observationsPenalty: observationsPenalty ?? null,
+    manualPenalties: manualPenalties ?? []
   });
 }
 
@@ -183,11 +196,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Supabase no configurado." }, { status: 500 });
   }
 
-  const { data, error } = await (adminSupabase as any).rpc("registrar_observacion_laboral", {
+  const { data, error } = await (adminSupabase as any).rpc("registrar_observacion_laboral_opcional", {
     p_barbero_id: parsed.data.barbero_id,
     p_fecha: parsed.data.fecha,
     p_justificacion: parsed.data.justificacion,
-    p_creado_por: access.userId
+    p_creado_por: access.userId,
+    p_valor_multa: parsed.data.valor_multa ?? null,
+    p_operacion_id: parsed.data.operacion_id
   });
 
   if (error) {
@@ -198,7 +213,9 @@ export async function POST(request: Request) {
   return NextResponse.json({
     observation: data?.observation ?? null,
     observationsCount: data?.count ?? 0,
-    observationsPenalty: data?.penalty ?? null
+    observationsPenalty: data?.penalty ?? null,
+    manualPenalty: data?.manualPenalty ?? null,
+    idempotentReplay: data?.idempotentReplay ?? false
   });
 }
 

@@ -130,6 +130,8 @@ export function BarberTodaySchedule({ active, revision }: { active: boolean; rev
               <p>
                 {penalty.tipo === "sin_marcacion"
                   ? "Recargo por no marcar entrada"
+                  : penalty.tipo === "observacion_manual"
+                    ? "Multa por observacion"
                   : "Recargo por tardanza"}: {formatLaborPenalty(penalty.valor)}
               </p>
               <p className="mt-1 text-xs font-medium text-sand/70">{formatLaborDate(penalty.fecha)} · {formatLaborTimestamp(penalty.created_at)}</p>

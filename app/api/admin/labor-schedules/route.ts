@@ -118,7 +118,7 @@ export async function GET(request: Request) {
     .select(laborPenaltyColumns)
     .eq("barbero_id", parsedBarberId.data)
     .eq("fecha", date)
-    .in("tipo", ["tardanza", "sin_marcacion"]);
+    .in("tipo", ["tardanza", "sin_marcacion", "observacion_manual"]);
 
   if (penaltyError) {
     return NextResponse.json({ error: penaltyError.message }, { status: 400 });

@@ -39,9 +39,10 @@ export type LaborPenalty = {
   id: string;
   barbero_id: string;
   asistencia_id: string | null;
+  observacion_id: string | null;
   fecha: string;
   semana_inicio: string;
-  tipo: "tardanza" | "sin_marcacion" | "cinco_observaciones";
+  tipo: "tardanza" | "sin_marcacion" | "cinco_observaciones" | "observacion_manual";
   motivo: string;
   valor: number;
   created_at: string;
@@ -55,6 +56,7 @@ export type LaborObservation = {
   semana_inicio: string;
   justificacion: string;
   creado_por: string | null;
+  operacion_id: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -73,6 +75,7 @@ export type LaborNotification = {
   fecha: string;
   tipo:
     | "observacion"
+    | "observacion_con_multa"
     | "penalidad_tardanza"
     | "penalidad_sin_marcacion"
     | "penalidad_cinco_observaciones";

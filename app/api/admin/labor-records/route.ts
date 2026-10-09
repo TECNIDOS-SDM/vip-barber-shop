@@ -6,7 +6,9 @@ const editSchema = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("update_observation"),
     record_id: z.string().uuid(),
-    justificacion: z.string().trim().min(3).max(500)
+    justificacion: z.string().trim().min(3).max(500),
+    valor_multa: z.number().int().positive().max(2147483647).nullable(),
+    operacion_id: z.string().uuid()
   }),
   z.object({
     action: z.literal("update_penalty"),
@@ -17,7 +19,11 @@ const editSchema = z.discriminatedUnion("action", [
 ]);
 
 const deleteSchema = z.discriminatedUnion("action", [
-  z.object({ action: z.literal("delete_observation"), record_id: z.string().uuid() }),
+  z.object({
+    action: z.literal("delete_observation"),
+    record_id: z.string().uuid(),
+    operacion_id: z.string().uuid()
+  }),
   z.object({ action: z.literal("delete_penalty"), record_id: z.string().uuid() })
 ]);
 
@@ -39,11 +45,31 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "Datos de edicion invalidos." }, { status: 400 });
   }
 
-  const { data, error } =
-    parsed.data.action === "update_observation"
-      ? await access.supabase.rpc("actualizar_observacion_laboral", {
+  if (parsed.data.action === "update_penalty") {
+    const { data: penalty, error: penaltyError } = await access.supabase
+      .from("penalidades_laborales")
+      .select("tipo")
+      .eq("id", parsed.data.record_id)
+      .maybeSingle();
+
+    if (penaltyError || !penalty) {
+      return NextResponse.json({ error: "Recargo no encontrado." }, { status: 404 });
+    }
+
+    if (penalty.tipo === "observacion_manual") {
+      return NextResponse.json(
+        { error: "Las multas de observaciones se administran desde la observacion vinculada." },
+        { status: 409 }
+      );
+    }
+  }
+
+  const { data, error } = parsed.data.action === "update_observation"
+    ? await access.supabase.rpc("gestionar_observacion_laboral", {
           p_observacion_id: parsed.data.record_id,
-          p_justificacion: parsed.data.justificacion
+          p_justificacion: parsed.data.justificacion,
+          p_valor_multa: parsed.data.valor_multa,
+          p_operacion_id: parsed.data.operacion_id
         })
       : await access.supabase.rpc("actualizar_recargo_laboral", {
           p_penalidad_id: parsed.data.record_id,
@@ -71,10 +97,29 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: "Datos de eliminacion invalidos." }, { status: 400 });
   }
 
-  const { data, error } =
-    parsed.data.action === "delete_observation"
-      ? await access.supabase.rpc("eliminar_observacion_laboral", {
-          p_observacion_id: parsed.data.record_id
+  if (parsed.data.action === "delete_penalty") {
+    const { data: penalty, error: penaltyError } = await access.supabase
+      .from("penalidades_laborales")
+      .select("tipo")
+      .eq("id", parsed.data.record_id)
+      .maybeSingle();
+
+    if (penaltyError || !penalty) {
+      return NextResponse.json({ error: "Recargo no encontrado." }, { status: 404 });
+    }
+
+    if (penalty.tipo === "observacion_manual") {
+      return NextResponse.json(
+        { error: "Retira la multa desde la observacion vinculada." },
+        { status: 409 }
+      );
+    }
+  }
+
+  const { data, error } = parsed.data.action === "delete_observation"
+      ? await access.supabase.rpc("eliminar_observacion_laboral_segura", {
+          p_observacion_id: parsed.data.record_id,
+          p_operacion_id: parsed.data.operacion_id
         })
       : await access.supabase.rpc("eliminar_recargo_laboral", {
           p_penalidad_id: parsed.data.record_id,

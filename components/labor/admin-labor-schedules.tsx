@@ -71,6 +71,7 @@ export function AdminLaborSchedules({
   const [attendance, setAttendance] = useState<LaborAttendance | null>(null);
   const [penalties, setPenalties] = useState<LaborPenalty[]>([]);
   const [observations, setObservations] = useState<LaborObservation[]>([]);
+  const [manualPenalties, setManualPenalties] = useState<LaborPenalty[]>([]);
   const [observationsCount, setObservationsCount] = useState(0);
   const [observationsPenalty, setObservationsPenalty] = useState<LaborPenalty | null>(null);
   const [configuration, setConfiguration] = useState<LaborConfiguration | null>(null);
@@ -81,6 +82,8 @@ export function AdminLaborSchedules({
   const [recordSaving, setRecordSaving] = useState(false);
   const [editingObservationId, setEditingObservationId] = useState<string | null>(null);
   const [observationDraft, setObservationDraft] = useState("");
+  const [observationHasFineDraft, setObservationHasFineDraft] = useState(false);
+  const [observationFineDraft, setObservationFineDraft] = useState("");
   const [editingPenaltyId, setEditingPenaltyId] = useState<string | null>(null);
   const [penaltyDraft, setPenaltyDraft] = useState({ valor: "", motivo: "" });
   const recordActionInFlightRef = useRef(false);
@@ -159,6 +162,7 @@ export function AdminLaborSchedules({
     setObservationsCount(payload.observationsCount ?? 0);
     setObservations((payload.observations as LaborObservation[] | undefined) ?? []);
     setObservationsPenalty((payload.observationsPenalty as LaborPenalty | null | undefined) ?? null);
+    setManualPenalties((payload.manualPenalties as LaborPenalty[] | undefined) ?? []);
   }
 
   const refreshEditorFromRealtime = useCallback(async () => {
@@ -292,12 +296,27 @@ export function AdminLaborSchedules({
       return;
     }
 
+    const fineValue = observationHasFineDraft ? Number(observationFineDraft) : null;
+    if (
+      observationHasFineDraft &&
+      (!Number.isInteger(fineValue) || fineValue === null || fineValue <= 0 || fineValue > 2147483647)
+    ) {
+      toast.error("Ingresa un valor entero mayor que cero.");
+      return;
+    }
+
     setRecordSaving(true);
     try {
       const response = await fetch("/api/admin/labor-records", {
         method: "PATCH",
         headers: await getAdminLaborRequestHeaders(true),
-        body: JSON.stringify({ action: "update_observation", record_id: observationId, justificacion: observationDraft })
+        body: JSON.stringify({
+          action: "update_observation",
+          record_id: observationId,
+          justificacion: observationDraft,
+          valor_multa: fineValue,
+          operacion_id: crypto.randomUUID()
+        })
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error ?? "No fue posible editar la observacion.");
@@ -305,6 +324,18 @@ export function AdminLaborSchedules({
       setObservations((current) => current.map((observation) =>
         observation.id === observationId ? (payload.observation as LaborObservation) : observation
       ));
+      setManualPenalties((current) => {
+        const remaining = current.filter((penalty) => penalty.observacion_id !== observationId);
+        return payload.manualPenalty
+          ? [...remaining, payload.manualPenalty as LaborPenalty]
+          : remaining;
+      });
+      setPenalties((current) => {
+        const remaining = current.filter((penalty) => penalty.observacion_id !== observationId);
+        return payload.manualPenalty
+          ? [...remaining, payload.manualPenalty as LaborPenalty]
+          : remaining;
+      });
       await onLaborSummaryChange(selectedBarber!.id);
       setEditingObservationId(null);
       toast.success("Observacion actualizada.");
@@ -330,7 +361,11 @@ export function AdminLaborSchedules({
       const response = await fetch("/api/admin/labor-records", {
         method: "DELETE",
         headers: await getAdminLaborRequestHeaders(true),
-        body: JSON.stringify({ action: "delete_observation", record_id: observationId })
+        body: JSON.stringify({
+          action: "delete_observation",
+          record_id: observationId,
+          operacion_id: crypto.randomUUID()
+        })
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error ?? "No fue posible eliminar la observacion.");
@@ -340,14 +375,59 @@ export function AdminLaborSchedules({
       setObservations((current) =>
         current.filter((observation) => observation.id !== observationId)
       );
+      setManualPenalties((current) =>
+        current.filter((penalty) => penalty.observacion_id !== observationId)
+      );
+      setPenalties((current) =>
+        current.filter((penalty) => penalty.observacion_id !== observationId)
+      );
       setObservationsCount(payload.observationsCount ?? 0);
-      if (payload.removedFiveObservationsPenalty) {
-        setObservationsPenalty(null);
-      }
       await onLaborSummaryChange(selectedBarber.id);
       toast.success("Observacion eliminada.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "No fue posible eliminar la observacion.");
+    } finally {
+      recordActionInFlightRef.current = false;
+      setRecordSaving(false);
+    }
+  }
+
+  async function removeObservationFine(observation: LaborObservation) {
+    if (
+      !selectedBarber ||
+      recordActionInFlightRef.current ||
+      !window.confirm("¿Retirar la multa y conservar la observacion?")
+    ) {
+      return;
+    }
+
+    recordActionInFlightRef.current = true;
+    setRecordSaving(true);
+    try {
+      const response = await fetch("/api/admin/labor-records", {
+        method: "PATCH",
+        headers: await getAdminLaborRequestHeaders(true),
+        body: JSON.stringify({
+          action: "update_observation",
+          record_id: observation.id,
+          justificacion: observation.justificacion,
+          valor_multa: null,
+          operacion_id: crypto.randomUUID()
+        })
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error ?? "No fue posible retirar la multa.");
+
+      setManualPenalties((current) =>
+        current.filter((penalty) => penalty.observacion_id !== observation.id)
+      );
+      setPenalties((current) =>
+        current.filter((penalty) => penalty.observacion_id !== observation.id)
+      );
+      await onLaborSummaryChange(selectedBarber.id);
+      toast.success("Multa retirada. La observacion se conserva.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "No fue posible retirar la multa.");
     } finally {
       recordActionInFlightRef.current = false;
       setRecordSaving(false);
@@ -421,6 +501,10 @@ export function AdminLaborSchedules({
   }
 
   function renderPenaltyActions(currentPenalty: LaborPenalty) {
+    if (currentPenalty.tipo === "observacion_manual") {
+      return null;
+    }
+
     if (editingPenaltyId === currentPenalty.id) {
       return (
         <div className="mt-3 space-y-2">
@@ -759,7 +843,11 @@ export function AdminLaborSchedules({
           {penalties.length ? penalties.map((penalty) => (
             <div key={penalty.id} className="mt-2">
               <p className="font-semibold text-sand">
-                {penalty.tipo === "sin_marcacion" ? "No marcar entrada" : "Tardanza"} — {formatLaborPenalty(penalty.valor)}
+                {penalty.tipo === "sin_marcacion"
+                  ? "No marcar entrada"
+                  : penalty.tipo === "observacion_manual"
+                    ? "Multa por observacion"
+                    : "Tardanza"} — {formatLaborPenalty(penalty.valor)}
               </p>
               <p className="mt-1 text-xs text-sand/60">
                 {formatLaborDate(penalty.fecha)} · {formatLaborTimestamp(penalty.created_at)}
@@ -785,6 +873,9 @@ export function AdminLaborSchedules({
             {observations.length ? (
               observations.map((observation) => {
                 const isEditing = editingObservationId === observation.id;
+                const manualPenalty = manualPenalties.find(
+                  (penalty) => penalty.observacion_id === observation.id
+                );
 
                 return (
                   <div key={observation.id} className="rounded-xl border border-white/10 px-3 py-2">
@@ -798,6 +889,27 @@ export function AdminLaborSchedules({
                           onChange={(event) => setObservationDraft(event.target.value)}
                           className="w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-sand outline-none"
                         />
+                        <label className="flex items-center gap-2 text-xs font-semibold text-sand/80">
+                          <input
+                            type="checkbox"
+                            checked={observationHasFineDraft}
+                            onChange={(event) => setObservationHasFineDraft(event.target.checked)}
+                            className="h-4 w-4 accent-yellow-400"
+                          />
+                          Aplicar multa
+                        </label>
+                        {observationHasFineDraft ? (
+                          <input
+                            type="number"
+                            min="1"
+                            max="2147483647"
+                            step="1"
+                            value={observationFineDraft}
+                            onChange={(event) => setObservationFineDraft(event.target.value)}
+                            placeholder="Valor de la multa (COP)"
+                            className="w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-sand outline-none"
+                          />
+                        ) : null}
                         <div className="flex flex-wrap gap-2">
                           <button type="button" disabled={recordSaving} onClick={() => void saveObservation(observation.id)} className="rounded-xl bg-accent px-3 py-2 text-xs font-bold text-ink disabled:opacity-60">
                             Guardar
@@ -810,13 +922,34 @@ export function AdminLaborSchedules({
                     ) : (
                       <>
                         <p className="mt-1">{observation.justificacion}</p>
+                        <p className="mt-1 text-xs font-semibold text-amber-200">
+                          {manualPenalty
+                            ? `Multa vigente: ${formatLaborPenalty(manualPenalty.valor)}`
+                            : "Sin multa"}
+                        </p>
                         <div className="mt-2 flex flex-wrap gap-2">
                           <button type="button" disabled={recordSaving} onClick={() => {
                             setEditingObservationId(observation.id);
                             setObservationDraft(observation.justificacion);
+                            setObservationHasFineDraft(Boolean(manualPenalty));
+                            setObservationFineDraft(manualPenalty ? String(manualPenalty.valor) : "");
                           }} className="inline-flex items-center gap-1 text-xs font-semibold text-sand/80 disabled:opacity-60">
                             <Pencil className="h-3.5 w-3.5" /> Editar
                           </button>
+                          {!manualPenalty ? (
+                            <button type="button" disabled={recordSaving} onClick={() => {
+                              setEditingObservationId(observation.id);
+                              setObservationDraft(observation.justificacion);
+                              setObservationHasFineDraft(true);
+                              setObservationFineDraft("");
+                            }} className="text-xs font-semibold text-amber-200 disabled:opacity-60">
+                              Agregar multa
+                            </button>
+                          ) : (
+                            <button type="button" disabled={recordSaving} onClick={() => void removeObservationFine(observation)} className="text-xs font-semibold text-amber-200 disabled:opacity-60">
+                              Retirar multa
+                            </button>
+                          )}
                           <button type="button" disabled={recordSaving} onClick={() => void deleteObservation(observation.id)} className="inline-flex items-center gap-1 text-xs font-semibold text-red-100 disabled:opacity-60">
                             <Trash2 className="h-3.5 w-3.5" /> Eliminar
                           </button>
