@@ -825,7 +825,7 @@ export function BookingShell({
                       onClick={() => setCurrentStep(dateStep)}
                       className="w-full rounded-2xl bg-accent px-4 py-3 text-sm font-bold text-ink"
                     >
-                      {selectedAdditionalServices.length ? "Continuar" : "No, continuar"}
+                      {selectedAdditionalServices.length ? "Continuar" : "Omitir"}
                     </button>
                   </div>
                 </>

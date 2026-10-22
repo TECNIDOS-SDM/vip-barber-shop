@@ -45,7 +45,7 @@ test('public booking offers optional additions directly after a main service exi
   assert.match(booking, /const additionalSelectionStep = hasAdditionalServices \? 3 : null/);
   assert.match(booking, /currentStep === additionalSelectionStep/);
   assert.match(booking, /onClick=\{\(\) => setCurrentStep\(dateStep\)\}/);
-  assert.match(booking, /selectedAdditionalServices\.length \? "Continuar" : "No, continuar"/);
+  assert.match(booking, /selectedAdditionalServices\.length \? "Continuar" : "Omitir"/);
   assert.doesNotMatch(booking, /¿DESEAS AGREGAR SERVICIOS ADICIONALES\?|Selecciona al menos un servicio adicional o vuelve y elige No\./);
   assert.match(booking, /setSelectedAdditionalServices\(\[\]\)/);
   assert.match(booking, /Total: \{formatCop\(reservationTotal\)\}/);
