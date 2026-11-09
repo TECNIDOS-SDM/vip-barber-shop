@@ -39,7 +39,12 @@ const releaseSchema = z.object({
 const updateStatusSchema = z.object({
   action: z.literal("update_status"),
   reservation_ids: z.array(z.string().uuid()).min(1),
-  estado: z.enum(["confirmada", "cita_fijada", "bloqueado"])
+  estado: z.enum(["confirmada", "bloqueado"])
+});
+
+const convertToRecurringSchema = z.object({
+  action: z.literal("convert_to_recurrence"),
+  reservation_ids: z.array(z.string().uuid()).min(1)
 });
 
 const deactivateRecurringSchema = z.object({
@@ -61,6 +66,7 @@ const schema = z.union([
   unblockSchema,
   releaseSchema,
   updateStatusSchema,
+  convertToRecurringSchema,
   deactivateRecurringSchema,
   updateRecurringServiceSchema
 ]);
@@ -184,6 +190,53 @@ export async function POST(request: Request) {
       }
 
       return NextResponse.json({ success: true, updatedRule: data });
+    }
+
+    if (payload.action === "convert_to_recurrence") {
+      const { data: sourceReservations, error: sourceReservationsError } =
+        await adminSupabase
+          .from("reservas")
+          .select("id, fecha")
+          .in("id", payload.reservation_ids);
+
+      if (sourceReservationsError) {
+        throw sourceReservationsError;
+      }
+
+      const persistedSourceReservations = (sourceReservations ?? []) as Array<{
+        id: string;
+        fecha: string;
+      }>;
+
+      if (
+        persistedSourceReservations.length !== payload.reservation_ids.length ||
+        persistedSourceReservations.some(
+          (reservation) => !isManagedAgendaDate(reservation.fecha)
+        )
+      ) {
+        return dateOutOfRangeResponse();
+      }
+
+      const { data, error } = await (adminSupabase as any).rpc(
+        "convertir_reservas_en_citas_fijadas_recurrentes",
+        {
+          p_reserva_ids: payload.reservation_ids,
+          p_actor_user_id: user.id
+        }
+      );
+
+      if (error) {
+        if (isAgendaConflictError(error)) {
+          return NextResponse.json({ error: error.message }, { status: 409 });
+        }
+
+        throw error;
+      }
+
+      return NextResponse.json({
+        success: true,
+        convertedRules: data ?? []
+      });
     }
 
     if (payload.action === "deactivate_recurrence") {

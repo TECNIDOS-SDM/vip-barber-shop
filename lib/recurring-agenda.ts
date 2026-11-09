@@ -16,6 +16,7 @@ export type RecurringAgendaRule = {
   servicio_nombre_snapshot?: string | null;
   servicio_precio_snapshot?: number | null;
   precio_total_snapshot?: number | null;
+  reserva_origen_id?: string | null;
 };
 
 type ProjectionVisibility = "public" | "admin" | "barber";
@@ -81,10 +82,24 @@ function enrichDatedFixedAppointments(
     if (matches?.length !== 1) return reservation;
 
     const [rule] = matches;
-    if (!rule.servicio_id) return reservation;
+    const associatedSource = Boolean(
+      reservation.id && rule.reserva_origen_id === reservation.id
+    );
+    const recurrenceMetadata = associatedSource
+      ? {
+          recurrente: true,
+          recurrence_rule_id: rule.id,
+          recurrence_type: rule.tipo
+        }
+      : {};
+
+    if (!rule.servicio_id) {
+      return { ...reservation, ...recurrenceMetadata };
+    }
 
     return {
       ...reservation,
+      ...recurrenceMetadata,
       servicio_id: rule.servicio_id,
       servicio_nombre_snapshot: rule.servicio_nombre_snapshot ?? null,
       servicio_precio_snapshot: rule.servicio_precio_snapshot ?? null,

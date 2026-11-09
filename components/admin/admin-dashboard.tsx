@@ -813,7 +813,7 @@ export function AdminDashboard({
 
   async function updateReservationStatus(
     ids: string[],
-    estado: "confirmada" | "cita_fijada" | "bloqueado"
+    estado: "confirmada" | "bloqueado"
   ) {
     try {
       const response = await fetch("/api/admin-schedule", {
@@ -833,11 +833,7 @@ export function AdminDashboard({
       }
 
       toast.success(
-        estado === "cita_fijada"
-          ? ids.length === 1
-            ? "Reserva convertida en cita fijada."
-            : "Reservas convertidas en cita fijada."
-          : estado === "bloqueado"
+        estado === "bloqueado"
             ? ids.length === 1
               ? "Reserva convertida en horario bloqueado."
               : "Reservas convertidas en horario bloqueado."
@@ -867,6 +863,48 @@ export function AdminDashboard({
       toast.error(
         error instanceof Error ? error.message : "No fue posible actualizar el estado."
       );
+    }
+  }
+
+  async function convertReservationsToWeeklyRecurrence(ids: string[]) {
+    const confirmed = window.confirm(
+      ids.length === 1
+        ? "Esta cita quedará fijada semanalmente en el mismo día y hora hasta que desactives la serie. ¿Deseas continuar?"
+        : "Estas citas quedarán fijadas semanalmente en sus mismos días y horas. Si alguna entra en conflicto, no se convertirá ninguna. ¿Deseas continuar?"
+    );
+    if (!confirmed) return;
+
+    setSaving(true);
+    try {
+      const response = await fetch("/api/admin-schedule", {
+        method: "POST",
+        headers: await getAdminScheduleRequestHeaders(),
+        body: JSON.stringify({
+          action: "convert_to_recurrence",
+          reservation_ids: ids
+        })
+      });
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? "No fue posible fijar la cita semanalmente.");
+      }
+
+      await refreshData();
+      toast.success(
+        ids.length === 1
+          ? "Cita fijada semanalmente."
+          : "Citas fijadas semanalmente."
+      );
+      closeReleaseActionModal();
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "No fue posible fijar la cita semanalmente."
+      );
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -1165,14 +1203,20 @@ export function AdminDashboard({
         .map((reservation) => [normalizeHourKey(reservation.hora), reservation])
     );
   }, [selectedScheduleReservations]);
-  const configuredScheduleSlots = useMemo(() => {
-    const configuration = getAttentionConfiguration(
+  const selectedAttentionConfiguration = useMemo(
+    () => getAttentionConfiguration(
       attentionConfigurations,
       scheduleForm.barbero_id,
       scheduleForm.fecha
+    ),
+    [attentionConfigurations, scheduleForm.barbero_id, scheduleForm.fecha]
+  );
+  const configuredScheduleSlots = useMemo(() => {
+    return extendAttentionSlots(
+      selectedAttentionConfiguration,
+      Array.from(operationalScheduleSlotMap.keys())
     );
-    return extendAttentionSlots(configuration, Array.from(operationalScheduleSlotMap.keys()));
-  }, [attentionConfigurations, operationalScheduleSlotMap, scheduleForm.barbero_id, scheduleForm.fecha]);
+  }, [operationalScheduleSlotMap, selectedAttentionConfiguration]);
   const currentScheduleSlots = useMemo(
     () => mergeAttentionSlots(configuredScheduleSlots, Array.from(operationalScheduleSlotMap.keys())),
     [configuredScheduleSlots, operationalScheduleSlotMap]
@@ -2341,7 +2385,11 @@ export function AdminDashboard({
               </div>
             ) : null}
             {!hasSelectedRecurringRules ? (
-            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="mt-4 space-y-3">
+              <p className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-sand/70">
+                “Fijar semanalmente” crea una serie. Las otras opciones modifican únicamente las citas seleccionadas.
+              </p>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <button
                 type="button"
                 onClick={() =>
@@ -2352,19 +2400,19 @@ export function AdminDashboard({
                 }
                 className="rounded-2xl bg-danger px-4 py-3 text-sm font-semibold text-white"
               >
-                Ocupado
+                Ocupado (solo esta cita)
               </button>
               <button
                 type="button"
                 onClick={() =>
-                  void updateReservationStatus(
-                    selectedReleaseReservations.map((reservation) => reservation.id),
-                    "cita_fijada"
+                  void convertReservationsToWeeklyRecurrence(
+                    selectedReleaseReservations.map((reservation) => reservation.id)
                   )
                 }
+                disabled={saving}
                 className="rounded-2xl bg-sky-500 px-4 py-3 text-sm font-semibold text-white"
               >
-                Fijar cita
+                Fijar semanalmente
               </button>
               <button
                 type="button"
@@ -2376,8 +2424,9 @@ export function AdminDashboard({
                 }
                 className="rounded-2xl bg-zinc-600 px-4 py-3 text-sm font-semibold text-white"
               >
-                Bloquear
+                Bloquear (solo esta cita)
               </button>
+              </div>
             </div>
             ) : (
               <p className="mt-4 rounded-2xl border border-accent/20 bg-accent/10 px-4 py-3 text-sm text-sand/80">
@@ -2490,7 +2539,7 @@ export function AdminDashboard({
                     : "border border-white/10 bg-white/5 text-sand/70"
                 )}
               >
-                Fijar cita
+                Fijar semanalmente
               </button>
               <button
                 type="button"
@@ -2534,27 +2583,32 @@ export function AdminDashboard({
                     className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-accent"
                   />
                   {selectedAction === "cita_fijada" ? (
-                    <label className="block space-y-2 text-sm text-sand/70">
-                      <span>Servicio opcional</span>
-                      <select
-                        value={scheduleForm.servicio_id}
-                        onChange={(event) =>
-                          updateScheduleForBarber(activeBarber.id, {
-                            servicio_id: event.target.value
-                          })
-                        }
-                        className="w-full rounded-2xl border border-white/10 bg-[#120f0b] px-4 py-3 text-sand outline-none focus:border-accent"
-                      >
-                        <option value="">Sin servicio</option>
-                        {fixedAppointmentServices
-                          .filter((service) => service.activo)
-                          .map((service) => (
-                            <option key={service.id} value={service.id}>
-                              {service.nombre} - {formatCop(service.precio)}
-                            </option>
-                          ))}
-                      </select>
-                    </label>
+                    <div className="space-y-3">
+                      <label className="block space-y-2 text-sm text-sand/70">
+                        <span>Servicio opcional</span>
+                        <select
+                          value={scheduleForm.servicio_id}
+                          onChange={(event) =>
+                            updateScheduleForBarber(activeBarber.id, {
+                              servicio_id: event.target.value
+                            })
+                          }
+                          className="w-full rounded-2xl border border-white/10 bg-[#120f0b] px-4 py-3 text-sand outline-none focus:border-accent"
+                        >
+                          <option value="">Sin servicio</option>
+                          {fixedAppointmentServices
+                            .filter((service) => service.activo)
+                            .map((service) => (
+                              <option key={service.id} value={service.id}>
+                                {service.nombre} - {formatCop(service.precio)}
+                              </option>
+                            ))}
+                        </select>
+                      </label>
+                      <p className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-sand/70">
+                        Duración del espacio: {selectedAttentionConfiguration.intervalo_citas} minutos. Se repetirá semanalmente hasta desactivar la serie.
+                      </p>
+                    </div>
                   ) : null}
                 </>
               ) : (
