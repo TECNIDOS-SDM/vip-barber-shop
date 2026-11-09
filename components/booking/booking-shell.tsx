@@ -277,7 +277,7 @@ export function BookingShell({
       }, 75);
     };
 
-    const channel = supabase
+    const recurringChannel = supabase
       .channel("public-booking-realtime")
       .on(
         "broadcast",
@@ -292,6 +292,15 @@ export function BookingShell({
           table: "barberos",
           select: ["id", "nombre", "foto", "activo"]
         } as any,
+        queueRefresh
+      )
+      .subscribe();
+
+    const datedReservationChannel = supabase
+      .channel("vip-barber:public-availability")
+      .on(
+        "broadcast",
+        { event: "reservation_availability_changed" },
         queueRefresh
       )
       .subscribe();
@@ -312,7 +321,8 @@ export function BookingShell({
         refreshTimeoutRef.current = null;
       }
 
-      void supabase.removeChannel(channel);
+      void supabase.removeChannel(recurringChannel);
+      void supabase.removeChannel(datedReservationChannel);
     };
   }, []);
 

@@ -25,14 +25,25 @@ function occurrences(source, pattern) {
   return source.match(pattern)?.length ?? 0;
 }
 
-test('public, admin and barber reuse one existing channel for recurrence invalidation', () => {
-  for (const panel of panels) {
+test('public adds one distinct dated-reservation channel while preserving recurrence invalidation', () => {
+  assert.equal(occurrences(publicPanel, /\.channel\("public-booking-realtime"\)/g), 1);
+  assert.equal(occurrences(publicPanel, /\.channel\("vip-barber:public-availability"\)/g), 1);
+  assert.equal(occurrences(publicPanel, /event: "reservation_availability_changed"/g), 2);
+  assert.match(
+    publicPanel,
+    /removeChannel\(recurringChannel\)[\s\S]*removeChannel\(datedReservationChannel\)/
+  );
+
+  for (const panel of panels.slice(1)) {
     assert.equal(
       occurrences(panel.source, new RegExp(`\\.channel\\("${panel.channel}"\\)`, 'g')),
       1,
-      `${panel.name} must keep exactly one existing realtime channel`
+      `${panel.name} must keep exactly one realtime channel`
     );
     assert.equal(occurrences(panel.source, /event: "reservation_availability_changed"/g), 1);
+  }
+
+  for (const panel of panels) {
     assert.match(
       panel.source,
       /\.on\(\s*"broadcast",\s*\{ event: "reservation_availability_changed" \},\s*queueRefresh\s*\)/
