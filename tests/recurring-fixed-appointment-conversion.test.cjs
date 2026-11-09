@@ -8,6 +8,7 @@ const migration = read('supabase/migrations/20261109170000_convert_existing_rese
 const rollback = read('supabase/rollback/convert_existing_reservations_to_weekly_fixed.sql');
 const route = read('app/api/admin-schedule/route.ts');
 const admin = read('components/admin/admin-dashboard.tsx');
+const barber = read('components/barber/barber-dashboard.tsx');
 const queries = read('lib/queries.ts');
 const projectionSource = read('lib/recurring-agenda.ts');
 
@@ -112,8 +113,11 @@ test('admin clearly separates weekly conversion from individual status changes',
     /const updateStatusSchema = z\.object\(\{[\s\S]*?\n\}\);/
   )?.[0] ?? '';
 
-  assert.match(admin, /Fijar semanalmente/);
+  assert.match(admin, /Fijar cita/);
   assert.match(admin, /quedará fijada semanalmente[\s\S]*hasta que desactives la serie/i);
+  assert.match(admin, /Cita fijada semanalmente/);
+  assert.match(barber, /CITA FIJADA/);
+  assert.doesNotMatch(barber, /Fijar cita/);
   assert.match(admin, /action: "convert_to_recurrence"/);
   assert.match(admin, /Ocupado \(solo esta cita\)/);
   assert.match(admin, /Bloquear \(solo esta cita\)/);

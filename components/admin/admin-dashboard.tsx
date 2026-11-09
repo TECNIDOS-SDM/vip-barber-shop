@@ -2387,7 +2387,7 @@ export function AdminDashboard({
             {!hasSelectedRecurringRules ? (
             <div className="mt-4 space-y-3">
               <p className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-sand/70">
-                “Fijar semanalmente” crea una serie. Las otras opciones modifican únicamente las citas seleccionadas.
+                “Fijar cita” crea una serie semanal. Las otras opciones modifican únicamente las citas seleccionadas.
               </p>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <button
@@ -2412,7 +2412,7 @@ export function AdminDashboard({
                 disabled={saving}
                 className="rounded-2xl bg-sky-500 px-4 py-3 text-sm font-semibold text-white"
               >
-                Fijar semanalmente
+                Fijar cita
               </button>
               <button
                 type="button"
@@ -2539,7 +2539,7 @@ export function AdminDashboard({
                     : "border border-white/10 bg-white/5 text-sand/70"
                 )}
               >
-                Fijar semanalmente
+                Fijar cita
               </button>
               <button
                 type="button"
