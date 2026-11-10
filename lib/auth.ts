@@ -18,6 +18,24 @@ export async function getCurrentUserRole(
     !profileError &&
     (profile?.rol === "barbero" || profile?.rol === "administrador")
   ) {
+    // A logical deactivation preserves the profile and its historical links, but
+    // must immediately revoke the barber's operational role on every server path.
+    if (profile.rol === "barbero") {
+      if (!profile.barbero_id) {
+        return { role: null, profile: null };
+      }
+
+      const { data: barber, error: barberError } = await supabase
+        .from("barberos")
+        .select("id, activo")
+        .eq("id", profile.barbero_id)
+        .maybeSingle();
+
+      if (barberError || !barber?.activo) {
+        return { role: null, profile: null };
+      }
+    }
+
     return {
       role: profile.rol,
       profile

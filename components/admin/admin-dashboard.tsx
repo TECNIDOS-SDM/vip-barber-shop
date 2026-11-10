@@ -610,15 +610,15 @@ export function AdminDashboard({
       const payload = await response.json();
 
       if (!response.ok) {
-        throw new Error(payload.error ?? "No fue posible eliminar.");
+        throw new Error(payload.error ?? "No fue posible dar de baja.");
       }
 
-      toast.success("Barbero eliminado.");
+      toast.success("Barbero dado de baja. Se preservó su historial.");
       setDeleteTarget(null);
       await refreshData();
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "No fue posible eliminar."
+        error instanceof Error ? error.message : "No fue posible dar de baja."
       );
     }
   }
@@ -1814,6 +1814,7 @@ export function AdminDashboard({
                         <button
                           type="button"
                           onClick={() => setDeleteTarget(activeBarber)}
+                          aria-label="Dar de baja al barbero"
                           className="rounded-2xl bg-danger px-4 py-3 text-white"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -2263,10 +2264,10 @@ export function AdminDashboard({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
           <div className="w-full max-w-md rounded-[2rem] border border-white/10 bg-[#120f0b] p-6">
             <h3 className="text-2xl font-semibold text-sand">
-              Confirmar eliminacion
+              Confirmar baja
             </h3>
             <p className="mt-3 text-sm text-sand/70">
-              ¿Estas seguro de eliminar este barbero?
+              La baja desactiva al barbero y revoca su acceso al panel sin eliminar su historial.
             </p>
             <p className="mt-2 text-base font-semibold text-sand">
               {deleteTarget.nombre}
@@ -2284,7 +2285,7 @@ export function AdminDashboard({
                 onClick={() => void confirmDeleteBarber()}
                 className="flex-1 rounded-2xl bg-danger px-4 py-3 text-sm font-semibold text-white"
               >
-                Confirmar
+                Dar de baja
               </button>
             </div>
           </div>

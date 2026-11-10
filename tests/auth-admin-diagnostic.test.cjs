@@ -21,7 +21,7 @@ const passwordPolicy = load('lib/auth-password.ts');
 const uid = n => `${n.repeat(8)}-${n.repeat(4)}-4${n.repeat(3)}-8${n.repeat(3)}-${n.repeat(12)}`;
 const [admin, a, b, generic, barberA, barberB, future] = '1234567'.split('').map(uid);
 
-function fixture(user, { strict = false, profileError = false } = {}) {
+function fixture(user, { strict = false, profileError = false, rpcError = null } = {}) {
   const tables = {
     perfiles_usuario: [
       { user_id: admin, rol: 'administrador', barbero_id: null },
@@ -40,6 +40,51 @@ function fixture(user, { strict = false, profileError = false } = {}) {
   const calls = [];
   const client = {
     auth: { getUser: async () => ({ data: { user }, error: null }) },
+    async rpc(name, parameters) {
+      calls.push({ table: 'rpc', operation: 'rpc', name });
+      assert.equal(name, 'dar_de_baja_barbero_seguro');
+      assert.equal(parameters.p_actor_user_id, admin);
+
+      if (rpcError) {
+        return { data: null, error: rpcError };
+      }
+
+      const barber = tables.barberos.find(row => row.id === parameters.p_barbero_id);
+      if (!barber) {
+        return { data: { status: 'not_found', pending_reservations: 0, fixed_appointments: 0, barber: null }, error: null };
+      }
+      if (!barber.activo) {
+        return { data: { status: 'inactive', pending_reservations: 0, fixed_appointments: 0, barber: null }, error: null };
+      }
+
+      const pendingReservations = tables.reservas.filter(row =>
+        row.barbero_id === barber.id &&
+        ['confirmada', 'cita_fijada'].includes(row.estado) &&
+        (row.fecha > '2099-01-01' || (row.fecha === '2099-01-01' && row.hora > '12:00'))
+      ).length;
+      const fixedAppointments = tables.reglas_agenda_recurrentes.filter(row =>
+        row.barbero_id === barber.id && row.tipo === 'cita_fijada' && row.activo &&
+        (!row.fecha_fin || row.fecha_fin >= '2099-01-01')
+      ).length;
+
+      if (pendingReservations || fixedAppointments) {
+        return {
+          data: { status: 'blocked', pending_reservations: pendingReservations, fixed_appointments: fixedAppointments, barber: null },
+          error: null
+        };
+      }
+
+      barber.activo = false;
+      return {
+        data: {
+          status: 'archived',
+          pending_reservations: 0,
+          fixed_appointments: 0,
+          barber: { ...barber }
+        },
+        error: null
+      };
+    },
     from(table) {
       assert.ok(Object.hasOwn(tables, table), `Unmocked table: ${table}`);
       const filters = [];
@@ -94,6 +139,10 @@ function routes(f, service = null) {
     '@/lib/admin-auth': { adminIdentifierToEmail: email => email.trim().toLowerCase() },
     '@/lib/auth-password': passwordPolicy,
     '@/lib/auth': auth,
+    '@/lib/date': {
+      getTodayIsoInAppTimezone: () => '2099-01-01',
+      isReservationSlotExpired: () => false
+    },
     '@/lib/supabase/server': { getSupabaseServerClient: async scope => {
       assert.equal(scope, 'admin'); return f.client;
     } },
@@ -174,7 +223,111 @@ test('admin route uses the internal server client and never returns a stored pas
     assert.equal(f.tables.barberos.find(x => x.id === future).activo, activo);
   }
   assert.equal((await r.DELETE(request('DELETE', { id: future }))).status, 200);
-  assert.deepEqual(f.tables.barberos.map(x => x.id), [barberA, barberB]);
+  assert.equal(f.tables.barberos.find(x => x.id === future).activo, false);
+});
+
+test('safe barber deactivation blocks pending client reservations and fixed appointments without deleting Auth or history', async () => {
+  const f = fixture({ id: admin });
+  const r = routes(f, f.client);
+  f.tables.reservas.push({ id: uid('8'), barbero_id: barberA, fecha: '2099-01-02', hora: '10:00', estado: 'confirmada' });
+  f.tables.reglas_agenda_recurrentes.push({ id: uid('9'), barbero_id: barberA, tipo: 'cita_fijada', activo: true });
+
+  const blocked = await r.DELETE(request('DELETE', { id: barberA }));
+  const blockedPayload = await blocked.json();
+  assert.equal(blocked.status, 409);
+  assert.equal(blockedPayload.pendingReservations, 1);
+  assert.equal(blockedPayload.fixedAppointments, 1);
+  assert.equal(f.tables.barberos.find(x => x.id === barberA).activo, true);
+  assert.equal(f.calls.some(call => call.operation === 'delete'), false);
+
+  f.tables.reservas = [{ id: uid('8'), barbero_id: barberA, fecha: '2098-12-31', hora: '10:00', estado: 'confirmada' }];
+  f.tables.reglas_agenda_recurrentes = [{ id: uid('9'), barbero_id: barberA, tipo: 'bloqueo', activo: true }];
+  const archived = await r.DELETE(request('DELETE', { id: barberA }));
+  assert.equal(archived.status, 200);
+  assert.equal(f.tables.barberos.find(x => x.id === barberA).activo, false);
+  assert.equal(f.tables.reservas.length, 1);
+  assert.equal(f.tables.reglas_agenda_recurrentes.length, 1);
+  assert.equal(f.calls.some(call => call.operation === 'delete'), false);
+  assert.ok(f.calls.some(call => call.name === 'dar_de_baja_barbero_seguro'));
+});
+
+test('safe deactivation covers future reservations, fixed appointments, blocks, history, no work, failures and current-day slots', async () => {
+  const scenarios = [
+    {
+      name: 'future reservation',
+      reservations: [{ id: uid('8'), barbero_id: barberA, fecha: '2099-01-02', hora: '10:00', estado: 'confirmada' }],
+      rules: [], expectedStatus: 409, pending: 1, fixed: 0
+    },
+    {
+      name: 'fixed appointment', reservations: [],
+      rules: [{ id: uid('8'), barbero_id: barberA, tipo: 'cita_fijada', activo: true }],
+      expectedStatus: 409, pending: 0, fixed: 1
+    },
+    {
+      name: 'only blocks',
+      reservations: [{ id: uid('8'), barbero_id: barberA, fecha: '2099-01-02', hora: '10:00', estado: 'bloqueado' }],
+      rules: [{ id: uid('9'), barbero_id: barberA, tipo: 'bloqueo', activo: true }],
+      expectedStatus: 200, pending: 0, fixed: 0
+    },
+    {
+      name: 'historical reservation',
+      reservations: [{ id: uid('8'), barbero_id: barberA, fecha: '2098-12-31', hora: '10:00', estado: 'confirmada' }],
+      rules: [], expectedStatus: 200, pending: 0, fixed: 0
+    },
+    { name: 'no agenda records', reservations: [], rules: [], expectedStatus: 200, pending: 0, fixed: 0 },
+    {
+      name: 'expired slot today',
+      reservations: [{ id: uid('8'), barbero_id: barberA, fecha: '2099-01-01', hora: '11:59', estado: 'confirmada' }],
+      rules: [], expectedStatus: 200, pending: 0, fixed: 0
+    },
+    {
+      name: 'pending slot today',
+      reservations: [{ id: uid('8'), barbero_id: barberA, fecha: '2099-01-01', hora: '12:01', estado: 'confirmada' }],
+      rules: [], expectedStatus: 409, pending: 1, fixed: 0
+    }
+  ];
+
+  for (const scenario of scenarios) {
+    const f = fixture({ id: admin });
+    f.tables.reservas = scenario.reservations;
+    f.tables.reglas_agenda_recurrentes = scenario.rules;
+    const response = await routes(f, f.client).DELETE(request('DELETE', { id: barberA }));
+    const payload = await response.json();
+    assert.equal(response.status, scenario.expectedStatus, scenario.name);
+    if (scenario.expectedStatus === 409) {
+      assert.equal(payload.pendingReservations, scenario.pending, scenario.name);
+      assert.equal(payload.fixedAppointments, scenario.fixed, scenario.name);
+      assert.equal(f.tables.barberos.find(row => row.id === barberA).activo, true, scenario.name);
+    } else {
+      assert.equal(f.tables.barberos.find(row => row.id === barberA).activo, false, scenario.name);
+      assert.equal(f.tables.reservas.length, scenario.reservations.length, scenario.name);
+      assert.equal(f.tables.reglas_agenda_recurrentes.length, scenario.rules.length, scenario.name);
+    }
+  }
+});
+
+test('safe deactivation treats a database failure and double submission as non-destructive', async () => {
+  const failed = fixture({ id: admin }, { rpcError: { code: 'XX000', message: 'synthetic failure' } });
+  const failedResponse = await routes(failed, failed.client).DELETE(request('DELETE', { id: barberA }));
+  assert.equal(failedResponse.status, 500);
+  assert.equal(failed.tables.barberos.find(row => row.id === barberA).activo, true);
+  assert.equal(failed.calls.some(call => call.operation === 'delete'), false);
+
+  const concurrent = fixture({ id: admin });
+  const endpoint = routes(concurrent, concurrent.client);
+  const responses = await Promise.all([
+    endpoint.DELETE(request('DELETE', { id: barberA })),
+    endpoint.DELETE(request('DELETE', { id: barberA }))
+  ]);
+  assert.deepEqual(responses.map(response => response.status).sort(), [200, 409]);
+  assert.equal(concurrent.tables.barberos.find(row => row.id === barberA).activo, false);
+  assert.equal(concurrent.calls.some(call => call.operation === 'delete'), false);
+});
+
+test('an inactive barber no longer resolves as an operational barber role', async () => {
+  const f = fixture(null);
+  f.tables.barberos.find(x => x.id === barberA).activo = false;
+  assert.deepEqual(await auth.getCurrentUserRole(f.client, { id: a }), { role: null, profile: null });
 });
 
 test('new Auth access rejects missing or weak passwords before database or Auth writes', async () => {

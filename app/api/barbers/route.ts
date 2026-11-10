@@ -23,6 +23,30 @@ type DeleteBarberPayload = {
   id?: string;
 };
 
+type SafeBarberDeactivation = {
+  status: "archived" | "blocked" | "inactive" | "not_found";
+  pending_reservations: number;
+  fixed_appointments: number;
+  barber: {
+    id: string;
+    nombre: string;
+    foto: string | null;
+    whatsapp: string | null;
+    telefono: string | null;
+    auth_email: string | null;
+    activo: boolean;
+  } | null;
+};
+
+function deletionBlockedMessage(pendingReservations: number, fixedAppointments: number) {
+  const details = [
+    `${pendingReservations} reserva${pendingReservations === 1 ? "" : "s"} activa${pendingReservations === 1 ? "" : "s"} pendiente${pendingReservations === 1 ? "" : "s"}`,
+    `${fixedAppointments} cita${fixedAppointments === 1 ? "" : "s"} fijada${fixedAppointments === 1 ? "" : "s"} recurrente${fixedAppointments === 1 ? "" : "s"} activa${fixedAppointments === 1 ? "" : "s"}`
+  ].filter((_, index) => (index === 0 ? pendingReservations > 0 : fixedAppointments > 0));
+
+  return `No es posible dar de baja este barbero. Tiene ${details.join(" y ")}. Primero debes liberar las reservas pendientes y las citas fijadas desde la agenda.`;
+}
+
 function getReadableErrorMessage(error: unknown, fallback: string) {
   if (
     error &&
@@ -90,7 +114,7 @@ async function requireAdmin() {
     };
   }
 
-  return { adminSupabase: adminSupabase as any };
+  return { adminSupabase: adminSupabase as any, adminUserId: user.id };
 }
 
 async function syncBarberAccess(
@@ -436,73 +460,76 @@ export async function DELETE(request: Request) {
       );
     }
 
-    const { data: barber, error: barberError } = await adminCheck.adminSupabase
-      .from("barberos")
-      .select("id, nombre, auth_email")
-      .eq("id", payload.id)
-      .maybeSingle();
+    const { data, error } = await adminCheck.adminSupabase.rpc(
+      "dar_de_baja_barbero_seguro",
+      {
+        p_barbero_id: payload.id,
+        p_actor_user_id: adminCheck.adminUserId
+      }
+    );
 
-    if (barberError) {
-      throw barberError;
+    if (error) {
+      if (error.code === "42883" || error.code === "PGRST202") {
+        return NextResponse.json(
+          {
+            error:
+              "La baja segura aún no está disponible. Aplica primero la migración de seguridad aprobada."
+          },
+          { status: 503 }
+        );
+      }
+
+      throw error;
     }
 
-    if (!barber) {
+    const result = data as SafeBarberDeactivation | null;
+
+    if (!result || result.status === "not_found") {
       return NextResponse.json(
         { error: "El barbero ya no existe." },
         { status: 404 }
       );
     }
 
-    const adminSupabase = adminCheck.adminSupabase;
-    let deletedAccessUserId: string | null = null;
-
-    if (adminSupabase && barber.auth_email) {
-      deletedAccessUserId = await findAuthUserIdByEmail(
-        adminSupabase,
-        barber.auth_email
+    if (result.status === "inactive") {
+      return NextResponse.json(
+        { error: "Este barbero ya está dado de baja." },
+        { status: 409 }
       );
-
-      if (deletedAccessUserId) {
-        await adminSupabase
-          .from("user_session_locks")
-          .delete()
-          .eq("user_id", deletedAccessUserId);
-
-        const { error: deleteAuthError } =
-          await adminSupabase.auth.admin.deleteUser(deletedAccessUserId);
-
-        if (deleteAuthError) {
-          throw deleteAuthError;
-        }
-      }
-    } else if (adminSupabase) {
-      await adminSupabase
-        .from("perfiles_usuario")
-        .delete()
-        .eq("rol", "barbero")
-        .eq("barbero_id", barber.id);
     }
 
-    const { error: deleteError } = await adminSupabase
-      .from("barberos")
-      .delete()
-      .eq("id", payload.id);
+    if (result.status === "blocked") {
+      return NextResponse.json(
+        {
+          error: deletionBlockedMessage(
+            result.pending_reservations,
+            result.fixed_appointments
+          ),
+          pendingReservations: result.pending_reservations,
+          fixedAppointments: result.fixed_appointments
+        },
+        { status: 409 }
+      );
+    }
 
-    if (deleteError) {
-      throw deleteError;
+    if (result.status !== "archived" || !result.barber) {
+      return NextResponse.json(
+        { error: "No fue posible dar de baja el barbero." },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({
       success: true,
-      deletedBarberId: barber.id,
-      deletedAccessUserId
+      archivedBarber: result.barber,
+      accessRevoked: true
     });
   } catch (error) {
     return NextResponse.json(
       {
         error: getReadableErrorMessage(
           error,
-          "No fue posible eliminar el barbero."
+          "No fue posible dar de baja el barbero."
         )
       },
       { status: 500 }

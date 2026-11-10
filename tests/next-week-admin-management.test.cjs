@@ -43,6 +43,14 @@ test('admin keeps every agenda action while next-week navigation is enabled', ()
   assert.match(route, /role !== "administrador"[\s\S]*status: 403/);
 });
 
+test('administrative reservations require an active barber while administrative blocks remain allowed', () => {
+  const datedCreate = route.match(/const clienteNombre[\s\S]*?const insertedIds/)?.[0] ?? '';
+  assert.match(datedCreate, /p_requerir_activo: payload\.estado !== "bloqueado"/);
+  assert.match(datedCreate, /p_bloqueo_dia_completo: payload\.estado === "bloqueado"/);
+  assert.match(route, /payload\.estado === "cita_fijada"[\s\S]*guardar_regla_agenda_recurrente_con_servicio/);
+  assert.doesNotMatch(datedCreate, /p_requerir_activo:\s*false/);
+});
+
 test('barber remains isolated and public availability remains sanitized', () => {
   assert.doesNotMatch(barber, /api\/admin-schedule|api\/reserve/);
   assert.match(barber, /filter: `barbero_id=eq\.\$\{barberId\}`/);

@@ -459,7 +459,9 @@ export async function POST(request: Request) {
         p_estado: payload.estado,
         p_cliente_nombre: clienteNombre,
         p_cliente_whatsapp: clienteWhatsapp,
-        p_requerir_activo: false,
+        // Only dated administrative blocks may target an inactive barber.
+        // Every new client reservation must pass the RPC's locked active check.
+        p_requerir_activo: payload.estado !== "bloqueado",
         p_bloqueo_dia_completo: payload.estado === "bloqueado" &&
           payload.bloqueo_origen === "dia_completo"
       }
