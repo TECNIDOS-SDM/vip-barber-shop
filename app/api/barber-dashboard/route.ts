@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
-import { getCurrentUserRole } from "@/lib/auth";
+import { requireBarber } from "@/lib/barber-access";
 import { parseWeekOffset } from "@/lib/date";
 import { getBarberDashboardData } from "@/lib/queries";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
 
 export async function GET(request: Request) {
   let weekOffset;
@@ -16,25 +15,8 @@ export async function GET(request: Request) {
     );
   }
 
-  const supabase = await getSupabaseServerClient("barber");
+  const access = await requireBarber(request);
+  if ("error" in access) return access.error;
 
-  if (!supabase) {
-    return NextResponse.json({ error: "Supabase no configurado." }, { status: 500 });
-  }
-
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "No autorizado." }, { status: 401 });
-  }
-
-  const { role, profile } = await getCurrentUserRole(supabase, user);
-
-  if (role !== "barbero" || !profile?.barbero_id) {
-    return NextResponse.json({ error: "No autorizado." }, { status: 403 });
-  }
-
-  return NextResponse.json(await getBarberDashboardData(profile.barbero_id, weekOffset));
+  return NextResponse.json(await getBarberDashboardData(access.barberoId, weekOffset));
 }

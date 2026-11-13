@@ -89,11 +89,10 @@ test('recurrence broadcast is invalidation-only and contains no private appointm
 });
 
 test('barber refetch remains authorized by session identity rather than broadcast payload', () => {
-  assert.match(barberRoute, /supabase\.auth\.getUser\(\)/);
-  assert.match(barberRoute, /role !== "barbero" \|\| !profile\?\.barbero_id/);
-  assert.match(barberRoute, /getBarberDashboardData\(profile\.barbero_id, weekOffset\)/);
+  assert.match(barberRoute, /requireBarber\(request\)/);
+  assert.match(barberRoute, /getBarberDashboardData\(access\.barberoId, weekOffset\)/);
   assert.doesNotMatch(barberRoute, /searchParams\.get\("barbero_id"\)/);
-  assert.match(adminRoute, /role !== "administrador"/);
+  assert.match(adminRoute, /requireAdministrator\(request\)/);
 });
 
 test('next week remains visible, enabled and protected on the server', () => {

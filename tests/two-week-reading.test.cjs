@@ -69,7 +69,7 @@ test('admin week navigation remains separate from the real current labor week', 
 
 test('barber next-week reads preserve account isolation and do not alter labor', () => {
   assert.match(barber, /filter: `barbero_id=eq\.\$\{barberId\}`/);
-  assert.match(barberRoute, /getBarberDashboardData\(profile\.barbero_id, weekOffset\)/);
+  assert.match(barberRoute, /getBarberDashboardData\(access\.barberoId, weekOffset\)/);
   assert.doesNotMatch(barber, /api\/admin-schedule|api\/reserve/);
   assert.doesNotMatch(read('components/labor/barber-labor-center.tsx'), /weekOffset/);
 });

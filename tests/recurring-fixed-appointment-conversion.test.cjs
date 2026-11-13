@@ -48,7 +48,7 @@ test('one RPC converts the complete selection atomically with deterministic lock
   assert.match(route, /action: z\.literal\("convert_to_recurrence"\)/);
   assert.equal((route.match(/"convertir_reservas_en_citas_fijadas_recurrentes"/g) ?? []).length, 1);
   assert.match(route, /p_reserva_ids: payload\.reservation_ids/);
-  assert.match(route, /p_actor_user_id: user\.id/);
+  assert.match(route, /p_actor_user_id: access\.userId/);
 });
 
 test('conversion preserves the source, client, barber and service snapshots', () => {

@@ -4,9 +4,8 @@ import {
   BARBER_PASSWORD_REQUIRED_MESSAGE,
   getBarberPasswordError
 } from "@/lib/auth-password";
-import { getCurrentUserRole } from "@/lib/auth";
+import { requireAdministrator } from "@/lib/admin-labor-access";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
 
 type BarberPayload = {
   id?: string;
@@ -82,39 +81,10 @@ function getReadableErrorMessage(error: unknown, fallback: string) {
   return fallback;
 }
 
-async function requireAdmin() {
-  const sessionSupabase = await getSupabaseServerClient("admin");
-
-  if (!sessionSupabase) {
-    return { error: NextResponse.json({ error: "Supabase no configurado." }, { status: 500 }) };
-  }
-
-  const {
-    data: { user }
-  } = await sessionSupabase.auth.getUser();
-
-  if (!user) {
-    return { error: NextResponse.json({ error: "No autorizado." }, { status: 401 }) };
-  }
-
-  const { role } = await getCurrentUserRole(sessionSupabase, user);
-
-  if (role !== "administrador") {
-    return { error: NextResponse.json({ error: "No autorizado." }, { status: 403 }) };
-  }
-
-  const adminSupabase = getSupabaseAdminClient();
-
-  if (!adminSupabase) {
-    return {
-      error: NextResponse.json(
-        { error: "Falta la configuración segura del servidor." },
-        { status: 500 }
-      )
-    };
-  }
-
-  return { adminSupabase: adminSupabase as any, adminUserId: user.id };
+async function requireAdmin(request: Request) {
+  const access = await requireAdministrator(request);
+  if (!("supabase" in access)) return access;
+  return { adminSupabase: access.supabase as any, adminUserId: access.userId };
 }
 
 async function syncBarberAccess(
@@ -281,9 +251,9 @@ async function findAuthUserIdByEmail(
 }
 
 export async function POST(request: Request) {
-  const adminCheck = await requireAdmin();
+  const adminCheck = await requireAdmin(request);
 
-  if ("error" in adminCheck) {
+  if (!("adminSupabase" in adminCheck)) {
     return adminCheck.error;
   }
 
@@ -356,9 +326,9 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const adminCheck = await requireAdmin();
+  const adminCheck = await requireAdmin(request);
 
-  if ("error" in adminCheck) {
+  if (!("adminSupabase" in adminCheck)) {
     return adminCheck.error;
   }
 
@@ -444,9 +414,9 @@ export async function PATCH(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const adminCheck = await requireAdmin();
+  const adminCheck = await requireAdmin(request);
 
-  if ("error" in adminCheck) {
+  if (!("adminSupabase" in adminCheck)) {
     return adminCheck.error;
   }
 

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getCurrentUserRole } from "@/lib/auth";
+import { requireBarber } from "@/lib/barber-access";
 import {
   cleanupPreviousLaborAttendance,
   laborAttendanceColumns,
@@ -8,7 +8,6 @@ import {
 import { getCurrentLaborDay } from "@/lib/labor/week";
 import { getEffectiveLaborEntry } from "@/lib/labor/effective-entry";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
 
 type WeeklyPenalty = {
   fecha: string;
@@ -18,25 +17,9 @@ type WeeklyPenalty = {
 };
 
 export async function GET() {
-  const supabase = await getSupabaseServerClient("barber");
-
-  if (!supabase) {
-    return NextResponse.json({ error: "Supabase no configurado." }, { status: 500 });
-  }
-
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "No autorizado." }, { status: 401 });
-  }
-
-  const { role, profile } = await getCurrentUserRole(supabase, user);
-
-  if (role !== "barbero" || !profile?.barbero_id) {
-    return NextResponse.json({ error: "No autorizado." }, { status: 403 });
-  }
+  const access = await requireBarber();
+  if ("error" in access) return access.error;
+  const { supabase, barberoId } = access;
 
   const today = getCurrentLaborDay();
 
@@ -52,7 +35,7 @@ export async function GET() {
   const { data: schedule, error: scheduleError } = await supabase
     .from("horarios_laborales_barberos")
     .select("id, barbero_id, dia_semana, hora_entrada, hora_salida, trabaja, created_at, updated_at")
-    .eq("barbero_id", profile.barbero_id)
+    .eq("barbero_id", barberoId)
     .eq("dia_semana", today.dayOfWeek)
     .maybeSingle();
 
@@ -82,7 +65,7 @@ export async function GET() {
     }
 
     const { error } = await (adminSupabase as any).rpc("evaluar_tardanza_laboral", {
-      p_barbero_id: profile.barbero_id
+        p_barbero_id: barberoId
     });
 
     if (error) {
@@ -97,22 +80,22 @@ export async function GET() {
       supabase
         .from("asistencias_laborales")
         .select(laborAttendanceColumns)
-        .eq("barbero_id", profile.barbero_id)
+        .eq("barbero_id", barberoId)
         .eq("fecha", today.date)
         .maybeSingle(),
       supabase
         .from("asistencias_laborales")
         .select("fecha, hora_entrada_real, hora_salida_real")
-        .eq("barbero_id", profile.barbero_id)
+        .eq("barbero_id", barberoId)
         .eq("semana_inicio", today.weekStart)
         .order("fecha", { ascending: true }),
       observationsTable
         .select("id", { count: "exact", head: true })
-        .eq("barbero_id", profile.barbero_id)
+        .eq("barbero_id", barberoId)
         .eq("semana_inicio", today.weekStart),
       penaltiesTable
         .select(laborPenaltyColumns)
-        .eq("barbero_id", profile.barbero_id)
+        .eq("barbero_id", barberoId)
         .eq("semana_inicio", today.weekStart)
     ]);
 

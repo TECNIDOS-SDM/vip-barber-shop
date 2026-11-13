@@ -1,33 +1,15 @@
 import { NextResponse } from "next/server";
-import { getCurrentUserRole } from "@/lib/auth";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { requireBarber } from "@/lib/barber-access";
 
 export async function GET() {
-  const supabase = await getSupabaseServerClient("barber");
-
-  if (!supabase) {
-    return NextResponse.json({ error: "Supabase no configurado." }, { status: 500 });
-  }
-
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "No autorizado." }, { status: 401 });
-  }
-
-  const { role, profile } = await getCurrentUserRole(supabase, user);
-
-  if (role !== "barbero" || !profile?.barbero_id) {
-    return NextResponse.json({ error: "No autorizado." }, { status: 403 });
-  }
+  const access = await requireBarber();
+  if ("error" in access) return access.error;
 
   // The barber id is always derived from the authenticated session, never from the request.
-  const { data, error } = await supabase
+  const { data, error } = await access.supabase
     .from("horarios_laborales_barberos")
     .select("dia_semana, hora_entrada, hora_salida, trabaja")
-    .eq("barbero_id", profile.barbero_id)
+    .eq("barbero_id", access.barberoId)
     .order("dia_semana", { ascending: true });
 
   if (error) {

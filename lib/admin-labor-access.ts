@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUserRole } from "@/lib/auth";
+import { isSameOriginMutation, requireActiveSession } from "@/lib/active-session";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
 
 async function getAdministratorRoleFallback(
   adminSupabase: NonNullable<ReturnType<typeof getSupabaseAdminClient>>,
@@ -28,37 +28,29 @@ async function getAdministratorRoleFallback(
 }
 
 export async function requireAdministrator(request: Request) {
-  const supabase = await getSupabaseServerClient("admin");
+  if (request.method !== "GET" && !isSameOriginMutation(request)) {
+    return { error: NextResponse.json({ error: "Origen no autorizado." }, { status: 403 }) };
+  }
+
+  const activeSession = await requireActiveSession("admin");
   const adminSupabase = getSupabaseAdminClient();
 
-  if (!supabase || !adminSupabase) {
+  if (!activeSession.ok || !adminSupabase) {
     return {
       error: NextResponse.json(
-        { error: "Supabase no configurado correctamente." },
-        { status: 500 }
+        {
+          error:
+            activeSession.ok || activeSession.reason !== "session_replaced"
+              ? "No autorizado."
+              : "Tu sesion fue reemplazada por un nuevo inicio de sesion.",
+          code: activeSession.ok ? "configuration_error" : activeSession.reason
+        },
+        { status: activeSession.ok || activeSession.reason === "configuration_error" ? 503 : 401 }
       )
     };
   }
 
-  const authorizationHeader = request.headers.get("authorization");
-  const bearerToken = authorizationHeader?.startsWith("Bearer ")
-    ? authorizationHeader.slice("Bearer ".length).trim()
-    : null;
-  const {
-    data: { user: cookieUser }
-  } = await supabase.auth.getUser();
-  let user = cookieUser;
-
-  if (!user && bearerToken) {
-    const {
-      data: { user: bearerUser }
-    } = await adminSupabase.auth.getUser(bearerToken);
-    user = bearerUser;
-  }
-
-  if (!user) {
-    return { error: NextResponse.json({ error: "No autorizado." }, { status: 401 }) };
-  }
+  const { user, supabase } = activeSession;
 
   const { role: sessionRole } = await getCurrentUserRole(supabase, user);
   const role = sessionRole ?? (await getAdministratorRoleFallback(adminSupabase, user.id));

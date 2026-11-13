@@ -5,6 +5,7 @@ type LoginPageProps = {
   searchParams?: Promise<{
     next?: string;
     switch?: string;
+    reason?: string;
   }>;
 };
 
@@ -20,6 +21,11 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           <div className="mb-6 flex justify-center">
             <Logo title="INICIAR SESION" />
           </div>
+          {resolvedSearchParams.reason === "session-replaced" ? (
+            <p className="mb-4 rounded-2xl border border-accent/40 bg-accent/10 px-4 py-3 text-center text-sm text-sand">
+              Tu sesion fue reemplazada por un nuevo inicio de sesion. Ingresa nuevamente para continuar.
+            </p>
+          ) : null}
           <AdminLoginForm
             nextPath={nextPath}
             isBarberSwitch={isBarberSwitch}

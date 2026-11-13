@@ -55,7 +55,8 @@ test('cleanup is exposed only by an explicit admin-only POST endpoint', () => {
 
 test('the shared guard preserves 401 for anon and 403 for non-admin users', () => {
   const guard = read('lib/admin-labor-access.ts');
-  assert.match(guard, /if \(!user\) \{[\s\S]*?status: 401/);
+  assert.match(guard, /requireActiveSession\("admin"\)/);
+  assert.match(guard, /status: activeSession\.ok \|\| activeSession\.reason === "configuration_error" \? 503 : 401/);
   assert.match(guard, /if \(role !== "administrador"\) \{[\s\S]*?status: 403/);
   assert.match(guard, /return \{ supabase: adminSupabase as any, userId: user\.id \}/);
 });

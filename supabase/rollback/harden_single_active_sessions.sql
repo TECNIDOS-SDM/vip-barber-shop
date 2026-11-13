@@ -1,0 +1,8 @@
+-- Forward-safe rollback for 20261113120000_harden_single_active_sessions.sql.
+--
+-- Do not restore browser DML or plaintext session keys. Rolling back the
+-- application code is safe because the legacy client treats a lock-write
+-- failure as non-blocking, while restoring those grants would reintroduce the
+-- session-authentication weakness this migration removes.
+--
+-- The new schema and service_role-only privileges are intentionally retained.

@@ -134,11 +134,22 @@ function fixture(user, { strict = false, profileError = false, rpcError = null }
 }
 
 function routes(f, service = null) {
+  const requireAdministrator = async () => {
+    const { data: { user } } = await f.client.auth.getUser();
+    if (!user) return { error: Response.json({ error: 'No autorizado.' }, { status: 401 }) };
+    const { role } = await auth.getCurrentUserRole(f.client, user);
+    if (role !== 'administrador') {
+      return { error: Response.json({ error: 'No autorizado.' }, { status: 403 }) };
+    }
+    return { supabase: service ?? f.client, userId: user.id };
+  };
+
   return load('app/api/barbers/route.ts', {
     'next/server': { NextResponse: { json: (body, init) => Response.json(body, init) } },
     '@/lib/admin-auth': { adminIdentifierToEmail: email => email.trim().toLowerCase() },
     '@/lib/auth-password': passwordPolicy,
     '@/lib/auth': auth,
+    '@/lib/admin-labor-access': { requireAdministrator },
     '@/lib/date': {
       getTodayIsoInAppTimezone: () => '2099-01-01',
       isReservationSlotExpired: () => false
@@ -419,7 +430,17 @@ test('admin dashboard GET authorizes before loading data; barber/generic/anon ar
     let loaded = 0;
     const r = load('app/api/admin-dashboard/route.ts', {
       'next/server': { NextResponse: { json: (body, init) => Response.json(body, init) } },
-      '@/lib/auth': auth,
+        '@/lib/admin-labor-access': {
+          requireAdministrator: async () => {
+            const { data: { user } } = await f.client.auth.getUser();
+            if (!user) return { error: Response.json({ error: 'No autorizado.' }, { status: 401 }) };
+            const { role } = await auth.getCurrentUserRole(f.client, user);
+            if (role !== 'administrador') {
+              return { error: Response.json({ error: 'No autorizado.' }, { status: 403 }) };
+            }
+            return { supabase: f.client, userId: user.id };
+          }
+        },
       '@/lib/date': { parseWeekOffset: () => 0 },
       '@/lib/supabase/server': { getSupabaseServerClient: async () => f.client },
       '@/lib/queries': { getAdminDashboardData: async client => {

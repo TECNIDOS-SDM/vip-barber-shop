@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getCurrentUserRole } from "@/lib/auth";
+import { requireAdministrator } from "@/lib/admin-labor-access";
 import { DAY_FULL_BLOCK_MARKER } from "@/lib/attention-configuration";
 import { getWeekOffsetForDate } from "@/lib/date";
 import { isWeekOffsetEnabled } from "@/lib/feature-flags";
@@ -9,8 +9,6 @@ import {
   projectRecurringAgendaRules,
   type RecurringAgendaRule
 } from "@/lib/recurring-agenda";
-import { getSupabaseAdminClient } from "@/lib/supabase/admin";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
 
 const createSchema = z.object({
   action: z.literal("create"),
@@ -98,72 +96,10 @@ function isAgendaConflictError(error: unknown) {
     ["23505", "22023"].includes((error as { code?: string }).code ?? "");
 }
 
-async function getAdminRoleFallback(
-  adminSupabase: NonNullable<ReturnType<typeof getSupabaseAdminClient>>,
-  user: { id: string }
-): Promise<"administrador" | "barbero" | null> {
-  const { data: rawProfile } = await adminSupabase
-    .from("perfiles_usuario")
-    .select("rol")
-    .eq("user_id", user.id)
-    .maybeSingle();
-  const profile = rawProfile as { rol?: "administrador" | "barbero" | null } | null;
-
-  if (profile?.rol === "administrador" || profile?.rol === "barbero") {
-    return profile.rol;
-  }
-
-  const { data: admin } = await adminSupabase
-    .from("administradores")
-    .select("id")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (admin) {
-    return "administrador";
-  }
-
-  return null;
-}
-
 export async function POST(request: Request) {
-  const supabase = await getSupabaseServerClient("admin");
-  const adminSupabase = getSupabaseAdminClient();
-
-  if (!supabase || !adminSupabase) {
-    return NextResponse.json(
-      { error: "Supabase no configurado correctamente." },
-      { status: 500 }
-    );
-  }
-
-  const authorizationHeader = request.headers.get("authorization");
-  const bearerToken = authorizationHeader?.startsWith("Bearer ")
-    ? authorizationHeader.slice("Bearer ".length).trim()
-    : null;
-  const {
-    data: { user: cookieUser }
-  } = await supabase.auth.getUser();
-  let user = cookieUser;
-
-  if (!user && bearerToken) {
-    const {
-      data: { user: bearerUser }
-    } = await adminSupabase.auth.getUser(bearerToken);
-
-    user = bearerUser;
-  }
-
-  if (!user) {
-    return NextResponse.json({ error: "No autorizado." }, { status: 401 });
-  }
-
-  const { role: sessionRole } = await getCurrentUserRole(supabase, user);
-  const role = sessionRole ?? (await getAdminRoleFallback(adminSupabase, user));
-
-  if (role !== "administrador") {
-    return NextResponse.json({ error: "No autorizado." }, { status: 403 });
-  }
+  const access = await requireAdministrator(request);
+  if ("error" in access) return access.error;
+  const adminSupabase = access.supabase;
 
   try {
     const payload = schema.parse(await request.json());
@@ -221,7 +157,7 @@ export async function POST(request: Request) {
         "convertir_reservas_en_citas_fijadas_recurrentes",
         {
           p_reserva_ids: payload.reservation_ids,
-          p_actor_user_id: user.id
+          p_actor_user_id: access.userId
         }
       );
 

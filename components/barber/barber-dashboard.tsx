@@ -21,6 +21,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/shared/logo";
 import { SignOutButton } from "@/components/shared/sign-out-button";
+import { ActiveSessionGuard } from "@/components/shared/active-session-guard";
 import { BarberLaborCenter } from "@/components/labor/barber-labor-center";
 import {
   BARBER_DASHBOARD_VIEW_COOKIE,
@@ -395,6 +396,7 @@ export function BarberDashboard({
   if (isLaborViewOpen) {
     return (
       <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
+        <ActiveSessionGuard context="barber" redirectTo="/gestion-equipo" />
         <BarberLaborCenter
           barberId={dashboardData.barber?.id ?? null}
           onExit={() => setIsLaborViewOpen(false)}
@@ -405,6 +407,7 @@ export function BarberDashboard({
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
+      <ActiveSessionGuard context="barber" redirectTo="/gestion-equipo" />
       <section className="rounded-[2rem] border border-white/10 bg-grain p-6 sm:p-8">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div>

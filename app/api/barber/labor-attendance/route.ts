@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getCurrentUserRole } from "@/lib/auth";
+import { requireBarber } from "@/lib/barber-access";
 import {
   cleanupPreviousLaborAttendance,
   laborAttendanceColumns
@@ -8,38 +8,13 @@ import {
 import { getCurrentLaborDay } from "@/lib/labor/week";
 import { getEffectiveLaborEntry } from "@/lib/labor/effective-entry";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
 
 const actionSchema = z.object({
   action: z.enum(["check_in", "check_out"])
 });
 
-async function requireBarber() {
-  const supabase = await getSupabaseServerClient("barber");
-
-  if (!supabase) {
-    return { error: NextResponse.json({ error: "Supabase no configurado." }, { status: 500 }) };
-  }
-
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return { error: NextResponse.json({ error: "No autorizado." }, { status: 401 }) };
-  }
-
-  const { role, profile } = await getCurrentUserRole(supabase, user);
-
-  if (role !== "barbero" || !profile?.barbero_id) {
-    return { error: NextResponse.json({ error: "No autorizado." }, { status: 403 }) };
-  }
-
-  return { supabase, barberoId: profile.barbero_id };
-}
-
 export async function POST(request: Request) {
-  const access = await requireBarber();
+  const access = await requireBarber(request);
 
   if ("error" in access) {
     return access.error;

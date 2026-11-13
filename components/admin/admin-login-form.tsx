@@ -8,10 +8,7 @@ import {
   ADMIN_DASHBOARD_VIEW_COOKIE,
   BARBER_DASHBOARD_VIEW_COOKIE
 } from "@/lib/dashboard-view-state";
-import {
-  createSessionLockKey,
-  setSessionLockCookie
-} from "@/lib/session-lock";
+import { clearSessionLockCookie } from "@/lib/session-lock";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 
 type AdminLoginFormProps = {
@@ -52,25 +49,22 @@ export function AdminLoginForm({
         throw error;
       }
 
-      const user = data.user;
+      if (data.user) {
+        const activation = await fetch("/api/auth/session/activate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify({ context })
+        });
 
-      if (user) {
-        const sessionKey = createSessionLockKey();
-        const { error: lockError } = await supabase
-          .from("user_session_locks")
-          .upsert(
-            {
-              user_id: user.id,
-              session_key: sessionKey
-            },
-            {
-              onConflict: "user_id"
-            }
-          );
-
-        if (!lockError) {
-          setSessionLockCookie(context, sessionKey);
+        if (!activation.ok) {
+          await supabase.auth.signOut({ scope: "local" });
+          throw new Error("No fue posible activar la sesion segura.");
         }
+
+        // The active token is now HttpOnly; the legacy JavaScript-readable key
+        // cannot authorize a later session transition.
+        clearSessionLockCookie(context);
       }
 
       if (context === "barber") {

@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { BarberDashboard } from "@/components/barber/barber-dashboard";
+import { requireActiveSession } from "@/lib/active-session";
 import { getCurrentUserRole } from "@/lib/auth";
 import {
   BARBER_DASHBOARD_VIEW_COOKIE,
@@ -10,24 +11,19 @@ import {
 import { getWeekOffsetForDate, type WeekOffset } from "@/lib/date";
 import { isWeekOffsetEnabled } from "@/lib/feature-flags";
 import { getBarberDashboardData } from "@/lib/queries";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
 export default async function GestionEquipoPage() {
-  const supabase = await getSupabaseServerClient("barber");
-
-  if (!supabase) {
+  const activeSession = await requireActiveSession("barber");
+  if (!activeSession.ok) {
+    if (activeSession.reason === "session_replaced") {
+      redirect("/auth/session-transition?context=barber&next=/gestion-equipo");
+    }
     redirect("/auth/login?next=/gestion-equipo");
   }
 
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/auth/login?next=/gestion-equipo");
-  }
+  const { supabase, user } = activeSession;
 
   const { role, profile } = await getCurrentUserRole(supabase, user);
 

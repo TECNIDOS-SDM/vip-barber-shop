@@ -27,6 +27,7 @@ import {
 } from "@/lib/date";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { SignOutButton } from "@/components/shared/sign-out-button";
+import { ActiveSessionGuard } from "@/components/shared/active-session-guard";
 import { Logo } from "@/components/shared/logo";
 import { cn } from "@/lib/utils";
 import { buildWhatsAppUrl } from "@/lib/whatsapp";
@@ -1501,6 +1502,7 @@ export function AdminDashboard({
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+      <ActiveSessionGuard context="admin" redirectTo="/admin-vip" />
       <section className="rounded-[2rem] border border-white/10 bg-grain p-6 sm:p-8">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div>

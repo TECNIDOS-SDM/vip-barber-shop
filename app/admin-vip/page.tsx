@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { AdminDashboard } from "@/components/admin/admin-dashboard";
+import { requireActiveSession } from "@/lib/active-session";
 import { getCurrentUserRole } from "@/lib/auth";
 import {
   ADMIN_DASHBOARD_VIEW_COOKIE,
@@ -10,24 +11,19 @@ import {
 import { getWeekOffsetForDate, type WeekOffset } from "@/lib/date";
 import { isWeekOffsetEnabled } from "@/lib/feature-flags";
 import { getAdminDashboardData } from "@/lib/queries";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminVipPage() {
-  const supabase = await getSupabaseServerClient("admin");
-
-  if (!supabase) {
+  const activeSession = await requireActiveSession("admin");
+  if (!activeSession.ok) {
+    if (activeSession.reason === "session_replaced") {
+      redirect("/auth/session-transition?context=admin&next=/admin-vip");
+    }
     redirect("/auth/login?next=/admin-vip");
   }
 
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/auth/login?next=/admin-vip");
-  }
+  const { supabase, user } = activeSession;
 
   const { role } = await getCurrentUserRole(supabase, user);
 

@@ -40,7 +40,7 @@ test('admin keeps every agenda action while next-week navigation is enabled', ()
   assert.match(admin, /Bloquear dia completo/);
   assert.match(admin, /Desbloquear dia completo/);
   assert.match(admin, /Fijar cita/);
-  assert.match(route, /role !== "administrador"[\s\S]*status: 403/);
+  assert.match(route, /requireAdministrator\(request\)/);
 });
 
 test('administrative reservations require an active barber while administrative blocks remain allowed', () => {

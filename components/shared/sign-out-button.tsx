@@ -2,7 +2,6 @@
 
 import { LogOut } from "lucide-react";
 import type { AuthSessionContext } from "@/lib/supabase/auth-context";
-import { clearSessionLockCookie } from "@/lib/session-lock";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 
 type SignOutButtonProps = {
@@ -16,16 +15,13 @@ export function SignOutButton({
 }: SignOutButtonProps) {
   async function handleSignOut() {
     const supabase = getSupabaseBrowserClient(context);
-    const {
-      data: { user }
-    } = await supabase.auth.getUser();
-
-    if (user) {
-      await supabase.from("user_session_locks").delete().eq("user_id", user.id);
-    }
-
-    clearSessionLockCookie(context);
-    await supabase.auth.signOut();
+    await fetch("/api/auth/session/logout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({ context })
+    });
+    await supabase.auth.signOut({ scope: "local" });
     window.location.href = redirectTo;
   }
 
