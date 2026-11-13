@@ -189,3 +189,14 @@ test('all protected admin and barber entry points use the central session guards
     assert.match(source, /requireActiveSession|requireAdministrator|requireBarber/, file);
   }
 });
+
+test('replaced sessions are checked promptly without adding a sensitive realtime channel', () => {
+  const guard = fs.readFileSync('components/shared/active-session-guard.tsx', 'utf8');
+
+  assert.match(guard, /verificationInFlightRef/);
+  assert.match(guard, /document\.visibilityState !== "visible"/);
+  assert.match(guard, /window\.setInterval\(\(\) => void verifySession\(\), 5_000\)/);
+  assert.match(guard, /window\.addEventListener\("online", onOnline\)/);
+  assert.match(guard, /void verifySession\(\);/);
+  assert.doesNotMatch(guard, /\.channel\(/);
+});

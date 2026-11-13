@@ -11,10 +11,19 @@ type ActiveSessionGuardProps = {
 
 export function ActiveSessionGuard({ context, redirectTo }: ActiveSessionGuardProps) {
   const replacedRef = useRef(false);
+  const verificationInFlightRef = useRef(false);
 
   useEffect(() => {
     async function verifySession() {
-      if (replacedRef.current) return;
+      if (
+        replacedRef.current ||
+        verificationInFlightRef.current ||
+        document.visibilityState !== "visible"
+      ) {
+        return;
+      }
+
+      verificationInFlightRef.current = true;
 
       try {
         const response = await fetch(`/api/auth/session?context=${context}`, {
@@ -34,6 +43,8 @@ export function ActiveSessionGuard({ context, redirectTo }: ActiveSessionGuardPr
         );
       } catch {
         // Network failures never authorize a session and must not sign out a valid one.
+      } finally {
+        verificationInFlightRef.current = false;
       }
     }
 
@@ -41,13 +52,19 @@ export function ActiveSessionGuard({ context, redirectTo }: ActiveSessionGuardPr
       if (document.visibilityState === "visible") void verifySession();
     };
 
-    const interval = window.setInterval(() => void verifySession(), 60_000);
+    const onOnline = () => void verifySession();
+    // Server verification remains authoritative; short polling is the private
+    // fallback until a per-user Realtime channel is audited and authorized.
+    const interval = window.setInterval(() => void verifySession(), 5_000);
     window.addEventListener("focus", verifySession);
+    window.addEventListener("online", onOnline);
     document.addEventListener("visibilitychange", onVisibilityChange);
+    void verifySession();
 
     return () => {
       window.clearInterval(interval);
       window.removeEventListener("focus", verifySession);
+      window.removeEventListener("online", onOnline);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, [context, redirectTo]);
