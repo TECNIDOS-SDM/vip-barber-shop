@@ -119,6 +119,7 @@ export function BookingShell({
   const selectedDateRef = useRef("");
   const requestSequenceRef = useRef(0);
   const refreshTimeoutRef = useRef<number | null>(null);
+  const idempotencyKeyRef = useRef<string | null>(null);
   function getRefreshWeekOffset() {
     if (selectedDateRef.current) {
       try {
@@ -457,6 +458,7 @@ export function BookingShell({
   }
 
   function resetBookingFlow() {
+    idempotencyKeyRef.current = null;
     setSelectedBarber(null);
     setSelectedDate("");
     setSelectedHour("");
@@ -587,10 +589,13 @@ export function BookingShell({
     setLoading(true);
 
     try {
+      const idempotencyKey = idempotencyKeyRef.current ?? crypto.randomUUID();
+      idempotencyKeyRef.current = idempotencyKey;
       const response = await fetch("/api/reserve", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
+          "Idempotency-Key": idempotencyKey
         },
         body: JSON.stringify({
           barbero_id: selectedBarber.id,
@@ -606,6 +611,7 @@ export function BookingShell({
       const payload = await response.json();
 
       if (!response.ok) {
+        if (response.status < 500) idempotencyKeyRef.current = null;
         throw new Error(payload.error ?? "No fue posible crear la reserva.");
       }
 

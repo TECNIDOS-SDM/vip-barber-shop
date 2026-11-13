@@ -17,7 +17,7 @@ test('public reservations accept enabled dates while preserving real offset vali
   assert.doesNotMatch(reserveRoute, /weekOffset\s*:/);
 
   const validationIndex = reserveRoute.indexOf('getWeekOffsetForDate(values.fecha)');
-  const rpcIndex = reserveRoute.indexOf('.rpc("crear_turnos_agenda_seguros"');
+  const rpcIndex = reserveRoute.indexOf('.rpc("crear_reserva_publica_idempotente"');
   assert.ok(validationIndex >= 0 && validationIndex < rpcIndex);
   assert.doesNotMatch(reserveRoute, /cleanupExpiredReservations|reservation-cleanup/);
 });
@@ -34,7 +34,7 @@ test('next-week reservation implementation remains intact through the central ga
 });
 
 test('atomic RPC, server totals and controlled conflicts remain unchanged', () => {
-  assert.match(reserveRoute, /\.rpc\("crear_turnos_agenda_seguros"/);
+  assert.match(reserveRoute, /\.rpc\("crear_reserva_publica_idempotente"/);
   assert.match(reserveRoute, /p_fecha: values\.fecha/);
   assert.match(reserveRoute, /p_servicio_id: values\.servicio_id/);
   assert.match(reserveRoute, /p_servicios_adicionales: values\.servicios_adicionales \?\? \[\]/);

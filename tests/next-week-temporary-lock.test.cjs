@@ -55,7 +55,7 @@ test('server validates enabled week offsets before public and admin mutations', 
   assert.match(reserveRoute, /weekOffset === null \|\| !isWeekOffsetEnabled\(weekOffset\)/);
   assert.ok(
     reserveRoute.indexOf('!isWeekOffsetEnabled(weekOffset)') <
-      reserveRoute.indexOf('.rpc("crear_turnos_agenda_seguros"')
+      reserveRoute.indexOf('.rpc("crear_reserva_publica_idempotente"')
   );
 
   assert.match(adminRoute, /weekOffset !== null && isWeekOffsetEnabled\(weekOffset\)/);

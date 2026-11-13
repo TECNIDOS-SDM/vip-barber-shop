@@ -43,7 +43,10 @@ function loadRoute() {
       getSupabaseAdminClient: () => ({
         async rpc(name, payload) {
           rpcCalls.push({ name, payload });
-          return { error: null };
+          if (name === 'consumir_limite_reserva_publica') {
+            return { data: { allowed: true, retryAfter: 0 }, error: null };
+          }
+          return { data: { reservationId: '44444444-4444-4444-8444-444444444444' }, error: null };
         }
       })
     }
@@ -54,7 +57,11 @@ function loadRoute() {
 function requestFor(fecha, hora = '10:00') {
   return new Request('https://unit.invalid/api/reserve', {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: {
+      'content-type': 'application/json',
+      'idempotency-key': '44444444-4444-4444-8444-444444444444',
+      'x-vercel-forwarded-for': '203.0.113.20'
+    },
     body: JSON.stringify({
       barbero_id: BARBER_ID,
       cliente_nombre: 'PRUEBA LOCAL',
@@ -89,9 +96,9 @@ test('future slots today and future enabled dates still reach the same atomic RP
     const response = await route.POST(requestFor(fecha, hora));
     assert.equal(response.status, 200);
     assert.deepEqual(await response.json(), { success: true });
-    assert.equal(rpcCalls.length, 1);
-    assert.equal(rpcCalls[0].name, 'crear_turnos_agenda_seguros');
-    assert.equal(rpcCalls[0].payload.p_fecha, fecha);
+    assert.equal(rpcCalls.length, 2);
+    assert.equal(rpcCalls[1].name, 'crear_reserva_publica_idempotente');
+    assert.equal(rpcCalls[1].payload.p_fecha, fecha);
   }
 });
 

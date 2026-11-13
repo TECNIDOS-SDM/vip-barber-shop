@@ -37,7 +37,7 @@ test('public, admin and barber reads never invoke reservation cleanup', () => {
 test('creating a reservation no longer triggers maintenance implicitly', () => {
   assert.match(reserveRoute, /export async function POST/);
   assert.doesNotMatch(reserveRoute, /cleanupExpiredReservations|reservation-cleanup/);
-  assert.match(reserveRoute, /\.rpc\("crear_turnos_agenda_seguros"/);
+  assert.match(reserveRoute, /\.rpc\("crear_reserva_publica_idempotente"/);
 });
 
 test('cleanup is exposed only by an explicit admin-only POST endpoint', () => {

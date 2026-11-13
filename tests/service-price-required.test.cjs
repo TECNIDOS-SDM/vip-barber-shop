@@ -39,6 +39,9 @@ function loadRoute() {
       getSupabaseAdminClient: () => ({
         async rpc(name, payload) {
           rpcCalls.push({ name, payload });
+          if (name === 'consumir_limite_reserva_publica') {
+            return { data: { allowed: true, retryAfter: 0 }, error: null };
+          }
           if (payload.p_servicio_id === MISSING_SERVICE_ID) {
             return {
               error: {
@@ -47,7 +50,7 @@ function loadRoute() {
               }
             };
           }
-          return { error: null };
+          return { data: { reservationId: '44444444-4444-4444-8444-444444444444' }, error: null };
         }
       })
     }
@@ -58,7 +61,11 @@ function loadRoute() {
 function request(overrides = {}) {
   return new Request('https://unit.invalid/api/reserve', {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: {
+      'content-type': 'application/json',
+      'idempotency-key': '44444444-4444-4444-8444-444444444444',
+      'x-vercel-forwarded-for': '203.0.113.20'
+    },
     body: JSON.stringify({
       barbero_id: BARBER_ID,
       cliente_nombre: 'PRUEBA LOCAL',
@@ -87,7 +94,11 @@ test('public API rejects a missing service before calling the RPC', async () => 
 
     const response = await route.POST(new Request('https://unit.invalid/api/reserve', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: {
+        'content-type': 'application/json',
+        'idempotency-key': '44444444-4444-4444-8444-444444444444',
+        'x-vercel-forwarded-for': '203.0.113.20'
+      },
       body: JSON.stringify(body)
     }));
 
@@ -100,7 +111,8 @@ test('unknown or inactive service is rejected by the authorized RPC', async () =
   const { route, rpcCalls } = loadRoute();
   const response = await route.POST(request({ servicio_id: MISSING_SERVICE_ID }));
   assert.equal(response.status, 409);
-  assert.equal(rpcCalls.length, 1);
+  assert.equal(rpcCalls.length, 2);
+  assert.equal(rpcCalls[1].name, 'crear_reserva_publica_idempotente');
   assert.match((await response.json()).error, /servicio/i);
 });
 
@@ -115,12 +127,13 @@ test('current and next week send only service IDs and never trust client prices'
     }));
 
     assert.equal(response.status, 200);
-    assert.equal(rpcCalls.length, 1);
-    assert.equal(rpcCalls[0].payload.p_servicio_id, ACTIVE_SERVICE_ID);
-    assert.equal(rpcCalls[0].payload.p_fecha, fecha);
-    assert.equal('precio' in rpcCalls[0].payload, false);
-    assert.equal('precio_total_snapshot' in rpcCalls[0].payload, false);
-    assert.equal('servicio_precio_snapshot' in rpcCalls[0].payload, false);
+    assert.equal(rpcCalls.length, 2);
+    assert.equal(rpcCalls[1].name, 'crear_reserva_publica_idempotente');
+    assert.equal(rpcCalls[1].payload.p_servicio_id, ACTIVE_SERVICE_ID);
+    assert.equal(rpcCalls[1].payload.p_fecha, fecha);
+    assert.equal('precio' in rpcCalls[1].payload, false);
+    assert.equal('precio_total_snapshot' in rpcCalls[1].payload, false);
+    assert.equal('servicio_precio_snapshot' in rpcCalls[1].payload, false);
   }
 });
 
