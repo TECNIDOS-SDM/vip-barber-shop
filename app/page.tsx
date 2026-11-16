@@ -22,8 +22,11 @@ export default async function HomePage() {
           title="VIP BARBER TOP"
           titleClassName="text-[clamp(1.7rem,5.8vw,4rem)] leading-none"
         />
-        <p className="mt-3 max-w-2xl text-pretty text-sm font-semibold leading-relaxed text-sand drop-shadow-[0_2px_1px_rgba(0,0,0,0.95)] sm:text-base">
-          <span className="text-accent">Más que un corte</span>, calidad y atención de primera
+        <p
+          className="mx-auto mt-2 max-w-2xl text-pretty text-center text-sm font-semibold uppercase leading-relaxed text-sand sm:text-base"
+          style={{ textShadow: "0 2px 2px rgba(0, 0, 0, 0.95)" }}
+        >
+          <span className="text-accent">MÁS QUE UN CORTE</span>, CALIDAD Y ATENCIÓN DE PRIMERA
         </p>
       </section>
 

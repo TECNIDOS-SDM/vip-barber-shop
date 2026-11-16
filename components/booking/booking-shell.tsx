@@ -684,9 +684,6 @@ export function BookingShell({
         {!selectedBarber ? (
           <>
             <div className="mb-6 flex flex-wrap items-center gap-3">
-              <p className="mr-1 text-xs uppercase tracking-[0.22em] text-accent/80">
-                REDES SOCIALES
-              </p>
               <a
                 href="https://www.instagram.com/vip_barbertop?igsh=MWliYzYwazNxM3JzbQ%3D%3D&utm_source=qr"
                 target="_blank"

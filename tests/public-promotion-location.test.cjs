@@ -22,25 +22,27 @@ test('public page moves directly from header to booking flow without promotion',
 });
 
 test('initial barber selector places social links and exact-location action before barber cards', () => {
-  const socialIndex = booking.indexOf('REDES SOCIALES');
+  const instagramIndex = booking.indexOf('Instagram VIP Barber Top');
   const locationIndex = booking.indexOf('UBICACIÓN');
   const barberIndex = booking.indexOf('liveBarbers.map');
   const mapIndex = booking.indexOf('3.4437761,-76.4901789');
 
-  assert.ok(socialIndex >= 0);
-  assert.ok(locationIndex > socialIndex);
+  assert.ok(instagramIndex >= 0);
+  assert.ok(locationIndex > instagramIndex);
   assert.ok(barberIndex > locationIndex);
   assert.ok(mapIndex >= 0);
   assert.match(booking, /const LOCATION_MAP_URL = "https:\/\/www\.google\.com\/maps\?q=3\.4437761,-76\.4901789&z=19"/);
   assert.match(booking, /href=\{LOCATION_MAP_URL\}/);
-  assert.match(booking, /!selectedBarber \? \([\s\S]*REDES SOCIALES[\s\S]*liveBarbers\.map/);
+  assert.match(booking, /!selectedBarber \? \([\s\S]*Instagram VIP Barber Top[\s\S]*liveBarbers\.map/);
+  assert.doesNotMatch(booking, /REDES SOCIALES/);
   assert.doesNotMatch(booking, /<iframe/);
   assert.doesNotMatch(booking, /Cra\. 23 #70 04/);
 });
 
 test('header tagline highlights the service promise without changing booking controls', () => {
-  assert.match(page, /<span className="text-accent">Más que un corte<\/span>, calidad y atención de primera/);
-  assert.match(page, /drop-shadow-\[0_2px_1px_rgba\(0,0,0,0\.95\)\]/);
+  assert.match(page, /<span className="text-accent">MÁS QUE UN CORTE<\/span>, CALIDAD Y ATENCIÓN DE PRIMERA/);
+  assert.match(page, /mx-auto mt-2 max-w-2xl text-pretty text-center/);
+  assert.match(page, /textShadow: "0 2px 2px rgba\(0, 0, 0, 0\.95\)"/);
 });
 
 test('visual additions do not introduce booking, Supabase or WhatsApp mutations', () => {
