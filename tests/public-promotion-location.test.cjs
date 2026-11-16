@@ -39,9 +39,11 @@ test('initial barber selector places social links and exact-location action befo
   assert.doesNotMatch(booking, /Cra\. 23 #70 04/);
 });
 
-test('header tagline highlights the service promise without changing booking controls', () => {
-  assert.match(page, /<span className="text-accent">MÁS QUE UN CORTE<\/span>, CALIDAD Y ATENCIÓN DE PRIMERA/);
+test('header tagline uses one centered shaded tone without changing booking controls', () => {
+  assert.match(page, />\s*MÁS QUE UN CORTE, CALIDAD Y ATENCIÓN DE PRIMERA\s*<\/p>/);
   assert.match(page, /mx-auto mt-2 max-w-2xl text-pretty text-center/);
+  assert.match(page, /uppercase leading-relaxed text-accent/);
+  assert.doesNotMatch(page, /<span className="text-accent">MÁS QUE UN CORTE<\/span>/);
   assert.match(page, /textShadow: "0 2px 2px rgba\(0, 0, 0, 0\.95\)"/);
 });
 
