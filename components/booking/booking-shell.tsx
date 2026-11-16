@@ -37,6 +37,7 @@ import type { Barber, GlobalAdditionalService, GlobalService, ReservationSlot } 
 
 const BARBER_FALLBACK_IMAGE = "/vip-barbertop-logo.jpeg";
 const RESERVATION_WHATSAPP_NUMBER = "573024400088";
+const LOCATION_MAP_URL = "https://www.google.com/maps?q=3.4437761,-76.4901789&z=19";
 
 type BookingShellProps = {
   isConfigured: boolean;
@@ -682,6 +683,48 @@ export function BookingShell({
       <section className="glass rounded-[2rem] p-4 sm:p-6">
         {!selectedBarber ? (
           <>
+            <div className="mb-6 flex flex-wrap items-center gap-3">
+              <p className="mr-1 text-xs uppercase tracking-[0.22em] text-accent/80">
+                REDES SOCIALES
+              </p>
+              <a
+                href="https://www.instagram.com/vip_barbertop?igsh=MWliYzYwazNxM3JzbQ%3D%3D&utm_source=qr"
+                target="_blank"
+                rel="noreferrer"
+                aria-label="Instagram VIP Barber Top"
+                className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-sand transition hover:border-accent hover:text-accent"
+              >
+                <Instagram className="h-5 w-5" />
+              </a>
+              <a
+                href="https://www.facebook.com/share/1DsXeNLRL1/?mibextid=wwXIfr"
+                target="_blank"
+                rel="noreferrer"
+                aria-label="Facebook VIP Barber Top"
+                className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-sand transition hover:border-accent hover:text-accent"
+              >
+                <Facebook className="h-5 w-5" />
+              </a>
+              <a
+                href="https://www.tiktok.com/@vip_barbertop?_r=1&_t=ZS-95kyenGjuyd"
+                target="_blank"
+                rel="noreferrer"
+                aria-label="TikTok VIP Barber Top"
+                className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-sand transition hover:border-accent hover:text-accent"
+              >
+                <TikTokIcon />
+              </a>
+              <a
+                href={LOCATION_MAP_URL}
+                target="_blank"
+                rel="noreferrer"
+                aria-label="Abrir ubicación de VIP Barber Top en Google Maps"
+                className="inline-flex h-11 items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 text-xs font-semibold uppercase tracking-[0.16em] text-sand transition hover:border-accent hover:text-accent"
+              >
+                <MapPin className="h-4 w-4" aria-hidden="true" />
+                UBICACIÓN
+              </a>
+            </div>
             <div className="grid gap-4 sm:grid-cols-2">
               {liveBarbers.map((barber) => (
                 <div
@@ -1047,65 +1090,6 @@ export function BookingShell({
         )}
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-[0.75fr_1.25fr]">
-        <aside className="glass h-full rounded-[2rem] p-5 sm:p-6">
-          <div className="h-full rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-4">
-            <p className="text-xs uppercase tracking-[0.22em] text-accent/80">
-              REDES SOCIALES
-            </p>
-            <div className="mt-4 flex items-center gap-3">
-              <a
-                href="https://www.instagram.com/vip_barbertop?igsh=MWliYzYwazNxM3JzbQ%3D%3D&utm_source=qr"
-                target="_blank"
-                rel="noreferrer"
-                aria-label="Instagram VIP Barber Top"
-                className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-sand transition hover:border-accent hover:text-accent"
-              >
-                <Instagram className="h-5 w-5" />
-              </a>
-              <a
-                href="https://www.facebook.com/share/1DsXeNLRL1/?mibextid=wwXIfr"
-                target="_blank"
-                rel="noreferrer"
-                aria-label="Facebook VIP Barber Top"
-                className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-sand transition hover:border-accent hover:text-accent"
-              >
-                <Facebook className="h-5 w-5" />
-              </a>
-              <a
-                href="https://www.tiktok.com/@vip_barbertop?_r=1&_t=ZS-95kyenGjuyd"
-                target="_blank"
-                rel="noreferrer"
-                aria-label="TikTok VIP Barber Top"
-                className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-sand transition hover:border-accent hover:text-accent"
-              >
-                <TikTokIcon />
-              </a>
-            </div>
-          </div>
-        </aside>
-
-        <aside className="glass h-full rounded-[2rem] p-5 sm:p-6">
-          <div className="h-full rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-4">
-            <div className="flex items-center gap-2 text-accent/80">
-              <MapPin className="h-5 w-5" aria-hidden="true" />
-              <h2 className="text-xs font-semibold uppercase tracking-[0.22em]">
-                Ubicación
-              </h2>
-            </div>
-            <div className="mt-4 overflow-hidden rounded-[1.25rem] border border-white/10 bg-black/30">
-              <iframe
-                title="Ubicación de VIP Barber Top en Google Maps"
-                src="https://www.google.com/maps?q=3.4437761,-76.4901789&z=19&output=embed"
-                className="h-64 w-full sm:h-72 lg:h-32"
-                loading="lazy"
-                allowFullScreen
-                referrerPolicy="no-referrer-when-downgrade"
-              />
-            </div>
-          </div>
-        </aside>
-      </div>
     </div>
   );
 }
