@@ -182,6 +182,7 @@ export async function getAdminDashboardData(
           "id, barbero_id, cliente_nombre, cliente_whatsapp, fecha, hora, estado, bloqueo_dia_completo, created_at, servicio_id, servicio_nombre_snapshot, servicio_precio_snapshot, precio_total_snapshot, reserva_servicios_adicionales(nombre_snapshot,precio_snapshot), barberos(nombre)"
         )
         .in("fecha", weekDates)
+         .neq("estado", "cancelada")
         .order("fecha")
         .order("hora"),
       supabase

@@ -215,18 +215,27 @@ export async function POST(request: Request) {
         return dateOutOfRangeResponse();
       }
 
-      const { error } = await adminSupabase
+      const { data: releasedReservations, error } = await adminSupabase
         .from("reservas")
-        .delete()
-        .in("id", payload.reservation_ids);
+        .update({ estado: "cancelada" })
+        .in("id", payload.reservation_ids)
+        .neq("estado", "cancelada")
+        .select("id");
 
       if (error) {
-        throw error;
+        console.error("admin-schedule release failed", {
+          code: error.code,
+          message: error.message
+        });
+        return NextResponse.json(
+          { error: "No fue posible liberar el horario. Intenta nuevamente." },
+          { status: 500 }
+        );
       }
 
       return NextResponse.json({
         success: true,
-        releasedIds: ((existingReservations ?? []) as Array<{ id: string }>).map(
+        releasedIds: ((releasedReservations ?? []) as Array<{ id: string }>).map(
           (reservation) => reservation.id
         )
       });

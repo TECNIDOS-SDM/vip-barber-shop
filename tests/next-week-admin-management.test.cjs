@@ -25,7 +25,8 @@ test('release and status changes read persisted dates before any mutation', () =
     assert.match(branch, /\.select\("id, fecha"\)/);
     assert.match(branch, /!isManagedAgendaDate\(reservation\.fecha\)/);
   }
-  assert.ok(releaseBranch.indexOf('!isManagedAgendaDate(reservation.fecha)') < releaseBranch.indexOf('.delete()'));
+  assert.ok(releaseBranch.indexOf('!isManagedAgendaDate(reservation.fecha)') < releaseBranch.indexOf('.update({ estado: "cancelada" })'));
+  assert.doesNotMatch(releaseBranch, /\.delete\(\)/);
   assert.ok(statusBranch.indexOf('!isManagedAgendaDate(reservation.fecha)') < statusBranch.indexOf('.update({ estado: payload.estado })'));
 });
 

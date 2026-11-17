@@ -638,6 +638,8 @@ export function AdminDashboard({
   }
 
   async function releaseReservation(ids: string[]) {
+    setSaving(true);
+
     try {
       const response = await fetch("/api/admin-schedule", {
         method: "POST",
@@ -662,15 +664,20 @@ export function AdminDashboard({
           (reservation) => !(payload.releasedIds ?? ids).includes(reservation.id)
         )
       );
+      return true;
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "No fue posible liberar el horario."
       );
+      return false;
+    } finally {
+      setSaving(false);
     }
   }
 
   async function deactivateRecurringReservations(recurringReservations: any[]) {
     const firstReservation = recurringReservations[0];
+    setSaving(true);
 
     try {
       const response = await fetch("/api/admin-schedule", {
@@ -704,12 +711,16 @@ export function AdminDashboard({
           ? "Horario recurrente liberado."
           : "Horarios recurrentes liberados."
       );
+      return true;
     } catch (error) {
       toast.error(
         error instanceof Error
           ? error.message
           : "No fue posible liberar la recurrencia."
       );
+      return false;
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -756,16 +767,22 @@ export function AdminDashboard({
   }
 
   async function confirmReleaseReservation() {
-    if (!selectedReleaseReservations.length) {
+    if (!selectedReleaseReservations.length || saving) {
       return;
     }
 
+    let released = false;
     if (selectedReleaseReservations.every((reservation) => reservation.recurrente)) {
-      await deactivateRecurringReservations(selectedReleaseReservations);
+      released = await deactivateRecurringReservations(selectedReleaseReservations);
     } else {
-      await releaseReservation(selectedReleaseReservations.map((reservation) => reservation.id));
+      released = await releaseReservation(
+        selectedReleaseReservations.map((reservation) => reservation.id)
+      );
     }
-    closeReleaseActionModal();
+
+    if (released) {
+      closeReleaseActionModal();
+    }
   }
 
   async function saveRecurringFixedAppointmentService() {
@@ -2456,10 +2473,11 @@ export function AdminDashboard({
               </button>
               <button
                 type="button"
+                disabled={saving}
                 onClick={() => void confirmReleaseReservation()}
-                className="flex-1 rounded-2xl bg-danger px-4 py-3 text-sm font-semibold text-white"
+                className="flex-1 rounded-2xl bg-danger px-4 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Liberar espacio
+                {saving ? "Liberando..." : "Liberar espacio"}
               </button>
             </div>
           </div>
