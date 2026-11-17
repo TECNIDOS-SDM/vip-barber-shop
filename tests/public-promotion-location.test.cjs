@@ -22,21 +22,22 @@ test('public page moves directly from header to booking flow without promotion',
 });
 
 test('initial barber selector places social links and exact-location action before barber cards', () => {
-  const connectIndex = booking.indexOf('CONECTA CON NOSOTROS');
   const instagramIndex = booking.indexOf('Instagram VIP Barber Top');
   const locationIndex = booking.indexOf('UBICACIÓN');
   const barberIndex = booking.indexOf('liveBarbers.map');
   const mapIndex = booking.indexOf('3.4437761,-76.4901789');
 
-  assert.ok(connectIndex >= 0);
-  assert.ok(instagramIndex > connectIndex);
+  assert.ok(instagramIndex >= 0);
   assert.ok(locationIndex > instagramIndex);
   assert.ok(barberIndex > locationIndex);
   assert.ok(mapIndex >= 0);
   assert.match(booking, /const LOCATION_MAP_URL = "https:\/\/www\.google\.com\/maps\?q=3\.4437761,-76\.4901789&z=19"/);
   assert.match(booking, /href=\{LOCATION_MAP_URL\}/);
-  assert.match(booking, /!selectedBarber \? \([\s\S]*CONECTA CON NOSOTROS[\s\S]*Instagram VIP Barber Top[\s\S]*liveBarbers\.map/);
-  assert.match(booking, /max-w-3xl rounded-\[1\.5rem\] border border-white\/10 bg-\[#151515\]\/90/);
+  assert.match(booking, /!selectedBarber \? \([\s\S]*Instagram VIP Barber Top[\s\S]*liveBarbers\.map/);
+  assert.match(booking, /w-fit max-w-full rounded-\[1\.5rem\] border border-white\/10 bg-\[#151515\]\/90 p-3/);
+  assert.doesNotMatch(booking, /h-6 w-px bg-white\/15/);
+  assert.doesNotMatch(booking, /CONECTA CON NOSOTROS/);
+  assert.doesNotMatch(booking, /h-px flex-1 bg-white\/10/);
   assert.doesNotMatch(booking, /REDES SOCIALES/);
   assert.doesNotMatch(booking, /<iframe/);
   assert.doesNotMatch(booking, /Cra\. 23 #70 04/);

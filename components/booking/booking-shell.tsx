@@ -683,15 +683,8 @@ export function BookingShell({
       <section className="glass rounded-[2rem] p-4 sm:p-6">
         {!selectedBarber ? (
           <>
-            <div className="mx-auto mb-6 max-w-3xl rounded-[1.5rem] border border-white/10 bg-[#151515]/90 p-4 sm:p-5">
-              <div className="flex items-center gap-3">
-                <span className="h-px flex-1 bg-white/10" aria-hidden="true" />
-                <p className="text-center text-xs font-semibold uppercase tracking-[0.22em] text-accent/90 sm:text-sm">
-                  CONECTA CON NOSOTROS
-                </p>
-                <span className="h-px flex-1 bg-white/10" aria-hidden="true" />
-              </div>
-              <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+            <div className="mx-auto mb-6 w-fit max-w-full rounded-[1.5rem] border border-white/10 bg-[#151515]/90 p-3 sm:px-4">
+              <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-3">
                 <a
                   href="https://www.instagram.com/vip_barbertop?igsh=MWliYzYwazNxM3JzbQ%3D%3D&utm_source=qr"
                   target="_blank"
@@ -724,7 +717,7 @@ export function BookingShell({
                   target="_blank"
                   rel="noreferrer"
                   aria-label="Abrir ubicación de VIP Barber Top en Google Maps"
-                  className="inline-flex h-11 items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 text-xs font-semibold uppercase tracking-[0.16em] text-accent transition hover:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+                  className="inline-flex h-11 items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 text-xs font-semibold uppercase tracking-[0.16em] text-accent transition hover:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 sm:px-4"
                 >
                   <MapPin className="h-4 w-4" aria-hidden="true" />
                   UBICACIÓN
