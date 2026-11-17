@@ -22,28 +22,30 @@ test('public page moves directly from header to booking flow without promotion',
 });
 
 test('initial barber selector places social links and exact-location action before barber cards', () => {
+  const connectIndex = booking.indexOf('CONECTA CON NOSOTROS');
   const instagramIndex = booking.indexOf('Instagram VIP Barber Top');
   const locationIndex = booking.indexOf('UBICACIÓN');
   const barberIndex = booking.indexOf('liveBarbers.map');
   const mapIndex = booking.indexOf('3.4437761,-76.4901789');
 
-  assert.ok(instagramIndex >= 0);
+  assert.ok(connectIndex >= 0);
+  assert.ok(instagramIndex > connectIndex);
   assert.ok(locationIndex > instagramIndex);
   assert.ok(barberIndex > locationIndex);
   assert.ok(mapIndex >= 0);
   assert.match(booking, /const LOCATION_MAP_URL = "https:\/\/www\.google\.com\/maps\?q=3\.4437761,-76\.4901789&z=19"/);
   assert.match(booking, /href=\{LOCATION_MAP_URL\}/);
-  assert.match(booking, /!selectedBarber \? \([\s\S]*Instagram VIP Barber Top[\s\S]*liveBarbers\.map/);
+  assert.match(booking, /!selectedBarber \? \([\s\S]*CONECTA CON NOSOTROS[\s\S]*Instagram VIP Barber Top[\s\S]*liveBarbers\.map/);
+  assert.match(booking, /max-w-3xl rounded-\[1\.5rem\] border border-white\/10 bg-\[#151515\]\/90/);
   assert.doesNotMatch(booking, /REDES SOCIALES/);
   assert.doesNotMatch(booking, /<iframe/);
   assert.doesNotMatch(booking, /Cra\. 23 #70 04/);
 });
 
-test('header tagline uses one centered shaded tone without changing booking controls', () => {
-  assert.match(page, />\s*MÁS QUE UN CORTE, CALIDAD Y ATENCIÓN DE PRIMERA\s*<\/p>/);
+test('header tagline uses the exact centered shaded copy without changing booking controls', () => {
+  assert.match(page, />\s*Elevate your look, ⭐️⭐️⭐️⭐️⭐️ service\.\s*<\/p>/);
   assert.match(page, /mx-auto mt-2 max-w-2xl text-pretty text-center/);
-  assert.match(page, /uppercase leading-relaxed text-accent/);
-  assert.doesNotMatch(page, /<span className="text-accent">MÁS QUE UN CORTE<\/span>/);
+  assert.doesNotMatch(page, /uppercase leading-relaxed text-accent/);
   assert.match(page, /textShadow: "0 2px 2px rgba\(0, 0, 0, 0\.95\)"/);
 });
 
